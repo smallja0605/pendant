@@ -1,0 +1,421 @@
+# Decisions
+
+## M0
+- **Xcode project is hand-written** (`Pendant.xcodeproj`, objectVersion 77) using a file-system-synchronized group for `Pendant/`; new Swift files are picked up automatically. No XcodeGen/Tuist dependency.
+- **Target/product name `Pendant`**, display name `Pendant` (via `CFBundleDisplayName`) — the apostrophe is avoided in the build product name to keep tooling safe.
+- **Bundle ID** `com.smallja.nook` (provisional, per requirements 11).
+- **Swift 6 language mode**, deployment target macOS 14.0.
+- **Not sandboxed**, ad-hoc signed (`CODE_SIGN_IDENTITY = -`), no Apple team. Entitlements (`Config/Pendant.entitlements`): apple-events (Music/Spotify control), calendars, reminders, camera (Mirror). Hardened Runtime is requested; Xcode notes it is disabled for ad-hoc Debug signing.
+- **Menu bar** built with `NSStatusItem` (not `MenuBarExtra`) for finer control of the menu.
+- **No third-party dependencies** yet (Sparkle comes in M8).
+- **Tooling**: SwiftLint / gitleaks configs committed; binaries are not installed here (`brew install swiftlint gitleaks`). `scripts/install-hooks.sh` installs the pre-commit hook once the folder is a git repo.
+- Unit-test target is deferred to M1 (first real logic: notch geometry).
+
+## M1
+- `NotchGeometry` is pure (no AppKit) and unit-tested (Swift Testing, `PendantTests`). Notch size = screen width − `auxiliaryTopLeftArea` − `auxiliaryTopRightArea`; height = `safeAreaInsets.top`. Screens without a notch get a 185×menu-bar-height virtual notch.
+- The idle panel is only notch width + 2×8 pt ears (reverse corners), so nothing outside it is ever covered. `ignoresMouseEvents = true` until M2 makes the capsule interactive via a global mouse monitor.
+- Fullscreen: panel uses `.fullScreenAuxiliary` + `.canJoinAllSpaces`. A virtual notch is hidden in fullscreen when `showInFullscreen` is off (detected as menu bar height 0); a physical notch always stays. Setting UI arrives in M5.
+- App icon: generated placeholder (lamp on notch) in `Assets.xcassets`.
+
+## M2
+- **One fixed-position panel, SwiftUI does the morph.** The panel frame follows the state (idle/compact/expanded + room for swell and shadow); it grows *before* the animation and shrinks 0.7 s *after* it, so the spring is never clipped. The shape animates via `NotchShape.animatableData` (bottom radius) and frame size.
+- **Click-through**: `ignoresMouseEvents` is true only in idle. Hover and idle-click are detected with global/local mouse monitors (no Accessibility permission needed for mouse events). Compact/expanded panels take clicks themselves.
+- **Collapse rules**: cursor outside the capsule for `collapseDelay` (0.3 s), Esc (panel becomes key only after a click inside the expanded capsule), click outside, switching to another app.
+- **Hover swell** uses the video-derived factors (×1.08 width, ×1.22 height, shadow); Reduce Motion uses ×1.02/×1.04 and a plain ease. Defaults: hover expand = always, delay 0.3 s, unswell delay 0.15 s (UserDefaults in M5).
+- Not in M2: haptics (M3), ⌥Space global hotkey (with the settings in M5), real compact content (modules). A DEBUG-only menu item toggles a fake compact activity.
+- **Animation fixes after reviewing `record/layout-彈出.mp4`** (`record/` is git-ignored): (1) when the panel grew, SwiftUI animated the capsule's origin so it expanded sideways from the left — the content is now laid out synchronously (`layoutSubtreeIfNeeded`) right after the window resize, before the animation starts; (2) content keeps a fixed layout, is clipped by the growing shape, and blur-fades in after the frame starts opening (blur-fades out immediately on collapse); (3) spring tightened to response 0.4 / damping 0.8. Headless check: `PENDANT_DEBUG_CYCLE=1` (DEBUG builds) expands/collapses automatically; width grew symmetrically in captured frames.
+- **Compact wing is square by default** (width per side = notch height; icon + 7 pt margin). User-adjustable width arrives with the settings in M5.
+- **Jelly springs**: expand `response 0.5 / damping 0.58` (≈10 % overshoot, measured ripple 49→64→78→75 px), collapse `0.42 / 0.68`, hover swell `0.3 / 0.5`. Panel padding (44 pt sides / 44 pt bottom) leaves room for the overshoot.
+- **Capsule never smaller than the physical notch**: `CapsuleView` clamps the animated body size to ≥ notch size, so spring undershoot cannot shrink the capsule below the (fixed-size) physical notch. Collapse spring is now `0.32 / 0.85` (fast, almost no bounce). Measured collapse height (px): 339→294→135→76→65→66, monotonic, no rebound.
+
+## M3
+- **`HapticService`** (`Services/Haptics`) is the only place that talks to `NSHapticFeedbackManager`. Events are an enum (`HapticEvent`) matching table 5.1; each has a pattern and a minimum interval (notch enter 150 ms, drag-style 40 ms, hover 50 ms, settle 100 ms). `HapticThrottle` (pure, time-injected) and `StepTracker` (fires only when crossing a unit boundary) are unit-tested; the performer sits behind a protocol so the service is tested with a recorder.
+- **Global switch**: `UserDefaults` key `haptics.enabled` (default on), toggled from the menu bar for now; the settings UI arrives in M5. The notch-hover switch (`hoverEffectEnabled`) still gates both swell and the enter haptic; global off keeps the swell silent.
+- **Settle haptic** fires from the animation's logical completion (`withAnimation(completionCriteria:)`), only if the state is still the target (interrupted transitions stay quiet).
+- Drag/date/timer/hover events exist and are reachable via DEBUG menu → 測試觸覺, but their call sites come with the modules (M4+). `View.hapticOnHover()` is the helper for controls.
+- **Settings window skeleton** (`Settings/SettingsWindowController`, `SettingsView`): opened from the menu bar; currently holds the haptics switch and (DEBUG only) a per-event test list. M5 turns it into the 9-tab window. The menu bar no longer carries the haptics toggle / test submenu. All brackets in UI text are half-width.
+- **Menu hover-highlight glitch**: the app is idle (0 % CPU, main thread parked in the event loop), so it is not starving the menu. `PENDANT_DEBUG_NO_MONITORS=1` (DEBUG builds) disables all event monitors for A/B comparison.
+- **Two-stage hover haptics**: stage 1 (cursor touches the notch) → `.alignment` + swell; stage 2 (dwell/click opens the capsule) → `.levelChange` fired at the *start* of the expand (`expandStarted`) so it matches the action. Collapse still vibrates on settle.
+- **Tuning after hands-on test**: springs reverted to expand `0.5 / 0.58` and hover swell `0.3 / 0.5` (the faster tail was tried and rejected). Panel resizes now always lay the SwiftUI content out synchronously (`setPanelFrame`), including the delayed shrink and screen/Space changes, to remove the rare one-frame offset glitch. Notch-enter haptic changed from `.alignment` to `.generic` (slightly weaker than the stage-2 `.levelChange`), deviating from the 5.1 table on request.
+- **Haptic playground replaces the test buttons** (`Settings/HapticPlayground.swift`, DEBUG only): real controls (hoverable media-style buttons, a 5 % step slider, a drag-across day strip, a drag-to-scrub timer digit) drive the same `HapticEvent`s the modules will use; only "timer finished" stays a button (1 s delay). `StepTracker` is exercised for real here.
+- **Reusable input components** (`Core/Components`): `onScrollWheel` (local `.scrollWheel` monitor limited to the view's bounds, consumes handled events, natural-scroll direction preserved) and `DigitWheel` (continuous position, neighbours scroll/fade/blur with distance, spring snap after a 0.14 s pause or drag end, one haptic per unit, VoiceOver adjustable). The timer (M6) and calendar day strip (two-finger horizontal swipe, one day + one haptic per step) reuse them; the playground day strip already uses horizontal scrolling.
+- Timer digit haptic is `.generic` (the `.alignment` version felt too light while scrubbing). Menu-glitch A/B env vars: `PENDANT_DEBUG_NO_MONITORS` (no event monitors), `PENDANT_DEBUG_NO_PANEL` (notch panel hidden).
+- **Menu hover glitch root cause (A/B: no monitors → no glitch)**: the permanent *local* mouse-move monitor also fires for every move while the status-item menu is tracking. The local monitor is now installed only while the capsule is compact/expanded (idle panel is click-through, so it never needs one); global monitors stay. If the glitch persists, next suspect is the global monitors.
+- Timer digit haptic raised to `.levelChange` (`.alignment` and `.generic` both felt faint during two-finger scrubbing).
+- **Menu glitch, second step** (dynamic local monitor alone did not fix it): all mouse monitors are now removed while the status-item menu is open (`NSMenuDelegate.menuWillOpen/menuDidClose` → `setMonitorsSuspended`) and re-installed on close. Timer digit haptic reverted to share date's pattern/interval exactly (`.alignment`, 40 ms) as requested; a test asserts they stay identical.
+
+## M4 — Media player
+- **Sources**: Apple Music and Spotify only. State arrives through their distributed notifications (`com.apple.Music.playerInfo`, `com.spotify.client.PlaybackStateChanged`; no permission needed); position, artwork and control use Apple events through one serial `AppleScriptRunner` (static script text only; numbers formatted by us). The app is only scripted while running (`tell application` would launch it). Automation permission is requested once, the first time a player reports a track; denial shows an in-capsule guide with an "open System Settings" button.
+- **Other Now Playing sources are not supported**: since macOS 15.4 third-party apps cannot use `MediaRemote`, and the known workarounds rely on private entitlement tricks / extra dependencies (disallowed by 12.5). Per 12.3 this is the documented degradation; browser playback is therefore not shown.
+- **Spotify artwork exception to 13.2** (user-approved): HTTPS fetch of the cover only from `i.scdn.co`, ephemeral session, no cookies, ≤ 3 MB, 8-entry cache, thumbnail ≤ 480 px. Apple Music artwork is read locally (`data of artwork 1`). Artwork is retried at 0/0.8/2/4/7 s so the first Apple Music track gets its cover.
+- **No stale info**: a `.stopped` snapshot, app quit, or an empty player clears title/artist/artwork immediately; track changes drop the old cover first and crossfade the new one in.
+- **No polling**: elapsed time is derived from an anchor (`NowPlaying.position(at:)`); the progress `TimelineView` and the waveform only tick while visible *and* playing.
+- **Progress haptics**: one step per 1 % of the track but never finer than 1 s; volume: one step per 1 %. Volume popover is an in-capsule overlay (a separate popover window would trigger the auto-collapse rules). Volume targets the player app, falling back to system output volume without permission.
+- **Gestures**: two-finger horizontal swipe on the media page = next/previous (threshold 60 pt, once per swipe; settings in M5).
+- **Layout**: expanded body = 5 cells × 62 pt + 2 × 20 pt inset (≈ 350 pt), content height 160 pt below the notch; reference images are 255 pt wide at 1x.
+- **Ad-hoc signing caveat**: every rebuild changes the code identity, so macOS asks for Automation permission again after each build.
+- DEBUG helpers: `PENDANT_DEBUG_MEDIA=play|pause` injects a fake track for visual checks.
+- **M4 feedback round** (user hands-on with real players): progress bar has no knob, 4 pt thin, 8 pt on hover/drag; expanded body shrunk to the reference size (5 cells × 46 pt + 2 × 18 pt ≈ 266 pt wide, 146 pt content height); controls re-spaced to fit the 122 pt text column.
+- **Panel-safe hover**: SwiftUI `onHover` does not fire in the non-activating, never-key capsule panel, so `onActiveHover` (NSTrackingArea, `.activeAlways`) is used for everything hover-driven (cover tilt, progress thickening, compact regions, hover haptics).
+- **Compact capsule hover** (reference `音樂小膠囊.mp4`): the capsule swells on hover; over the cover it grows by 30 pt and shows song + artist; over the waveform the bars blur-morph into pause/play, which toggles playback.
+- **Expanded cover**: click opens the player app; colour-matched shadow (average colour made vivid) and a 3D tilt (±14°, perspective) following the pointer, springy, disabled under Reduce Motion.
+- Hover-to-expand now defaults to **off** (user preference); the capsule opens on a left click. The notch/compact hover swell, haptics and compact hover features are unaffected. The setting UI arrives in M5.
+- Compact hover swell: the icon/waveform row is shifted down by half the extra height so the content moves with the swelling capsule (reference 音樂小膠囊.mp4).
+- Compact hover polish: icon/waveform now scale ×1.14 with the swell and the content width tracks the swelled capsule; song/artist area is 46 pt tall (bottom margin ≈ 13 pt). Play/pause no longer flickers: our optimistic state wins for 1.2 s over a stale echo notification from the player.
+- Media polish round 3: waveform amplitude 3.5–7.5 pt (was 4–12); play/pause icon swaps without `symbolEffect` so a click is press-shrink → icon change → grow (the symbol effect added a second bounce); media page gets 12 pt top padding below the notch (content height 154 pt).
+- **Local mouse monitor removed entirely.** Capsule enter/exit now comes from an AppKit tracking area on the capsule body (`capsulePointer(inside:)`); global monitors remain for outside-the-window movement. Same root cause as the menu stutter (a local move monitor sees every event). The cover tilt also uses a single `interactiveSpring` and a flattened (`drawingGroup`) layer.
+- **Compact icon margins**: icons are centred in their wing (wing = (body width − notch width) / 2) and sized `min(wing, row height) − 14`, so margins stay equal on every side while the capsule swells; the previous scale-effect approach left the icon off-centre.
+- **Choppy hover/3D, round 2.** Profiling an auto-driven tilt (`PENDANT_DEBUG_TILT=1`, 120 Hz) showed ~14 % CPU and an idle main thread, so rendering is not the bottleneck; the stutter tracks event delivery. The global *move* monitor is now installed only in idle (`syncMoveMonitor`); compact/expanded rely on the capsule's tracking area, and the cover tilt samples the pointer on every display frame (`CADisplayLink` via `onActiveHover(sampled:)`). Collapse-on-leave in expanded therefore comes from the tracking-area exit (a capsule opened with the pointer elsewhere closes by click-outside / Esc).
+- Compact stages now vibrate: entering the compact capsule (`.notchEnter`), entering the cover/waveform region (`.hoverControl`), expanding (`.expandStarted`).
+- Showing song info no longer shrinks the cover: that hover state uses the same swollen size as a plain hover (+46 pt for the text). Expanded width: cell width 52 pt (5 cells ≈ 296 pt).
+- **Compact hover fixes**: the panel for the compact state is now sized for the song-info hover (swollen body + 46 pt) — it was clipping the bottom corners, which looked like the rounded corners disappearing; bottom radius is 22 in that state (14 swollen, 12 resting). The icon row is pinned at the top (ZStack) so showing the info line never moves the icon. Headless check: `PENDANT_DEBUG_HOVER=swell|artwork`.
+- **Stuck swollen compact capsule** (reported from `record/hover小膠囊專輯bug.png`): the capsule changes size under a still pointer (info line appears/disappears), and AppKit can skip the tracking-area exit, leaving `isHovering` / swell stuck since the global move monitor is off in compact. Fix: an 80 ms pointer watch runs only while the compact capsule is hovered or the capsule is expanded and detects leaving by position (`checkPointer`); it stops by itself. No event monitors involved.
+
+## Glossary (capsule vocabulary)
+- **Idle (瀏海態)**, **Compact (小膠囊)**, **Expanded (大膠囊)** — the three states from the requirements.
+- **Swell (膨脹態)** — the slightly enlarged capsule shown on hover (×1.08 wide, ×1.22 tall, shadow); exists for Idle and Compact.
+- **Peek (資訊態)** — Compact + Swell + the song / artist line, shown while hovering the cover.
+- Leaving Compact now ends **Swell and Peek in a single animation** (`endCompactHover`); leaving an individual icon region waits 70 ms so it can merge with leaving the whole capsule.
+- Shrinking back from Swell / Peek uses `AnimationTokens.unswell` (0.28 / 0.92, almost no overshoot) so the capsule no longer dips below its resting size; growing keeps the jelly spring. Expanded width is not tied to the compact width: cell width 58 pt → 5 cells ≈ 326 pt, animated by the usual expand spring.
+- Expanded width raised again after "not wider" feedback: cell width 72 pt → 5 cells ≈ 396 pt (earlier 266/296/326 pt steps were too small to notice); cover 100 pt, content height 158 pt.
+- Media controls stay left-aligned (centring was tried and rejected); spacing between them is 13 pt (4 → 22 → settled halfway).
+- **Developer options window (permanent, hidden)** — `Settings/Developer/TuningWindow.swift`. Not in the normal menu: hold ⌥ while the menu bar menu is open ("設定⋯" turns into "開發者選項…", also ⌥⌘,), or launch with `Pendant --developer` (debug builds also honour `PENDANT_DEBUG_TUNING=1`). It has a slider + number field for every value in `Tuning` (layout, media page, controls, progress bar, compact capsule, all spring parameters), applied live (geometry changes rebuild the panel layout immediately). Changes are **saved automatically** to UserDefaults (`tuning.<id>`, only values that differ from the shipped defaults) and re-applied at every launch, clamped to each parameter's range; "重設全部" restores the shipped defaults and clears the saved values; "複製全部數值" copies `id = value` lines. New UI numbers must be registered as `TuningParameter`s.
+- **Click-through outside the capsule**: compact / expanded panels used to take clicks over their whole transparent frame (a click ~100 pt to the side opened the capsule). Now the panel is click-through (`ignoresMouseEvents`) whenever the pointer is outside `CapsuleLayout.hitRect(for:)`; while outside, the global move monitor watches for re-entry (it is removed again once the pointer is inside, as before). Taps are additionally checked against the visible body. Unit-tested via `HitRectTests`.
+- **Compact ↔ Swell flicker** (`record/音樂小膠囊bug.mp4`): with the pointer resting just under the capsule, the enter zone (resting size + 3 pt) and the leave check disagreed with the swollen size, so the capsule flipped between compact and swollen. Hover now has hysteresis (enter = resting zone, leave = outside the swollen / peek rect), and a tracking-area exit while the pointer is still on the swollen capsule is ignored (it is only a resize).
+- **Side-edge flicker** (the bottom edge was fixed by hysteresis): the tracking-area view included the 8 pt ears, so "inside" disagreed with the controller's body-based zones beside the capsule. The tracking view is now body-only, the swollen leave zone has 4 pt extra horizontal slack, and re-entering within 180 ms of leaving is ignored.
+- **AirPlay / output picker** (left of "previous"): a custom in-capsule popover (same pop animation as the volume one) replaced `AVRoutePickerView`, whose system popover appeared without animation and unreliably under repeated clicks (it dismisses when the non-activating panel becomes key). It lists (1) Apple Music's own AirPlay devices (HomePod, speakers, Apple TV, this Mac; read with a static script, selected **by index** so no device name is ever put into a script) and (2) CoreAudio output devices (built-in, Bluetooth, USB, display, connected AirPlay; selecting sets the default output). No extra permission beyond the existing Music Automation one; device names are never logged. Spotify only gets the system output list. Max height is capped to fit under the notch and scrolls; the media page's horizontal swipe handler no longer swallows vertical scrolls or scrolls while a popover is open (`onScrollWheelConsuming`). Control spacing default is 8 pt. Debug helpers: `PENDANT_DEBUG_OUTPUTS=1`, `PENDANT_DEBUG_STAY=1`.
+- **Output picker is now a real `NSPopover`** (user wanted the system look: below the icon, with an arrow, not covering the notch). `OutputsPopoverPresenter` shows it under the AirPlay button (`.transient`, native animation, dark vibrancy, height follows the list), reusing the custom list (Apple Music AirPlay devices + CoreAudio outputs). Two guards: a click that closes the transient popover must not re-open it through the button's own action (250 ms guard), and `CapsuleModel.keepsOpen` stops auto-collapse while the popover window is shown; it also closes when the capsule closes or the volume popover opens.
+- **Rule: every pop-up control is an `AnchoredPopover`** (`Core/Components/AnchoredPopover.swift`): a real `NSPopover` below its control with arrow, native animation and system material (Liquid Glass where the OS provides it). The AirPlay/outputs list and the volume slider both use it; the inline overlay popover was removed. `MediaController.popoverVisibilityChanged` counts open popovers (capsule stays open while any is shown; swipe gestures pause). Debug helpers: `PENDANT_DEBUG_OUTPUTS=1`, `PENDANT_DEBUG_VOLUME=1`.
+- **Fast click right after hovering the compact capsule was lost**: the panel was still click-through for a few milliseconds and the global mouse-down handler ignored compact-state clicks ("the panel will get them"). Now entering the compact zone makes the panel interactive immediately, and a click seen by the global monitor inside the visible capsule expands it.
+- **Laggy hover / lost fast clicks / sticky menu highlight — everything was better while screen recording.** Recording keeps the system out of power-saving throttling, which points at App Nap / timer and event coalescing for a background (accessory) app. The app now holds `ProcessInfo.beginActivity([.userInitiatedAllowingIdleSystemSleep, .latencyCritical])` for its lifetime. (Interaction trace logging, `Log.trace`, stays in debug builds for the remaining click investigation.)
+- Confirmed by the user: with App Nap disabled (latency-critical activity) hover, fast clicks and the status menu behave. M4 accepted.
+- **Root cause of "fast click doesn't open" (from the interaction trace)**: the failing taps all had the pointer at y == 1107.0, i.e. pushed against the top of the screen, which is exactly `maxY` of every capsule rect — and `CGRect.contains` excludes `maxY`. All pointer hit tests now use `CGRect.containsPointer` (edge-inclusive); tests cover the top-edge case for idle / compact / expanded. (The App Nap activity stays; it is harmless and the lag it targeted was real but not the click bug.)
+
+## M5 — Settings and module management
+- **Settings window** (`Settings/SettingsWindowController`, AppKit): standard preferences look (icon toolbar = tabs, title "Pendant"), nine tabs: 一般, Liquid (macOS 26+ only, `LiquidGlass.isAvailable`), 手勢, 即時動態, Pendant (sub-pages 一般 / 自訂小工具), 抽屜, 拖放區, 授權 (= permission status; no licence key), 關於. SwiftUI's `Settings` scene could not be opened from an agent app (`showSettingsWindow:` has no responder), hence AppKit. `PendantApp` keeps an empty `Settings` scene because a scene is required.
+- **`AppSettings`** is the single persisted store (UserDefaults, saved on every change, `settings.<key>`): hover effect / hover-expand mode (default **off**) / delays, notch width fine-tune, fullscreen + screen choice, global hotkey (⌥Space default, recorder in settings, Carbon `RegisterEventHotKey`, no Accessibility permission), language override (restart), launch at login (`SMAppService`), gestures (swipe on/off, sensitivity, reverse), live-activity priority + toggles, compact cover/waveform switches, media source / glow, shelf + drop-zone preferences (stored now, active in M7). Geometry-affecting values and the module list are observed and rebuild the panel live.
+- **Module management** (`ModuleCatalog`, `ModuleRegistry`): descriptors for all nine modules in the 11.3 order; per-module enable switch, cell count (clamped to its range) and a drag-to-reorder list with a live black preview bar (drag there too); everything persists as JSON (`modules.layout`, normalised on load: unknown ids dropped, new modules appended, bad data → defaults). Only **implemented** modules start enabled (media); the others show a "即將推出…" placeholder page if switched on until their milestone; Quick Apps is a disabled placeholder.
+- **Capsule**: the expanded capsule lays the enabled modules side by side (`cells × cellWidth`, `moduleGap` apart); width changes animate with the expand spring; if they exceed the screen they split into pages (`ModulePager`, dots at the bottom). Media monitoring runs while the media page *or* the media live activity is wanted.
+- **Permissions tab** reads Calendar / Reminders / Camera / Automation (Music, Spotify) state and offers "request" and "open System Settings"; nothing is requested at launch.
+- Not in M5: Sparkle updates and uninstall (M8, controls shown disabled), shelf / drop-zone behaviour (M7), real pages for notes / reminders / calendar / timer / mirror / shortcuts (M6–M7).
+- Headless checks: `PENDANT_DEBUG_SETTINGS=1 PENDANT_DEBUG_TAB=nook`, `PENDANT_DEBUG_MODULES=media,notes,…` (not persisted); persistence verified by writing `modules.layout` with `defaults write` and relaunching.
+- **Notch context menu**: right-click on the notch / capsule (idle via the global monitor, compact / expanded via the panel's `sendEvent`) pops up a menu with 設定⋯ and 結束; monitors are suspended while it is open. Left-click logic ignores right clicks.
+- **Menu bar icon switch** (一般 → 顯示 → 在選單列顯示圖示, default on): hides the status item; settings and quit stay reachable through the notch context menu.
+- **Swipe-to-switch-track haptic**: `HapticEvent.swipeSwitch` (`.generic`) fires when a swipe changes track; the swipe also writes `Log.trace("swipe …")` in debug builds so a non-responding gesture can be diagnosed from the log.
+
+## M6 — Timer, Calendar, Reminders
+- **Timer** (`Modules/Timer`): `TimerEngine` is a pure value type driven by absolute dates (elapsed = accumulated + now − startedAt), so sleep, wake and a stalled app cannot drift; countdown + stopwatch (pomodoro, optional in the spec, not built). The controller sleeps once until the finish date and re-checks after `didWakeNotification` — no high-frequency timer; the page and the compact digits tick only while visible (`TimelineView`). Finish: double `.levelChange` haptic, optional Glass sound, optional system notification (scheduled at start so it fires even if the app is throttled; permission asked on first start), capsule opens on the timer page and its outline pulses twice. The compact capsule shows the remaining time while running; **live-activity priority** (settings, default timer > media > reminders) decides what compact shows. The countdown uses the reusable `DigitWheel` for h/m/s plus editable presets (1/5/10/25 min).
+- **Calendar** (`Modules/Calendar`): layout and motion follow `record/日曆示範.mp4` — big month label, magnified focus date with fading neighbours, today blue, weekends red; `DayStrip` uses the same continuous-position idea as `DigitWheel` (drag or two-finger horizontal scroll, one `.dateChanged` haptic per day, spring snap, range = days behind/ahead). Events come from EventKit for the selected day (`CalendarMath.includes` applies the past / all-day / multi-day filters, unit-tested), refreshed on `EKEventStoreChanged`; click opens the event in Calendar (`ical://ekevent/…`). Visible calendars are stored as a *hidden-id* set, so new calendars appear automatically and stale ids are harmless. Settings mirror `settings-widgets.png` (colour check boxes with wrapping names, Select All / Clear, three switches, days behind / ahead, "行事曆設置").
+- **Reminders** (`Modules/Reminders`): grouped by list, check to complete, priority marks, due text (overdue in red), quick add (title + Enter, optional due date through an `AnchoredPopover` date picker) into the default list; settings: lists to show, show completed (last 14 days), sort (due / priority / title), row limit. EventKit objects are converted to plain values inside the fetch callback.
+- **Permissions** are requested the first time a page is shown (`ensureAccess`) and listed in 授權; with an ad-hoc signature macOS asks again after each rebuild.
+- **Defaults**: implemented modules (media, reminders, calendar, timer) start enabled; existing installs get newly implemented default-on modules switched on once (`seenImplemented` in the saved layout).
+- **Not done in M6**: showing a due reminder briefly in the compact capsule (3.1 / 4.3), pomodoro mode. Debug helpers: `PENDANT_DEBUG_CALENDAR=fake`, `PENDANT_DEBUG_REMINDERS=fake`, `PENDANT_DEBUG_TIMER=idle|run|finish`.
+
+## M6 bug-fix round
+- **Compact icon margin** default 7 → 5 pt (cover looked small). **One activity per compact capsule**: the left icon follows the active activity's kind, so a timer is never shown next to a cover; the dynamic-island-style split of two activities (left/right) is deferred until the bug list is done.
+- **Compact content pinned to the capsule's edges** (not centred as a pair), so mid-animation it cannot overflow; **expanded pages are mounted only while the capsule is open** (unmounted 0.6 s after collapsing) and **fade out without blur** — blurring a wide, busy view made collapsing stutter; the panel shrink no longer forces a redraw.
+- **Reminders**: quick-add placeholder is light grey, a send button (↑) adds the item, due-date picker is a graphical picker scaled to fill a 250 pt popover with a small margin and no empty space (`AnchoredPopover(autoSize:)` sizes popovers to their SwiftUI content), clickable things show the pointing-hand cursor (`hapticOnHover` now also sets it).
+- **Popovers keep the capsule open**: `AnchoredPopover.isAnyOpen` replaces the media-only counter, so hovering the date popover no longer collapses the capsule.
+- **Calendar**: the strip covers today's whole month by default (switch "顯示整個月份"; the days-behind / ahead sliders apply when it is off); fast two-finger scrolls are damped (large per-event deltas compressed, one flick moves at most 4.5 days).
+
+## M6 bug-fix round 2
+- **Timer buttons** are rounded squares whose corner is concentric with the capsule's (26 pt − 18 pt margin ≈ 9 pt); right and bottom margins are equal (`timerEdgeMargin`, 18 pt); the wheel unit labels were dropped to make the height fit. Tuning group 計時器.
+- **Day strip**: scroll events now drive a spring (`interactiveSpring`) instead of copying the scroll 1:1, so fast flicks ease; snap spring is bouncier.
+- **Permission request UI**: before a permission is decided, Calendar and Reminders show an explanation and an 允許存取 button (no more blank page / missing input).
+- **Calendar list**: rows fade out at the bottom edge (gradient mask) with a bottom margin.
+- **Reserved space**: the top-left area of the expanded capsule (left of the notch, above the content) is kept free for the pill button group that switches between 功能 and 檔案中轉站 (shelf) in M7.
+- **Show on all screens** (一般 → 顯示螢幕 → 所有螢幕同時顯示): `NotchManager` owns the shared services (media, registry, timer hook) and one `NotchWindowController` per display (or a single one following the setting); controllers are created / shut down when displays or the setting change. The hotkey toggles the notch on the screen under the pointer. Not verifiable on a single-display machine: needs a hands-on test with an external display.
+- **Settings / developer windows are reachable with Cmd-Tab**: while one is open the app switches to a regular activation policy (`WindowPresence`) and goes back to agent mode when the last one closes.
+- **Hotkey-opened capsule no longer closes immediately**: leaving only closes it after the pointer has been over it once (`expandedArmed`); Esc / click outside still close it.
+- **Swipe to change track**: the scroll handler now ignores only real open popovers (`AnchoredPopover.isAnyOpen`) and writes trace lines (`scroll in view …`, `media scroll …`, `swipe …`) so a silent gesture can be diagnosed from `log show`.
+- **Widgets settings**: list and preview bar reorder live (rows / tiles follow the pointer and swap as they cross neighbours, one `.dragStep` haptic per position) instead of the system drag-and-drop; hovering a row shows ▲▼ and hovering a preview tile shows ◀ ▶ buttons; the preview bar hugs its content (no empty black area).
+
+## M6 補修（第三輪）
+- 設定「小工具」排序改為絕對座標：被拖曳的項目直接跟隨指標（不套動畫，`transaction` 清除），其餘以 spring 移到各自位置；解決殘影／重複磚塊與空缺（原因：順序變動動畫與拖曳位移被重複疊加）。
+- 計時器按鈕底距與其他模組一致（`timerEdgeMargin` 8）。
+- 大膠囊收回小膠囊時，小膠囊內容改為固定最終寬度＋僅淡入（移除由外往內的位移）。
+- 日曆日期條：飽和（tanh，最多 6 天）＋橡皮筋邊界＋彈簧追隨，降低線性感。
+
+## M6.5 動態島分島
+- 重構而非重寫：單一活動時沿用原本主島路徑（`CompactContent`、`syncActivities` 取代 `syncMediaActivity`）；多活動才多出副島。
+- 新增 `Core/Islands.swift`（`LiveActivity`、`IslandSettings`、純函式 `IslandPlanner`，有單元測試）、`ActivityCenter`（排序、暫停保留秒數、計時結束提示）、`MenuBarMenuDetector`（`CGWindowListCopyWindowInfo` 層級＋位置，不需權限）、`MenuBarAvoidance`（⑥，AX，實驗性）。
+- `PendantModule` 新增 `activityPriority`、`makeCompactView(role:)`（媒體／計時器提供副島內容；主島內容仍由 `CapsuleView` 繪製，回傳 nil 即用預設）。
+- 預設活動層級改為 媒體 > 計時器 > 提醒 > 抽屜（舊預設且未被使用者改過者自動遷移）。
+- 單一 NSPanel：面板在小膠囊態左右對稱加寬；`ignoresMouseEvents` 仍依指標是否在主島／可見副島命中區切換，其餘穿透。
+- 點主島也會跳到該活動頁（3.5.5）；媒體暫停預設保留 60 秒（3.5.6）。
+- 修正：待辦事項 fetch callback 在 EventKit 佇列觸發 MainActor 隔離陷阱而 crash（改為 nonisolated 轉換）；設定視窗可調整大小，預覽列過寬時整體縮放。
+
+## M6.5 補修
+- 日期選擇器 popover 去掉藍色對焦框（`focusEffectDisabled`）。
+- 勾選待辦後保留於清單並以刪除線顯示，離開該頁才消失（`recentlyCompleted`）。
+- 副島 hover 連續震動：tracking area 在重繪時會重複回報 entered；改為只在 hoveredIsland 真正改變時觸發，離開時若指標仍在島上則忽略。
+- 計時器小膠囊／副島加入剩餘時間圓圈（設定 `timerRing`，計時器設定頁可關）。
+- 計時結束改為小膠囊內提示：計時器暫時升為主島（擠掉原內容、原主島變副島），以歌曲資訊式的膨脹版面顯示「計時結束」；點一下確認並開啟計時器頁，或 10 秒後自動消失。不再自動展開大膠囊。
+- 媒體頁專輯色光暈改為比頁面大並置中（400pt），向上延伸到瀏海後方，不再有上緣截斷。
+- 日曆日期條：單次甩動上限 6→14 天、彈簧 (0.3, 0.86)，阻尼降低；hover 日期顯示底色（`onActiveHover`），點擊直接滑到該日。
+- 副島寬度改為依內容計算（圖示＋間距＋數值＋每側 9pt），元件間距加大（計時器圓圈與時間 8pt、封面與音波 9pt）。
+- 日曆當前日期固定有底色；模組分隔線 2pt、高度 72%、模組間距 12→20 作為 margin。
+- 模組間距 20→30（分隔線 margin 加大）。
+- 專輯 3D 傾斜方向反轉：指標所在處浮起（朝向使用者）而非凹下。
+- AirPlay 清單改為核取方塊可多選（`set current AirPlay devices to {…}`，至少保留一個）。
+- AirPlay 每個已勾選裝置有自己的音量滑桿（Music `sound volume of AirPlay device N`，每 5% 一次觸覺、Apple event 節流）。
+- 重開後權限重問：ad-hoc 簽署的 designated requirement 是 cdhash（每次建置都變，TCC 視為新 App）。App target 加 `OTHER_CODE_SIGN_FLAGS = -r=designated => identifier "com.smallja.nook"`，需求固定為 bundle id，之後重建不再重問（需再授權一次）。Release/CI 的 ad-hoc 簽署須沿用同一旗標。
+- 待辦新增列加入「更多選項」按鈕（日期與送出之間）：附註、URL、日期／時間、緊急、重複、提前提醒、列表、重要性（`ReminderDraft`）。標籤、旗標、位置、訊息觸發、影像無公開 EventKit API，不提供。快速新增不含時間時只存日期（原本一律帶時間）。
+- 待辦列雙指左滑出現紅色刪除膠囊（類似 Mail）：露出約 56pt，滑過 150pt 直接刪除，右滑關閉；點膠囊刪除（EKEventStore.remove）。垂直捲動不受影響。
+- 滑動刪除改三階段（參考 v2 影片）：未達門檻放開縮回；過第一次震動後保持開啟（以觸控板手指離開 phase 判定，非 debounce）；過第二次震動後膠囊佔滿整列，放開即刪除。內容文字被擠壓（截斷）而非被蓋住，佔滿前持續顯示。拖動以 interactiveSpring 跟隨，收合／展開以 spring。`ScrollWheelCapture` 新增 `onScrollWheelPhased`。
+- 待辦列 hover 顯示底色（同日曆）。
+- 滑動刪除改為：整列（含 hover 底色）往左推出視野，列內文字反向往右推同樣距離（螢幕上不動），膠囊在右側；第二階段圖示置中。
+
+## M6.5 補修（第四輪）
+- 計時器主島：翼寬依數字寬度＋iconMargin 計算（`TimerCompactMetrics`），圖示與數字都貼外緣、邊距一致；進度改為數字下方水平線（粗細 = progressThick，與歌曲進度條 hover 相同，設定 `timerRing` 可關）；圓圈只留在副島。
+- 播放／暫停圖示：改為單純淡入淡出（移除 blur 圖層，疑為 hover 時兩者皆不可見的原因，headless 無法重現）。
+- 觸覺：點擊展開不再額外播放展開震動（觸控板點擊本身已震動），熱鍵／自動 hover 展開仍播放；收合震動改為開始收合時立即播放，不等彈簧結束。
+- AirPlay：移除「輸出裝置」，依類型顯示圖示（Mac 依是否有電池判斷筆電／桌機、HomePod/mini、Apple TV、AirPods／耳機、喇叭；純音訊 AirPlay 預設 HomePod mini 圖示）。
+- 日期選擇器：改為自繪月曆（無外框，選取反白置中於日期數字）。
+- 設定視窗：內容改為彈性尺寸（min 680×460），可拉大縮小。
+- 即時動態：新增「媒體暫停後保留時間」獨立區塊（0–300 秒滑桿＋輸入框）。
+- 計時器主島：左圖示無底、放到最大（保留 margin、1:1）；進度線粗細減半。點擊穿透：休息中的小膠囊只在本體範圍攔截（原本含下方「歌曲資訊」區），並加入指標監看保險，避免漏掉 tracking 離開事件時面板一直吃點擊。
+- 計時器主島圖示改藍色、縮小為 80%；進度線寬度＝數字實際寬度。點擊穿透：只要面板在小膠囊態接收點擊，指標監看一律運作（安全網，並寫 trace「safety net released the panel」）。
+- 計時器進度線與膨脹動畫不同步：原因是填色上的 `.animation(.linear(1s), value: remaining)` 在秒數跳動與膨脹重疊時搶走彈簧動畫、以及 GeometryReader 量測。改為固定寬度（NSFont 精確量測數字寬度）、軌道與填色同一 ZStack、填色不加隱式動畫；逐格錄影比對確認同步。
+
+## 倒數與碼錶同時運作
+- `TimerController` 內有兩個獨立 `TimerEngine`：`engine`（倒數）與 `stopwatch`，可同時跑；`viewMode` 只決定計時器頁顯示哪一個（另一個在跑時分頁標籤旁有顏色點）。
+- 動態島活動新增 `stopwatch`（倒數 id `timer`）：倒數圖示橘色、碼錶圖示藍色；各自可當主島／副島，可在設定「即時動態」調層級與角色。倒數才有進度線／圓圈與結束提示。
+- 舊的自訂活動順序會自動把 `stopwatch` 插在 `timer` 後面。點島會打開計時器頁並切到對應的計時器。
+
+## M7 筆記／中轉站／捷徑／鏡子
+- **筆記**：每則一個 JSON（`Notes/<uuid>.json`，可在設定改資料夾），輸入後 0.5 秒 debounce 自動儲存、離開時 flush。編輯器為 `NSTextView`（輕量 Markdown：**粗體**、`- ` 清單、`- [ ]` 待辦，點方框切換勾選；Return 延續清單）；輸入法組字中不重新套樣式。釘選、複製全文、刪除可復原（8 秒）。
+- **捷徑**：以 `/usr/bin/shortcuts list|run`（`Process` 參數陣列，不經 shell）列出與執行；捷徑名稱不寫入日誌。設定可選顯示哪些、格狀／清單。
+- **鏡子**：`AVCaptureSession` 前鏡頭，只在膠囊展開且停在該頁時 `startRunning`，收合／切頁／頁面消失即 `stopRunning`；水平鏡像與鏡頭選擇；相機權限首次使用時才要求。
+- **檔案中轉站**：左虛線「檔案抽屜」、右藍色 AirDrop 區。拖入＝背景複製到 `Shelf/`（重名加序號、數量／容量上限、顯示複製中）；拖出＝每次拖曳先做暫存複本再交給 `NSDraggingSource`（只回報 `.copy`），因此抽屜原檔永遠不會被目的地「移動」；多選（點擊／⇧／⌘／框選／⌘A）、空白鍵 Quick Look、⌫ 移除、複製到剪貼簿、批次 AirDrop（`NSSharingService`）。AirDrop 區放入檔案直接開傳送面板、不留複本。
+- **拖曳靠近瀏海自動展開**：`ShelfDragWatcher` 全域監聽 `leftMouseDragged` 並檢查拖曳剪貼簿含檔案 URL；進入觸發距離（預設 120pt）即在該螢幕展開並跳到中轉站；放開後 0.9 秒內沒放入任何區域且指標不在膠囊上就收合。
+- 自動清除：N 天後／重開機（比對 `kern.boottime`）於啟動時；登出於結束時。
+- 檔案抽屜暫存數為動態島活動（預設隱藏，避免有檔案時膠囊整天展開；可於設定「即時動態」開啟）。
+- 快速應用維持停用佔位。
+- 筆記與鏡子為預設啟用的新模組（既有使用者會一次性被開啟）；捷徑與中轉站預設關閉。
+- **功能 / 檔案中轉站切換**：中轉站不再是可滑動頁面之一，而是獨立檢視，由膠囊左上角（瀏海旁）的膠囊雙鈕切換（中轉站模組啟用時才出現）；`ModuleRegistry.showsShelf` 控制，頁面分頁（pager）排除中轉站，膠囊寬度隨檢視變化。拖曳檔案靠近瀏海、點副島等都會直接切到中轉站檢視。
+- 中轉站改為預設啟用（偏離 11.3 的預設關閉）：左上角「功能 / 檔案中轉站」切換是常駐的入口；既有使用者會一次性被開啟，仍可在設定關閉。
+- 開啟中的膠囊至少要容得下瀏海兩側的「功能 / 檔案中轉站」切換（瀏海寬 + 2×(156+26)）；切換鈕在窄時自動縮成純圖示。中轉站預設寬度 4→6 cells。
+- 修正：功能→中轉站寬度改變時暫時解除「離開即收合」（指標需重新進入膠囊才會武裝）；中轉站填滿膠囊（兩旁不留白）；模組頁面可用雙指左右滑動切換（媒體／日曆／待辦的水平手勢仍歸模組本身）。
+- 功能↔中轉站切換後，在指標重新進入膠囊之前，不論「離開」或「點擊外面」都不收合（影片顯示：膠囊變窄後，使用者再點原本切換鈕的位置落在膠囊外，被外點收合）。
+- 切換收合真因：膠囊縮窄的彈簧動畫期間，邊緣掃過靜止的指標，tracking area 的進入／離開事件把「已進入」重新武裝再觸發收合。改為調整寬度後 1.2 秒的 resize grace：期間這些事件既不武裝也不排程收合；之後仍須指標重新進入膠囊一次、再離開才收合。
+- 模組頁面切換改為滑動轉場（下一頁從右滑入、上一頁從左；功能↔中轉站為淡入淡出）；方向先發佈再換頁，離場的頁面才會朝正確方向離開。
+- 小膠囊 hover 區域判斷改為單一 tracking area 依指標位置決定（左半＝封面、右半＝音波圖），取代左右各一個 tracking area（指標從封面移到音波圖時可能漏掉進入事件，導致播放／暫停圖示不出現）。
+- 換頁手勢改為跟手式：頁面隨雙指位移 1:1，鄰頁同步從側邊進來；放開時拉超過內容寬 22% 就滑完換頁，否則彈回；沒有下一頁時有橡皮筋阻力；過門檻震動一次。（點頁面圓點仍用滑動轉場。）
+- **取消分頁、改為三個分頁籤**：左上角切換變成 功能｜筆記｜檔案中轉站（沒啟用的不顯示；窄時縮成圖示）。功能分頁把所有模組排成一列、太寬時整體縮小 cell 寬度而不是分頁；筆記與中轉站各自填滿膠囊寬度。移除換頁手勢與頁面圓點。`ModuleRegistry.tab` / `effectiveTab` / `availableTabs`。
+- **自訂分頁**：分頁由使用者定義（`TabConfig`：id、名稱、模組清單，存於 `modules.layout`；舊資料自動套用預設三個分頁 功能／筆記／檔案中轉站）。設定「自訂小工具」右側上方為分頁晶片（可新增），選取後可改名、刪除（至少保留一個）、勾選要加入此分頁的小工具；小工具詳細設定裡也有「所在分頁」勾選。一個小工具可放進多個分頁；需「已啟用」且在某分頁內才會顯示；沒有任何小工具的分頁不會出現在膠囊。分頁只有單一小工具時填滿膠囊寬度，多個時依 cell 排成一列（太寬就整體縮小）。島點擊會跳到第一個含該模組的分頁。
+- 鏡子：預覽改為圓形（正方形裁成 Circle）；不再自動開啟相機，需點一下圓形才啟動，收合／切換分頁即停止。
+- 鏡子：再點一下圓形即可關閉相機。
+
+## M8 更新與解除安裝
+- **更新器採 8.1 替代方案（不用 Sparkle）**：理由——Sparkle 需要新增 SPM 相依、EdDSA 金鑰與 appcast 託管，而倉庫與金鑰尚未就緒；自製流程完全使用公開 GitHub Releases API（未認證、零 token），並符合 13.2（HTTPS only、SHA-256 校驗、拒絕未驗證的包）。日後要換 Sparkle 只需替換 `UpdateChecker`/`UpdateInstaller`。
+- 流程：啟動後 20 秒與每 24 小時背景檢查（靜默失敗；GitHub 403/429 退避 1 小時）→ 有新版時設定「關於」頁顯示更新說明與按鈕、選單列出現「有新版本 vX」→ 下載 zip/dmg 與 `.sha256` → 驗 SHA-256（缺校驗檔一律拒絕）→ `ditto`/`hdiutil` 解開 → 驗 bundle id、版本號與 `codesign --verify --deep --strict` → `replaceItemAt` 取代並重新啟動。下載來的內容從不執行。
+- 設定：自動檢查（預設開）、自動下載並安裝（預設關＝只提示）、頻道（正式版／含預覽版）。預覽版不會被 `releases/latest` 取得。
+- `UpdateConfig.repository` 是佔位符（`YOUR_GITHUB_USERNAME/Pendant`），需填入實際帳號才會連線；未設定時「檢查更新」顯示說明而不連網。
+- **解除安裝**：確認對話框（可勾「同時保留我的筆記」）→ 取消登入項目 → 只刪白名單內路徑（`Application Support/Pendant`、`Preferences/<bundle id>.plist`、`Caches/<bundle id>`、暫存拖曳複本；刪除前以標準化／解析 symlink 後的路徑驗證）→ 清除 UserDefaults → 把 App 丟垃圾桶並結束；解除安裝中不再寫回任何資料。
+- 除錯用（僅 DEBUG）：`PENDANT_DEBUG_VERSION`、`PENDANT_DEBUG_UPDATE_FEED`（本機 releases JSON，資產可用 file:// URL）、`PENDANT_DEBUG_CHECK_UPDATE`。
+- 倉庫改為公開，Release 與原始碼同一個倉庫 `smallja0605/Pendant`（更新器不需 token）。
+
+## 改名為 Pendant
+- 產品名稱改為 **Pendant**（原因：避免與既有瀏海類 App 的名稱混淆；「Perch」「Inlet」「Ledge」等已有同類或相近產品，見對話中的查詢）。顯示名稱、App 檔名（Pendant.app）、Xcode 專案／scheme／模組、原始碼資料夾（`Pendant/`、`PendantTests/`）、型別前綴（`PendantModule` 等）、除錯環境變數（`PENDANT_DEBUG_*`）、更新來源（`smallja0605/Pendant`）一併更名。
+- **Bundle ID 改為 `com.smallja.pendant`**（首次公開前一次到位）：系統會把它當成新 App，行事曆、提醒事項、相機、自動化權限需再授權一次；登入時啟動需重新開啟。設定（`settings.*`、`tuning.*`、`modules.*`）於第一次啟動時由舊 domain `com.smallja.nook` 複製過來（`LegacyDefaultsMigration`）。固定簽署需求（`designated => identifier`）同步改為新 ID。
+- Application Support 資料夾由 `smallja's Nook` 改為 `Pendant`，啟動時自動搬移舊資料夾（筆記、檔案抽屜不會遺失）。
+- 設定視窗分頁列重新設計：8 個分頁（偏好設定／動態島／小工具／中轉站／觸控／外觀／隱私／關於），圖示與名稱全部改過，「抽屜」與「拖放區」合併為「中轉站」。
+- 設定裡的所有滑桿改用 `HapticSlider`：每跨過一個刻度震動一次（有 step 的用 step，連續型分 40 格）。
+- 數值輸入框改為 `NumberField`：只能輸入數字（依需要含負號、小數點）、離開／Enter 時夾在範圍內、↑↓ 鍵步進（每步一次震動）；滑桿 `HapticSlider` 取得焦點後 ←↓ 減、→↑ 加。
+- 計時器小膠囊數字：秒數更新時若剛好在膨脹動畫中會與舊數字疊影（影片 longshot20261018165805）；數字改用 `contentTransition(.identity)` 並關閉該文字的內容動畫，一律立即替換。
+- 計時器快速預設鈕不換行：單行固定寬度，空間不足時橫向捲動並在兩端用漸層淡出。
+- 計時器主島（倒數／碼錶）改由 `TimerMainRow` 繪製：圖示與數字直接排在膠囊「動畫中」的尺寸裡（`Animatable`，每一影格重新計算邊距與圖示大小），不再用各自的目標尺寸，因此跟著膠囊邊緣剛性移動、不會貼邊或抖動。計時器沒有歌曲資訊列，所以 hover 左側圖示不再把膠囊撐高（`showsPeek` 只對音樂與計時結束提示）。以 60fps 螢幕錄影逐格量測數字到膠囊右緣的距離驗證。
+- 計時器快速預設改用 `DragScrollRow`：可用滑鼠拖曳（或雙指橫滑）左右捲動，超出範圍有橡皮筋回彈，只在有隱藏內容的那一側漸層淡出。（SwiftUI 的 ScrollView 在 macOS 不支援滑鼠拖曳捲動。）
+
+## Timer buttons stay inside their module
+The timer reaches into the capsule's right inset only when it is the last module of the tab (`moduleAtCapsuleEdge` environment value set by `ExpandedModulesView`). With a neighbour on its right, the play button no longer crosses the divider.
+
+Timer buttons keep `timerDividerMargin` (4 pt, developer option) from a divider on their right.
+
+DragScrollRow gets `minWidth: 0`: without it the row's minimum was its full content width, so in a narrow module the controls overflowed and were centred, pushing the presets past the module's left edge.
+
+DragScrollRow gets `minWidth: 0`: its minimum was the full content width, so in a narrow module the controls overflowed and were centred, pushing the presets past the module's left edge (now they start 8 pt inside, extra presets scroll).
+
+Haptics: `timerUnitChanged` removed; the timer wheels fire `.dateChanged` like the calendar strip (one event, one throttle), so both feel identical.
+
+## M9: performance, accessibility, release
+- Measured (Release build, this machine): idle 0.0 % CPU, physical footprint ≈ 32–33 MB (RSS ≈ 75 MB counts shared system frameworks; the 50 MB goal is judged on the footprint).
+- Accessibility: icon-only buttons get VoiceOver names via `SymbolLabel`; gesture-driven pills / presets / mirror use `accessibilityButton`; Reduce Motion was already honoured by the island animations.
+- `.github/workflows/ci.yml` (build + test) and `release.yml` (tag `vX.Y.Z` → test → Release build → `Pendant-X.Y.Z.zip` + `.sha256` → `gh release create`). Minimal permissions, `actions/checkout` pinned to a commit SHA, no custom secrets (built-in `GITHUB_TOKEN`).
+
+## Personal use: no GitHub (supersedes the GitHub release decisions above)
+- The repo stays local; `.github/` workflows removed. The updater no longer talks to the network: it reads `~/Library/Application Support/Pendant/Updates/releases.json` (GitHub-release-shaped JSON, `file://` asset URLs) written by `scripts/publish-update.sh <version>`; the installer's SHA-256 / bundle id / signature / version checks are unchanged.
+- `scripts/install.sh` builds and installs `/Applications/Pendant.app`; the update replaces that bundle in place and relaunches.
+
+Verified end to end: installed 0.1.0 to /Applications, published 0.1.1, the running app updated itself and relaunched as 0.1.1. Project MARKETING_VERSION is now 0.1.1 (publish-update.sh takes the version as an argument and overrides it).
+
+`publish-update.sh` accepts pre-release versions (`0.1.2-beta.1`): marked prerelease in releases.json, so only the 含預覽版 channel offers them.
+
+Keyboard (M9 accessibility): the global hotkey (⌥Space) now also gives the open panel key focus; ←/→ step tabs, ⌘1…⌘9 jump to a tab, Esc closes (arrow keys still belong to text editing when a note is focused: `NotchPanel.keyDown` only sees keys nothing else used).
+
+Keyboard: the hotkey path also activates the app (`NSApp.activate()`) before `makeKeyAndOrderFront`, so ⌘1…⌘9 no longer reach the window behind.
+
+`PENDANT_DEBUG_HOTKEY=1` runs the hotkey path 2 s after launch and prints whether the app is active and the panel is the key window (verified: active=true, key=NotchPanel).
+
+## Online cover for streamed Apple Music tracks (user-approved exception to "no network")
+- Streamed Apple Music tracks are `URL track`s: AppleScript reports 0 artworks, so the cover never arrived. When the script finds none, `CatalogArtworkFetcher` queries Apple's public iTunes Search API with title + artist only, picks the hit of the same album, and loads the cover from `*.mzstatic.com` (https only, allow-listed hosts, ephemeral session, no cookies, in-memory cache of 8). Switch: media settings › 「串流曲目線上補封面」, default on.
+- The app's network use is now: Spotify cover (i.scdn.co) and this lookup; nothing else.
+
+Track swipe on the compact capsule: the two-finger horizontal swipe (previous / next) was only wired to the open media page. `TrackSwipe` is now a shared modifier used there and on the compact capsule's body (enabled while the main island is the music). Same settings (sensitivity, reverse, on/off) and haptic.
+
+Track change polish: the cover (open page and compact capsule) shrinks and springs back up when the track changes (`CoverSwap`); the previous cover stays until the new one arrives (cleared when the first lookup finds none) so skipping shows no placeholder flash. Stutter fixes: the cover lookup waits 0.25 s after a change (rapid skipping only asks for the track it lands on, so no AppleScript backlog behind the next/previous commands) and the cover is decoded / its colour computed off the main thread.
+
+Swipe lock-up fix: the swipe accumulator was only reset after 0.3 s without scroll events, but trackpad inertia keeps sending events for a second or more after the fingers lift, so the next swipe was ignored for that long. `TrackSwipe` (now in MediaGestures.swift) uses the gesture phases: a new gesture (began) resets at once, momentum events are swallowed but never counted; the pause timer remains only for mouse wheels without phases.
+
+Cover swap is one keyframe curve (`SwappingCover`): shrink+dim for 0.16 s, picture exchanged at the lowest point, spring back up — started when the new cover is ready, so there are no stages. Previous track now always goes to the previous song: the script first rewinds to position 0 (the player's own 'previous' only restarts the song after a few seconds); verified with Music (position 123 s → previous song, position 0).
+
+Cover cache (`ArtworkCache`): every shown cover is kept as a small JPEG in ~/Library/Caches/com.smallja.pendant/Artwork (file names are SHA-256 hashes of the track key, never titles; oldest dropped past 40 MB / 400 files). A cached track swaps its cover at once (no lookup, no debounce); an uncached one waits 0.15 s (was 0.25 s) before the lookup. Media settings: on/off (default on), clear button, size shown. The uninstaller already removes the Caches/com.smallja.pendant folder.
+
+Compact capsule, swipe + track info (per reference longshot20261018222015): a previous / next swipe plays a short icon (◀◀ / ▶▶) that grows from inside the capsule's edge, travels outward past it and fades, on the side the fingers moved towards (`StepIconOverlay`, keyframe curve, `PENDANT_DEBUG_STEP=next|prev`). Every track change also raises the song line under the capsule (settings › 即時動態 › 小膠囊樣式: on/off, 1–8 s, default on, 2.5 s); the line is now centred with icons (♪ title, mic artist). `MediaController.trackChangeToken` counts changes (not the first track after nothing played).
+
+Swipe icon wrap + song line polish: while the previous / next icon shows, the capsule's black body grows on that side only (`stepGrow` 34 pt, developer option) so the icon sits inside it, then eases back. Song line: 11.5 pt text, own height `songInfoExtra` (28 pt, developer option; the timer notice keeps `peekExtra` for its two lines) with the text centred in it — no empty band underneath.
+
+Swipe icon, second iteration (user's diagram): the previous / next icon follows the fingers through three stages — appear (gradual fade-in) | track changes | disappear (gradual fade-out) — stepping inward from the capsule's edge on the side the fingers moved towards, in the icon row (same height as cover / waveform, which hides on that side meanwhile). The swipe is a track of cycles (`SwipeAccumulator`: change at `threshold`, then every `2 × threshold`), so a swipe that keeps going repeats the cycle and keeps skipping; when it ends the icon finishes its cycle (past the middle) or returns. **Direction changed to match the diagram: fingers left = previous (|◀ at the right edge), fingers right = next (▶| at the left edge)**; the 反轉方向 setting swaps them. Capsule: icon side stretches `stepGrow` (34), the other side `stepGrowOther` (8) with a jelly spring; `stepSpacing` (27) is the distance between stages. Symbols: SF Symbols `backward.end.fill` / `forward.end.fill`. All three numbers are developer options. `PENDANT_DEBUG_STEP=next|prev` replays two cycles.
+
+Swipe icon fixes: symbol size is `stepIconScale` (0.5 of the cover, developer option; was 0.72). Swiping back and forth inside the first stage now animates: a turn-around swings the capsule's stretch to the other side with the jelly spring and crossfades the icon there (`PENDANT_DEBUG_STEP=flip` replays it).
+
+Swipe distances (SwipeAccumulator, T = the 靈敏度 setting, default 60 pt): nothing shows for the first 0.4·T (dead zone, 24 pt) — the icon and the capsule's stretch only start after that; from the icon appearing to the track changing is 1.6·T (96 pt, was 1·T from the first touch), so the first change comes after 2·T = 120 pt of travel and the cycle repeats every 3.2·T. Turning around while the icon is up finishes it on its side, then the new direction must pass the dead zone again. The same distances apply to the open media page. `stepIconScale` default 0.5 (the value, not half of it; range 0.15–0.9).
+
+Swipe haptic ramp: while a swipe travels (past the dead zone) a tick fires every 1/24 of a cycle; its strength follows the position in the cycle — light (.alignment) → medium (.generic) → strong (.levelChange) towards the track change, and back down after it (`HapticEvent.swipeTick(at:)`, ticks 25 ms apart at most). The trackpad API has only these three strengths, so there is no continuous intensity; the ticks are closer together because every cycle has the same 24. Setting: 設定 › 手勢 › 滑動時漸強再漸弱的震動 (default on). The track change itself keeps `swipeSwitch`.
+
+Track change haptic: `swipeCommit` — the strongest pattern (.levelChange) three times, 70 ms apart, at the moment the swipe changes the track (replaces the single generic tap); the ramp tick is skipped at that instant so they do not blend. It plays whether or not the ramp setting is on.
+
+Haptic flow per the user's chart: ticks growing → silence (cycle 0.42–0.58) → ONE big haptic at the change (`swipeCommit`, no repeats) → ticks fading (strong → light). Settings window across an update: before relaunching, `UpdateChecker` remembers the open settings tab (`update.reopenSettingsTab`); at the next launch `SettingsWindowController` reopens it (verified headlessly by setting the key and launching). The relaunch is done by the *old* app, so this takes effect from the update after the one that contains it.
+
+Simplified swipe haptics (the graded ramp could not be felt): while a swipe travels it ticks lightly all the time (`swipeTick`, .alignment, every 1/24 of a cycle — the same feel as the calendar / timer scrubbing), and the track change is one big haptic (`swipeCommit`, .levelChange). Removed the light/medium/strong ticks and the silence zone.
+
+Swipe icon stuck after a fast flick: the fingers-lifted event carries no movement, and the horizontal-only guard dropped it before it could end the gesture, so the icon waited for the idle timer (0.8 s). Now lifting (a zero-movement ended event, or the first inertia event) ends it at once; the idle fallback for phased gestures is 0.5 s. Haptics simplified again: no ticks while swiping at all (and the setting is gone); only the one big haptic when the track changes.
+
+Swipe direction flipped at the user's request: fingers left = next (▶| on the right edge), fingers right = previous (|◀ on the left edge); the 反轉方向 setting swaps them.
+
+Speed-adaptive swipe distance: a flick needed as much travel as a slow swipe, so a fast one often ended before the track change. `SwipeSpeed.gain`: below 300 pt/s a swipe counts 1×, rising smoothly to `swipeFastGain` (2.5×) at `swipeFastSpeed` (1500 pt/s) and above; speed is the smoothed movement per event divided by the time between events (`TrackSwipe.scaled`). Both numbers are developer options. The real speed range of this trackpad could not be measured here, so the defaults are estimates to be tuned by feel.
+
+Icon "pulling back" on fast swipes: (1) a swipe that stopped short slid the icon back to the edge while fading, which read as retracting — now a cancelled swipe (lifted before the change point) fades where it is (`stepFade`); (2) a quick flick that lifts before the change point still changes the track (peak speed ≥ half of `swipeFastSpeed`, no change yet in this swipe) and the icon completes its step; slow swipes that stop short just cancel. `PENDANT_DEBUG_STEP=cancel` replays a cancel.
+
+Taller capsule + two-row quick add: the new-reminder box is two rows in one box (title on top, date / options on the left and send on the right underneath, no empty band). The open capsule's content height goes 158 → 190 pt (`expandedContentHeight`) to make room, and the media cover 100 → 118 pt (`artSize`) so the music page fills the extra height; calendar, notes, timer / mirror checked by screenshot.
+
+Panel vertical padding 44 → 56 pt: the taller capsule made the (click-through) panel shorter than a swollen expanded body in the layout invariant test; it is invisible and only adds transparent room.
+
+Module separator length is `dividerLengthRatio` (0.88 of the content height, was a fixed 0.72), a developer option, so it spans the content of the taller capsule.
+
+Open capsule: `expandedBottomInset` (14 pt, developer option) adds space below the modules (the capsule grows by that much; the modules and separators keep their size), so the content no longer sits tight against the bottom corners.
+
+Header line (user's idea instead of titles / extra header bands): the reminders title (15 → 20 pt, count badge a bit larger) and the timer's mode picker (11 → 14 pt pills) are centred on the same line as the calendar's month label (`ModuleHeader.centerY` = 8 pt + half the date strip), so the three headers read as one row and the separators line up with content. The reminders list gives up about 20 pt to this; `expandedContentHeight` can compensate.
+
+Liquid tab picker (`LiquidTabPicker`, used by the timer's 倒數 / 碼錶): dark capsule with a white capsule slider under the chosen option and black text only where the slider covers it (a second, black label layer masked by the slider). The slider's two edges are separate states on separate springs — the edge it moves towards on a quick spring, the other on a slow, bouncier one — so it stretches like a drop and settles with a jelly wobble. Done with edge springs instead of Canvas blur + contrast (crisper, cheaper, no offscreen layers); the same component can replace the 功能 / 筆記 / 檔案中轉站 switcher. `PENDANT_DEBUG_TIMER_FLIP=1` switches the timer mode twice for a recording.
+
+Liquid tab picker, macOS 26 version (user's request): the slider thumb is a real Liquid Glass capsule (`glassEffect(.regular.tint(white 0.32).interactive())` inside a `GlassEffectContainer`) with white text, riding the same two-spring stretch as the hand-drawn one — one glass capsule whose two edges are animated separately, which gives a reliable drop-like stretch (the system's `glassEffectID` morph between two options was tried first: it faded the glass out and in instead of stretching it). Older systems or Liquid Glass off (settings › Liquid) fall back to the white capsule with black text.
+
+Liquid tab picker, after reading Apple's Liquid Glass documentation (Applying Liquid Glass to custom views; Adopting Liquid Glass): the docs describe `glassEffect` / `GlassEffectContainer` / `glassEffectID` building blocks but say system controls (`Slider`, `NSSegmentedControl`, segmented `Picker`) get the Liquid Glass look and behaviour — the knob / thumb turns to glass while pressed, can be dragged and morphs — automatically; hand-built glass cannot reproduce the press-and-drag. So on macOS 26 (and Liquid Glass on in the settings) the timer's 倒數 / 碼錶 is now the system's segmented `Picker` (dark, large); the background-timer dots are overlaid on the segments. The hand-built glass thumb was removed; older systems keep the white gooey slider.
+
+Liquid tab picker — matched to the user's reference recording (the system segmented control on macOS 26: grey glass thumb; pressing lifts it into a clear glass lens that follows the pointer across the segments; letting go settles it). The system `Picker` used in 0.1.30 rendered with the accent colour and without the lens inside the non-activating panel, so `SystemGlassSegmented` now draws it: grey rest thumb, press → clear `glassEffect(.clear.interactive())` lens (1.22× wide, 1.3× tall) that follows the drag (selection = segment under it, haptic per change), release → settles and shrinks back into the thumb. `PENDANT_DEBUG_LENS=1` replays a press-drag-release. Older systems keep the white gooey slider.
+
+Glass lens, second pass (user: no real glass sampling, and it felt jerky): the lens is one always-mounted layer (scale / fade instead of insert / remove), real `glassEffect(.clear…interactive())` with the labels inside it drawn over the glass — sharp and 1.16× larger like a magnifier (glass above the text only blurred it); the page below no longer switches while dragging (the segment under the lens is highlighted and committed on release), which was the stutter; the rest thumb slides underneath while the lens settles and the lens then shrinks into it.
+
+Lens layer is an overlay of the control (it is bigger than the thumb and made the track taller, leaving an empty band under the thumb).
+
+Native vs hand-built segmented control, to compare by hand (user is deciding): `NativeSegmented` is SwiftUI's segmented `Picker` (dark, large) with only the background-timer dots overlaid. Setting 設定 › Liquid › 分段控制項: 使用系統原生控制項(試用), default off (the hand-built lens); applies when the capsule is opened again.
+
+Calendar focus plate: on macOS 26 the selected day sits on one fixed `glassEffect(.regular.tint(white 0.10))` plate (the days slide over it) instead of a per-day grey fill; own switch in 設定 › Liquid › 日曆 (`calendarGlassPlate`, default on; off or Liquid Glass off or older macOS = the old grey fill). The native-segmented setting lost its "(試用)" and now says what each mode looks like.
+
+Calendar glass plate looked like a flat grey box (glass over pure black has nothing to refract): a soft white glow sits behind the plate and the glass is tinted lighter and interactive (tried regular / clear / glow variants side by side; glow + regular tint 0.16 read most like glass).
+
+Calendar Liquid Glass removed again at the user's request (`calendarGlassPlate`, the glass plate and its setting are gone; the selected day has the original grey fill). The segmented control keeps its glass lens.
+
+Reminders list overflowing its module (rows wider than the module, centred, crossing the separators): `SwipeToDelete` framed the row at its measured `width` (initially 240 pt) and measured the frame itself, so it could never shrink below the first value. The row now uses a flexible frame; `width` is only used for the swipe maths.
+
+`expandedBottomInset` 14 → 6 pt: with the modules' own 8 pt bottom padding the gap under the content was about 22 pt, too much (it was about 14 before, which looked tight).
+
+設定 › 關於 shows the author (smallja) under the version.
+
+Right click on the swollen idle notch showed macOS's own 「選單列設定」 next to ours: in idle the panel is click-through, so the right click reached the global monitor (our menu) *and* the menu bar. While the notch is swollen (hover) the panel now takes clicks (`enterZone` → interactive; leaving is detected by the capsule's tracking area, then click-through again), so only our menu opens. Not verifiable here (no synthetic mouse); check by hovering the notch and right-clicking.
+
+Volume / brightness HUD (user's sketch): `SystemLevelMonitor` — volume through CoreAudio property listeners on the default output device (virtual main volume + mute, re-attached when the default device changes, which records a new baseline without a HUD); brightness through `DisplayServicesGetBrightness` (private framework, loaded with dlopen/dlsym at run time — if it is missing there is simply no brightness HUD), read 4×/s only while the brightness HUD is switched on, and only changes ≥ 1.2 % count (ambient-light drift does not). `NotchHUDController` (own click-through panel above the capsule, per screen): the notch grows a wing each side — icon + name left, percent + bar right — then tucks back after `hudSeconds` (1.6 s); not shown while the capsule is open. Icons: the speaker's waves follow the volume (SF Symbols variable value; mute = slashed speaker), the sun is drawn (`SunIcon`): its rays grow from short to long with the brightness. Settings: 設定 › 動態島 › 音量與亮度 (two switches + duration). macOS's own HUD cannot be suppressed and still appears. Verified: made-up levels by `PENDANT_DEBUG_HUD=volume|brightness|mute|low`, and a real volume change through osascript (HUD showed 80 %, volume restored); the real brightness keys could not be pressed here.
+
+HUD wings tightened (user measured 53 pt blank left of the notch, 21 pt right): wing width 132 → 108 (as wide as the right wing's content: percent 36 + bar 38 + paddings), the left icon + name are centred in their wing and a bit bigger (24 pt icon, 14 pt name), so the gaps next to the notch are now about 25 pt left / 17 pt right and both wings are the same length.
+
+Fixes from the user's list: (1) CRASH (reports/Pendant-…ips, EXC_BREAKPOINT in NSView updateConstraints on the main thread, 0.1.43): the HUD panel used the hosting view as the window's content view, which makes it adjust the window's size limits during layout (the same bug the capsule's panel avoids with a container view) — now a plain subview; the only place that did this. (2) Shelf opened by window drags: `ShelfDragWatcher` trusted whatever the drag pasteboard still held from the last file drag; now every mouse press snapshots its change count and only a pasteboard written after the press with file URLs counts. (3) HUD: the compact capsule and islands tuck into the notch (`CapsuleModel.hudShowing`) while the wings grow out, and come back as they fold; icon distance from the edge = its distance from the bottom; "100%" no longer wraps; macOS's own pop-up is stopped by `SystemHUDBlocker` (`pkill -x OSDUIHelper`, fixed arguments; setting hudHideSystem, default on; it may still flash for a moment). Roadmap: docs/ROADMAP.md.
+
+HUD, third pass: (1) the contents have their final layout and appear with `RevealEffect` (blur / fade / scale, the same as the song line) while the shape widens, and the capsule clips them, so nothing shows outside it; (2) icon 24 → 18 pt (0.75×), the edge margin = distance to the bottom, the gap to the name grows so the name keeps its place and the capsule keeps its size; (3) the system's pop-up: `pkill` after the fact was too late, and the pop-up helper cannot be unloaded (`launchctl bootout` is refused under SIP). With the Accessibility permission, `MediaKeyInterceptor` (CGEvent tap on the system-defined media keys: volume up / down, mute, brightness up / down) takes the keys before the system: `SystemLevelMonitor` changes the volume (CoreAudio) / brightness (DisplayServices) in 1/16 steps (shift+option: 1/64) and the HUD shows it; the system shows nothing. Turning the setting on asks for the permission, and the tap starts by itself once it is granted (re-checked every 2 s). Without the permission the old pkill fallback remains. NOT verified here: real key presses cannot be sent.
+
+Settings window redesigned after the user's ArcZip references: no title bar / toolbar — a glass window (NSVisualEffectView `.hudWindow` + a dark wash) with a floating sidebar card (app name, icon + label rows, the selected one highlighted; `glassEffect` on macOS 26 with Liquid Glass on, a material otherwise; 重新觀看導覽 at the bottom) and the page on the right. The page title (30 pt) is the first, header-only section of each page's own Form (`SettingsTitleHeader`), so it scrolls away with the content, and the Forms are transparent: nothing like the blurred header band the user pointed at. Page one is named 一般 now. First-run tour (`TourWindowController` / `TourView`, glass window like the settings): welcome page (gradient, icon, 開始導覽), five feature pages (動態島與小膠囊, 音樂, 待辦／日曆／計時器, 檔案中轉站, 音量與亮度) each with a mock-up picture, three points and the switch that matters (login item, swipe, drag-to-shelf, HUD), back / dots / next like the reference, and a last page; `tourSeen` is set when it is finished or the window is closed, so it shows once (not when a PENDANT_DEBUG_* variable is set; `PENDANT_DEBUG_TOUR_PAGE=n` opens page n).
+
+Round after the user's review of 0.1.46: HUD — the capsule is no longer closed first: its contents blur / fade / scale out (`RevealEffect`) while the HUD's shape, which starts exactly as wide as the capsule (`restWidth`), widens and reveals its own contents, and back again (the song peek is dropped while the HUD is up). Settings — own traffic lights in the sidebar (system ones hidden); sidebar per Apple's two designs: macOS 26 floating glass card, macOS 27 (and older systems) flush frosted material (`SidebarStyle`); selected row is a Liquid Glass plate with a shared glass ID (morphs to the chosen row) on 26+; **a glass animation while press-dragging to choose a row was NOT built: Apple documents none for macOS sidebars (as asked: report first)**; 觸控 renamed 手勢操控; a stale note on the gestures page removed. Tour — the welcome gradient is part of the window background (reaches the title bar), body (pages) and footer (back / dots / next) are separate: only the body slides between pages, the footer stays; leaving the last page or the welcome page slides body + footer together (scene transition); back button is the same size as next (whole area clickable), dots are centred independent of the buttons; the music picture has previous on the left / next on the right; the modules picture is flush (no gaps above / below the capsule).
+
+Round after the user's review of 0.1.46: HUD — the capsule is no longer closed first: its contents blur / fade / scale out (`RevealEffect`) while the HUD's shape, which starts exactly as wide as the capsule (`restWidth`), widens and reveals its own contents, and back again (the song peek is dropped while the HUD is up). Settings — own traffic lights in the sidebar (system ones hidden); sidebar per Apple's two designs: macOS 26 floating glass card, macOS 27 (and older systems) flush frosted material (`SidebarStyle`); selected row is a Liquid Glass plate with a shared glass ID (morphs to the chosen row) on 26+; **a glass animation while press-dragging to choose a row was NOT built: Apple documents none for macOS sidebars (as asked: report first)**; 觸控 renamed 手勢操控; a stale note on the gestures page removed. Tour — the welcome gradient is part of the window background (reaches the title bar), body (pages) and footer (back / dots / next) are separate: only the body slides between pages, the footer stays; leaving the last page or the welcome page slides body + footer together (scene transition); back button is the same size as next (whole area clickable), dots are centred independent of the buttons; the music picture has previous on the left / next on the right; the modules picture is flush with the picture's top edge and the capsule is only as tall as its tiles (20 pt above, 16 pt below them).
+
+Tour transitions rebuilt (the Scene/.id/transition approach left the welcome page ghosting at the edge and overlapping the next page): every page, the welcome and done pages sit on ONE horizontal strip positioned by an animated `position`; the window footer (back / dots / next) is a separate layer that stays between the feature pages and rides with the strip into / out of the welcome and done pages (offset derived from `position`). Nothing is inserted or removed, so nothing can linger. `PENDANT_DEBUG_TOUR_AUTO=1` steps through for recordings. HUD → capsule 'black for a moment': the HUD is a panel above the capsule and its opaque black hid the capsule's returning contents until the panel was removed; the HUD's black now fades out as it folds and the capsule's contents return at once (delay 0.02).
+
+HUD 'disappears after opening the app' (0.1.48): not reproduced with the volume path (HUD showed at launch and after 30 s, by osascript volume changes, in a debug build which has no Accessibility permission, i.e. no key tap). Likeliest cause — a defect found while reading the key-tap path: with the permission granted the tap swallows the key *before* checking that it can act, so when the level cannot be read (output without a virtual main volume: some HDMI / Bluetooth devices) the key did nothing and no HUD showed. Now `onKey` returns whether it handled the key; if not, press and release go on to the system untouched. Also: volume read / write falls back to the per-channel scalar volume when there is no virtual main volume.
+
+First HUD after launch had no animation: the panel and its SwiftUI view are created lazily on the first change, and flipping `visible` in the same turn left nothing to animate from. The first time only, the animation starts 60 ms later (`appearTask`), after the view has drawn once.
+
+Status strip (open capsule, top right beside the notch; `StatusStrip`): battery icon + percent (`BatteryMonitor`, IOKit power sources, refreshed by the system's power-source notification, no timer; the icon follows the charge, a bolt while charging, red at ≤ 20 % unplugged; hidden on Macs without a battery) and a pink 「有新版本可用」 tag when `UpdateChecker.availableRelease` exists (click → settings › 關於). New settings page 狀態列 (`statusBattery`, `statusUpdateTag`, both default on). The low-battery HUD stays on docs/ROADMAP.md.
+
+Settings logic round: (1) notes are no longer separate form rows — `.settingNote("…")` attaches the note inside the control's own row, so there is no separator line above it; a SwiftLint custom rule (setting_note_row, Settings/Tabs) warns on a standalone caption Text row. (2) Slider ticks: `HapticSlider` thins them to at most 20 (step × 1, 2, 5, 10, 25 …; the value field next to it still takes exact numbers). (3) 檔案中轉站: renamed; the item-count and size caps are gone (settings, checks, ShelfRules.check and its test) — the shelf holds copies, so the auto-clear is the only housekeeping; clear-after-N-days is '7 天後' by default, picking it shows a days field + stepper (1–365) and the picker's option name follows the chosen number. (4) removed the notes on 手勢操控 and 狀態列; (5) 外觀: removed the Liquid Glass note, the 分段控制項 heading + note and the 預覽 section (the switch stays, labelled 計時器的倒數／碼錶使用系統原生控制項); (6) 隱私 text: ';' → '。'; (7) 關於: the 專案 section is gone (the MIT licence stays in the repository's LICENSE file).
+
+外觀: the two switches share one section (divider between them) and the second reads 自製 Liquid Glass 元件 (the opposite of the stored `nativeSegmented`), with the note inside its row: on = parts the system has no Liquid Glass version of (the timer's 倒數／碼錶) get Pendant's own Liquid Glass; off = the system's native look.
+
+關於 › 更新頻道: the segmented picker sits at the row's right edge (`LabeledContent` + `.fixedSize()`).
+
+Settings illustrations (in progress, NOT in the pages yet, not released): `SettingsIllustrations.swift` draws the pictures from the user's structure sketches with SwiftUI (islands, shelf, status bar, appearance; the Liquid Glass half uses the real glassEffect over a colour glow); `PENDANT_DEBUG_ILLUSTRATIONS=<dir>` exports them to PNG for review. The gesture page will get animated GIF-style demos later (needs its own sketch).
+
+Illustrations v2 (user feedback on the first four): islands hang flat from the top edge; the status bar picture is zoomed on the capsule's top-right corner (tiles run off the frame to the left, battery and update tag in the corner); shelf panel padding tightened to 12 pt; the appearance picture compares real controls (button, segmented group, slider) plain vs Liquid Glass instead of text; no caption under any picture (the page heading names it); only the 主島 / 副島 callouts stay since they are part of the diagram.
+
+Feedback round: islands picture — the main island uses the real `NotchShape` (flat top with the concave ears), the secondary island is a plain capsule. App icon redrawn in code (`AppIconArt`, `PENDANT_DEBUG_ICON=<dir>` exports every size): the notch is about 55 % shorter (height 0.2 of the square, was 0.44), the lamp (SF Symbol lamp.desk.fill) is bigger (0.5 of the square). PNGs replaced in AppIcon.appiconset.
+
+Islands picture: the menu-bar strip is as tall as the notch island (32 pt; it was 18 pt, which made the islands look taller than the bar). App icon: notch 0.17 of the square (was 0.2), lamp 0.57 (was 0.5).
+
+Islands picture: the 主島 / 副島 marks are loose hand-drawn strokes with a small loop (`Squiggle`) like the user's sketch, no arrows, placed under the main island's left end and the secondary island. App icon: back to the previous version (notch 0.2, lamp 0.5) as chosen.
+
+Hand-drawn marks redrawn after the user's own stroke (rises from bottom-left, one clean loop, runs on up); 副島 is its mirror image.
+
+The 主島 / 副島 stroke is now TRACED from the user's own drawing (read off a 4× enlarged copy with a grid, fitted with Bézier curves) instead of guessed: a rise, a small lens-shaped loop beside the junction, a run to the upper right; 副島 is its mirror image.
+
+Islands picture: the traced stroke is turned back upright (±26°) and the 主島 / 副島 labels are set in the handwriting font Hannotate TC (HannotateTC-W7), centred under the stroke's end.
+
+Islands picture: the strokes start ~9 pt below the islands instead of touching them (stroke 62 pt tall, moved down 10 pt).
+
+手勢操控 demo (preview, not in the page yet): `GestureDemo.swift` — a pure function of time (9 s loop) so it plays live in the page (`TimelineView`) and renders frame by frame into a GIF (`PENDANT_DEBUG_GESTURE_DEMO=<dir>` → frames, ffmpeg palette → GIF): left a trackpad with two white dots (fingers), right a mock of the real compact capsule — after a dead zone the previous / next icon steps in from the edge the fingers moved towards (same fade curve as the real `StepIconOverlay`), the track changes in the middle (cover dips and springs back, song line appears for 2.5 s), the capsule stretches. First swipe left = next, then swipe right = previous. The calendar demo is not made yet.
+
+Gesture demo: song / artist are placeholder text (歌名 / 歌手); faster — loop 6.2 s (was 9), each swipe about 1 s (was 1.9; a real swipe is quicker still), GIF at 30 fps (was 20). The GIF is only a preview; in the page the view plays live.
+
+Gesture demo: 60 fps frames (GIF 50 fps, the GIF format's practical maximum; an MP4 at 60 fps for smooth preview) and the capsule's stretch is the app's real jelly spring (response 0.34, damping 0.45; the spring is linear, so it is computed exactly as 'step on when the icon appears' minus 'step off when the fingers lift', overshooting and wobbling like the real one).
+
+'Pendant keeps crashing' (user report, 0.1.54): the diagnostic reports show no Pendant crash since the HUD fix at 18:27 on 10-20 (the earlier ones are the constraint-update crash fixed in 0.1.44). What the user saw is most likely the app being killed by my own verification runs: they used `pkill -f "Pendant.app/Contents/MacOS"`, which also matches the installed /Applications/Pendant.app. Verification runs now kill only the debug build (`build/Build/Products/Debug/Pendant.app`); the installed app is relaunched afterwards.
+
+Gesture demo: the fingers move like a hand — front-loaded easing (`swipeEase`: quick start, long arrival), the second finger trails the first by 45 ms, the hand arcs a little (±5 % vertical drift), the dots press down as they touch (scale 0.82 → 1) and have a soft halo. The icon progress and song-line timing use the same curve, so the capsule still follows the fingers. GIF 50 fps.
+
+Gesture demo: the vertical drift is gone; the horizontal travel is no longer even — smootherstep of a front-loaded clock (slow start, fast middle, long gentle arrival); swipes last 1.25 s; loop 6.4 s.
+
+Release 0.2.0: the settings window redesign (glass window, sidebar, illustrations, live gesture demo), 狀態列, HUD, tour, new app icon. Old update packages were removed from the update folder (only 0.2.0 is kept). Pictures are in the 動態島 / 檔案中轉站 / 狀態列 / 外觀 / 手勢操控 pages.
+
+Bug 'the notch stays swollen near the cursor and swallows clicks around it' (0.2.0): caused by my 0.1.41 change — while the idle notch is swollen the panel takes clicks (so a right click reaches our menu, see above) and, being interactive, the global move monitor is removed; if the tracking-area exit was missed, nothing released the panel. The pointer watch (80 ms) now runs in the idle state too and, when the pointer is off the notch, un-swells and hands the clicks back. Not reproducible headlessly (no synthetic mouse); fixed from the code path.
+
+Shelf page: the AirDrop area's width is a share of the page (`shelfAirDropPercent`, default 22 %, 10–60 %, settings › 檔案中轉站 › 版面); the drawer takes the rest. (Verification note: my debug seeding had put six sample files into the user's real shelf; they were removed again by name, the user's own file was left alone.)
+
+Shelf layout row is now 檔案中轉站比例: one slider (drawer share 10–90 %), digits at both ends (tens as one digit; whole percents with ⌘ held), snaps to tens, ⌘ → 1 %, a haptic per step; the hint line says so; the preview picture above follows the ratio live (`ShelfIllustration` reads the setting). Stored value is still `shelfAirDropPercent` (the AirDrop share).
+
+Compact shelf capsule: the line under it shows the newest file on the shelf as "name · size" (`ShelfInfoLine`), with its file icon in front when `shelfPeekWithIcon` is on (default; settings › 檔案中轉站 › 小膠囊資訊, a segmented picker). It replaced the song line, which showed the currently playing track even when the shelf was the activity. `PENDANT_DEBUG_COMPACT=shelf` makes the shelf the main activity for screenshots.
+
+Clicking the compact shelf capsule no longer jumps to the shelf page unless the pointer is on its icon (the left wing): `mainIslandTapped` checks `pointerIsOnMainIcon()` for the shelf activity; other activities still jump. Not testable headlessly (no synthetic clicks).
+
+HUD over a hovered capsule: while the HUD is up the capsule keeps its resting size (no swell / peek / shadow), so nothing shows around the HUD as a second capsule. Gesture page demo: dropped its own card (the section is one) and scales to the page's width (`GestureDemoView`, up to 1.7×); the other pages' pictures keep their frame.
+
+HUD hover (clarified by the user: the HUD takes the place of the main island, the island is not pushed to a secondary and not drawn over; the HUD keeps the hover swell): while the HUD is up its controller watches the pointer (80 ms, panel is click-through) and swells the HUD itself (width ×swellWidth, height ×swellHeight, jelly spring, notchEnter haptic); the capsule beneath stays at rest. Verified with CGWarpMouseCursorPosition (needs no permission) — the HUD grew when the pointer was warped onto the notch.
+
+Fixes: the shelf secondary island's width was too small for its tray icon (12 pt was assumed, the symbol is wider) so the file count was clipped — width = padding 18 + icon 18 + gap 6 + 9 per digit + 4; the 狀態列 settings page icon is `menubar.rectangle` (it will hold more than the battery).
+
+Round: (1) status bar page — 顯示電量 has a sub-toggle 顯示百分比 (`statusBatteryPercent`); (2) the pictures follow the settings live (status bar: battery / percent / update tag; islands: cover / waveform); the timer island in the picture has its orange icon; (3) gesture demo 'try it': hovering the demo trackpad hides the fake fingers and the hint (將游標移入來試試看), and the real two-finger swipe drives the island through the real SwipeAccumulator + speed gain + haptics (`LiveSwipe`); (4) secondary island stuck swollen: the pointer watch now also runs while an island is hovered and clears a stale hover; (5) icon not new after the update: the bundle had the new icon (checked) — Finder / Dock caches the old one; after an update the app is touched and re-registered with Launch Services (`refreshIconCache`), and the installed copy was re-registered by hand; (6) design mock-ups of two 動態島 settings layouts (docs/mockups/dynamic-island-settings.html), the app itself unchanged for that item.
+
+Settings restructure (per docs/mockups/tool-settings-review.html, agreed with the user): 小工具 = 大膠囊 / 小膠囊 tabs; 動態島 keeps 副島 (incl. 尺寸, whose 總寬度上限 drops the lowest-priority secondary — the planner's real behaviour, the main island never shrinks) and 閒置隱藏延時. New role `ActivityRole.secondaryOnly` (`secondaryOnlyActivities`): `ActivityOrdering.arrange` gives the main island to the first activity that may have it; if none may, the order is kept (a secondary-only activity then still shows as the main one — a deliberate fallback, the planner needs a main). Idle delay (`mediaPauseRetention`, label 閒置隱藏延時) now also keeps a paused timer / stopwatch on the row (`ActivityCenter.idleKeeps`); the wake-up task only looks at deadlines in the future (it used to re-fire every 50 ms once a pause had expired). New settings: `shelfShowsCount`, `shelfPeekEnabled`. Demos (`Settings/Demo/*`) are SwiftUI re-creations on a virtual 1100 pt screen that use the real `IslandPlanner`, `ActivityOrdering`, `CapsuleLayout` and the real settings — not the island on the screen itself; mouse-driven (hover / click / scroll / drag), hint 「將游標移入即可體驗」 only. Debug: PENDANT_DEBUG_SETTINGS=<tab>, PENDANT_DEBUG_SETTINGS_SCALE=0.62 (whole page in one screenshot), PENDANT_DEBUG_WIDGETS_PAGE=small.
+
+Virtual notch (screens without a physical notch, `NotchGeometry.isVirtual`): the capsule is split into three parts that are the compact capsule's own geometry — left wing | notch body | right wing. `CapsuleLayout.virtualContent` (set from `isVirtual && settings.virtualNotchEnabled`) makes the idle capsule as wide as the compact one and gives the wings a minimum of `virtualWing` (54 pt, room for battery icon + percent); the idle trigger zone is the whole body. Content (`VirtualNotchContent`): middle = clock (`VirtualClockFormat`: 24 h / 12 h, seconds, date; always shown, also while an activity is live), left = battery (`BatteryMonitor`), right = empty for now. While an activity is live it takes both sides: the side contents leave with the same blur / fade / scale `RevealEffect` the HUD uses. The HUD's rest width follows the idle body. Settings page 虛擬瀏海 (settings `virtualNotchEnabled`, `virtualMiddle`, `virtualClock24h`, `virtualClockSeconds`, `virtualClockDate`, `virtualLeft`, `virtualBatteryPercent`, `virtualRight`). Debug: PENDANT_DEBUG_VIRTUAL=1 treats every screen as notch-less; PENDANT_DEBUG_NO_ACTIVITIES=1 shows the idle capsule.
+
+Virtual notch narrower (user): the middle part is `NotchGeometry.virtualContentWidth` = 128 pt (was the 185 pt placeholder), wings `virtualWing` = 50 pt; on a virtual notch the activity icons / count and the battery are pinned to the outer edges (iconMargin, +3 for the right / battery side) instead of centred in the wing, so no extra gap is left. The narrower geometry is built in `makeGeometry(for:menuBarHeight:)`.

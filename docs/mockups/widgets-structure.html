@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>小工具頁：排序／大膠囊／小膠囊</title>
+<style>
+  :root { --bg:#1d1d20; --win:#2b2b2f; --side:#232326; --card:#34343a; --line:#46464d; --txt:#f2f2f5; --mut:#9a9aa3; --acc:#0a84ff; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--txt); font:14px/1.5 -apple-system,"PingFang TC",sans-serif; }
+  .top { padding:16px 24px 0; } .top h1 { font-size:18px; margin:0; } .top p { margin:2px 0 0; color:var(--mut); }
+  .win { display:grid; grid-template-columns:200px 1fr; margin:14px 24px 40px; border-radius:16px; background:var(--win); border:1px solid var(--line); overflow:hidden; }
+  aside { background:var(--side); padding:16px 10px; } aside .app { font-weight:700; font-size:16px; padding:6px 10px 14px; }
+  aside .item { padding:7px 10px; border-radius:9px; color:var(--mut); cursor:pointer; } aside .item.sel { background:#4a4a52; color:#fff; }
+  main { padding:20px 26px 28px; } h2 { font-size:28px; margin:0 0 12px; }
+  .seg { display:inline-flex; background:#26262a; border-radius:9px; padding:2px; } .seg span { padding:4px 14px; border-radius:7px; cursor:pointer; color:var(--mut); } .seg span.on { background:#5b5b63; color:#fff; }
+  .pane { display:none; margin-top:14px; } .pane.on { display:block; }
+  .split { display:grid; grid-template-columns:230px 1fr; gap:16px; }
+  .list { background:var(--card); border-radius:12px; padding:6px; align-self:start; }
+  .li { display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:9px; cursor:pointer; color:var(--mut); } .li.sel { background:var(--acc); color:#fff; }
+  .li .grow { flex:1; } .li small { opacity:.7; }
+  .card { background:var(--card); border-radius:12px; margin-bottom:12px; overflow:hidden; }
+  .r { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 14px; border-top:1px solid var(--line); } .card>.r:first-child { border-top:0; }
+  .sec { margin:14px 0 6px; color:var(--mut); font-weight:600; font-size:12px; }
+  .tog { width:40px; height:24px; border-radius:999px; background:#55555c; position:relative; flex:none; cursor:pointer; } .tog::after { content:""; position:absolute; top:2px; left:2px; width:20px; height:20px; border-radius:50%; background:#fff; transition:.2s; } .tog.on { background:var(--acc); } .tog.on::after { left:18px; }
+  .badge { font-size:11px; border-radius:999px; padding:2px 9px; background:#26262a; color:var(--mut); } .badge.no { background:rgba(255,159,10,.18); color:#ff9f0a; }
+  .caps { background:#000; border-radius:16px; padding:12px; display:flex; gap:8px; margin-bottom:12px; }
+  .tile { flex:1; background:#2a2a2e; border-radius:12px; padding:10px 6px; text-align:center; font-size:12px; } 
+  .tile.sel { background:#4a4a52; }
+  .drag { display:flex; align-items:center; gap:10px; padding:9px 14px; border-top:1px solid var(--line); } .drag:first-child { border-top:0; } .drag .n { flex:1; } .drag .h { color:var(--mut); }
+  .q { background:#2a3342; border:1px solid #3b4a63; color:#cfe0ff; border-radius:12px; padding:12px 16px; margin:0 24px 14px; }
+  input[type=range] { accent-color:var(--acc); width:170px; }
+</style>
+</head>
+<body>
+<div class="top"><h1>設定 › 小工具：排序／大膠囊／小膠囊（網頁模擬，App 沒動）</h1></div>
+<div class="q"><b>我的理解（請確認）</b>：①「自訂小工具」頁改叫<b>排序</b>，只管順序；② 新增<b>大膠囊</b>、<b>小膠囊</b>兩個分頁，左邊是工具清單、右邊是「該工具」的設定；③ 凡是只屬於單一工具的設定（音波圖、歌名顯示時間、音量與亮度提示…）都搬進對應工具；④ 動態島頁只留整體的東西（位置、閒置隱藏延時、尺寸）。</div>
+
+<div class="win">
+  <aside><div class="app">Pendant</div><div class="item">一般</div><div class="item">動態島</div><div class="item sel">小工具</div><div class="item">檔案中轉站</div><div class="item">手勢操控</div><div class="item">狀態列</div><div class="item">外觀</div><div class="item">隱私</div><div class="item">關於</div></aside>
+  <main>
+    <h2>小工具</h2>
+    <div class="seg" id="tabs"><span class="on" data-p="order">排序</span><span data-p="big">大膠囊</span><span data-p="small">小膠囊</span></div>
+
+    <!-- 排序 -->
+    <div class="pane on" id="order">
+      <div class="sec">大膠囊</div>
+      <div class="seg" style="margin-bottom:10px"><span class="on">功能</span><span>檔案中轉站</span><span>＋ 新增分頁</span></div>
+      <div class="caps"><div class="tile sel">媒體播放器</div><div class="tile">行事曆</div><div class="tile">待辦事項</div><div class="tile">Timer</div><div class="tile">鏡子</div></div>
+      <div class="sec">小膠囊（由上到下為優先順序）</div>
+      <div class="card">
+        <div class="drag"><span class="h">☰</span><span class="n">媒體播放中</span></div>
+        <div class="drag"><span class="h">☰</span><span class="n">倒數計時器</span></div>
+        <div class="drag"><span class="h">☰</span><span class="n">碼錶</span></div>
+        <div class="drag"><span class="h">☰</span><span class="n">檔案抽屜數量</span></div>
+      </div>
+    </div>
+
+    <!-- 大膠囊 -->
+    <div class="pane" id="big"><div class="split">
+      <div class="list" id="bigList"></div><div id="bigRight"></div></div></div>
+
+    <!-- 小膠囊 -->
+    <div class="pane" id="small"><div class="split">
+      <div class="list" id="smallList"></div><div id="smallRight"></div></div></div>
+  </main>
+</div>
+
+<script>
+const T=(on)=>`<div class="tog ${on?'on':''}" onclick="this.classList.toggle('on')"></div>`;
+const row=(l,r)=>`<div class="r"><span>${l}</span><span>${r}</span></div>`;
+const bigTools={
+ '媒體播放器':[['所在分頁','功能 ☑　檔案中轉站 ☐'],['寬度','4 cells'],['專輯色光暈',T(1)],['串流曲目補封面',T(1)],['封面快取',T(1)+' <span class="badge">5.8 MB · 清除</span>'],['音樂來源','自動 ▾']],
+ '行事曆':[['所在分頁','功能 ☑'],['寬度','4 cells'],['顯示天數','前 ▫ 後 ▫'],['已過行程',T(1)]],
+ '待辦事項':[['所在分頁','功能 ☑'],['寬度','3 cells'],['預設清單','提醒事項 ▾']],
+ 'Timer':[['所在分頁','功能 ☑'],['寬度','3 cells'],['快速計時','1m · 5m · 10m · 25m']],
+ '鏡子':[['所在分頁','功能 ☑'],['寬度','2 cells'],['左右翻轉',T(1)]],
+ '筆記':[['所在分頁','筆記'],['寬度','6 cells'],['字級','14']],
+ '檔案中轉站':[['所在分頁','檔案中轉站'],['寬度','6 cells']]
+};
+const smallTools={
+ '媒體播放中':[['角色','主／副島 ▾'],['專輯封面',T(1)],['音波圖',T(1)],['換歌顯示歌名',T(1)],['歌名顯示時間','2 秒']],
+ '倒數計時器':[['角色','主／副島 ▾']],
+ '碼錶':[['角色','主／副島 ▾']],
+ '檔案抽屜數量':[['角色','主／副島 ▾'],['游標移上時顯示','名稱 · 大小 ▾'],['圖示',T(1)]],
+ '音量與亮度':[['音量提示',T(1)],['亮度提示',T(1)],['取代系統提示',T(1)+' <span class="badge no">需輔助使用</span>'],['提示時間','1.6 秒']],
+ '提醒到期':[['即將推出','']]
+};
+function build(listId,rightId,data,first){
+  const L=document.getElementById(listId),R=document.getElementById(rightId);
+  L.innerHTML='';
+  Object.keys(data).forEach((k,i)=>{const d=document.createElement('div');d.className='li'+(i===0?' sel':'');d.innerHTML='<span class="grow">'+k+'</span>'+T(k!=='提醒到期'&&k!=='筆記'||k==='筆記');
+    d.onclick=e=>{if(e.target.classList.contains('tog'))return;L.querySelectorAll('.li').forEach(x=>x.classList.remove('sel'));d.classList.add('sel');show(R,k,data);};L.appendChild(d);});
+  show(R,Object.keys(data)[0],data);
+}
+function show(R,k,data){R.innerHTML='<div class="sec">'+k+'</div><div class="card">'+data[k].map(x=>row(x[0],x[1])).join('')+'</div>';}
+build('bigList','bigRight',bigTools);build('smallList','smallRight',smallTools);
+document.querySelectorAll('#tabs span').forEach(s=>s.onclick=()=>{document.querySelectorAll('#tabs span').forEach(x=>x.classList.toggle('on',x===s));document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on',p.id===s.dataset.p));});
+</script>
+</body>
+</html>

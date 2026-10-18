@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>動態島設定：兩種排版</title>
+<style>
+  :root { --bg:#1d1d20; --win:#2b2b2f; --side:#232326; --card:#34343a; --line:#46464d; --txt:#f2f2f5; --mut:#9a9aa3; --acc:#0a84ff; --ok:#30d158; --warn:#ff9f0a; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--txt); font:14px/1.5 -apple-system, "PingFang TC", sans-serif; }
+  header { padding:18px 24px 0; }
+  h1 { font-size:18px; margin:0 0 4px; }
+  header p { margin:0; color:var(--mut); }
+  .tabs { display:flex; gap:8px; margin:14px 24px; }
+  .tabs button { background:var(--card); color:var(--txt); border:1px solid var(--line); border-radius:999px; padding:7px 16px; font:inherit; cursor:pointer; }
+  .tabs button.on { background:var(--acc); border-color:var(--acc); }
+  .win { display:none; margin:0 24px 40px; border-radius:16px; background:var(--win); border:1px solid var(--line); overflow:hidden; }
+  .win.on { display:grid; grid-template-columns: 200px 1fr; }
+  aside { background:var(--side); padding:16px 10px; }
+  aside .app { font-weight:700; font-size:16px; padding:6px 10px 14px; }
+  aside div.item { padding:7px 10px; border-radius:9px; color:var(--mut); }
+  aside div.item.sel { background:#4a4a52; color:var(--txt); }
+  main { padding:22px 28px 30px; }
+  main h2 { font-size:28px; margin:0 0 14px; }
+  .preview { background:#3a3a40; border-radius:14px; padding:14px; margin-bottom:18px; }
+  .desk { position:relative; height:112px; border-radius:10px; background:linear-gradient(135deg,#2c4a9c,#7a3f8a); overflow:hidden; }
+  .bar { position:absolute; inset:0 0 auto 0; height:30px; background:rgba(0,0,0,.35); }
+  .row { position:absolute; top:0; left:50%; transform:translateX(-50%); display:flex; gap:8px; align-items:flex-start; }
+  .isl { background:#000; color:#fff; height:30px; display:flex; align-items:center; gap:8px; padding:0 14px; font-weight:600; transition:all .25s; }
+  .isl.main { width:230px; border-radius:0 0 14px 14px; justify-content:space-between; }
+  .isl.sec { border-radius:999px; height:26px; margin-top:2px; font-size:12px; }
+  .cover { width:16px; height:16px; border-radius:5px; background:linear-gradient(#ff9a3c,#ff4f7a); }
+  .hide { display:none !important; }
+  .section { margin:18px 0 6px; font-weight:600; color:var(--mut); font-size:12px; letter-spacing:.04em; }
+  .card { background:var(--card); border-radius:12px; }
+  .r { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:10px 14px; border-top:1px solid var(--line); }
+  .card > .r:first-child { border-top:0; }
+  .r .l { min-width:0; }
+  .r .l small { display:block; color:var(--mut); font-size:12px; }
+  .tog { width:40px; height:24px; border-radius:999px; background:#55555c; position:relative; cursor:pointer; flex:none; transition:.2s; }
+  .tog::after { content:""; position:absolute; top:2px; left:2px; width:20px; height:20px; border-radius:50%; background:#fff; transition:.2s; }
+  .tog.on { background:var(--acc); } .tog.on::after { left:18px; }
+  .seg { display:flex; background:#26262a; border-radius:9px; padding:2px; flex:none; }
+  .seg span { padding:4px 11px; border-radius:7px; cursor:pointer; font-size:13px; color:var(--mut); }
+  .seg span.on { background:#5b5b63; color:#fff; }
+  input[type=range] { width:200px; accent-color:var(--acc); }
+  .drag { display:flex; align-items:center; gap:10px; padding:9px 14px; border-top:1px solid var(--line); }
+  .drag:first-child { border-top:0; } .drag .h { color:var(--mut); cursor:grab; } .drag .n { flex:1; }
+  .badge { font-size:11px; border-radius:999px; padding:2px 9px; background:#26262a; color:var(--mut); }
+  .badge.ok { background:rgba(48,209,88,.18); color:var(--ok); } .badge.no { background:rgba(255,159,10,.18); color:var(--warn); }
+  details { border-top:1px solid var(--line); } details:first-child { border-top:0; }
+  details > summary { list-style:none; padding:11px 14px; cursor:pointer; display:flex; justify-content:space-between; color:var(--mut); }
+  details > summary::after { content:"›"; transition:.2s; } details[open] > summary::after { transform:rotate(90deg); }
+  .note { padding:8px 14px 12px; color:var(--mut); font-size:12px; }
+  .tipbox { margin:0 24px 14px; padding:12px 16px; background:#2a3342; border:1px solid #3b4a63; border-radius:12px; color:#cfe0ff; }
+  .cmp { margin:0 24px 40px; padding:14px 18px; background:var(--win); border:1px solid var(--line); border-radius:14px; }
+  .cmp td, .cmp th { text-align:left; padding:6px 14px 6px 0; vertical-align:top; }
+  .cmp th { color:var(--mut); font-weight:600; }
+  .gr { margin-top:6px; }
+  .gh { padding:12px 14px 4px; font-weight:700; font-size:15px; display:flex; gap:8px; align-items:center; }
+  .gh small { color:var(--mut); font-weight:400; }
+</style>
+</head>
+<body>
+<header>
+  <h1>設定 › 動態島（修訂版排版，只是網頁模擬）</h1>
+</header>
+<div class="win on" id="b" style="margin-top:14px">
+  <aside><div class="app">Pendant</div><div class="item">一般</div><div class="item sel">動態島</div><div class="item">小工具</div><div class="item">檔案中轉站</div><div class="item">手勢操控</div><div class="item">狀態列</div><div class="item">外觀</div><div class="item">隱私</div><div class="item">關於</div></aside>
+  <main>
+    <h2>動態島</h2>
+    <div class="preview"><div class="desk"><div class="bar"></div>
+      <div class="row"><div class="isl sec" data-side="left">⏱ 01:28</div><div class="isl main"><span class="cover" data-cover></span><span data-wave>▮▮▮</span></div><div class="isl sec" data-side="right">🗂 3</div></div></div></div>
+
+    <div class="section">活動</div>
+    <div class="card">
+      <div class="drag"><span class="h">☰</span><span class="n">媒體播放中</span><div class="seg"><span class="on">主／副島</span><span>僅主島</span><span>隱藏</span></div></div>
+      <div class="drag"><span class="h">☰</span><span class="n">倒數計時器</span><div class="seg"><span class="on">主／副島</span><span>僅主島</span><span>隱藏</span></div></div>
+      <div class="drag"><span class="h">☰</span><span class="n">碼錶</span><div class="seg"><span class="on">主／副島</span><span>僅主島</span><span>隱藏</span></div></div>
+      <div class="drag"><span class="h">☰</span><span class="n">檔案抽屜數量</span><div class="seg"><span>主／副島</span><span>僅主島</span><span class="on">隱藏</span></div></div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <div class="r"><div class="l">閒置隱藏延時</div><div><input type="range" max="300" value="60"> <span class="badge">60 秒</span></div></div>
+    </div>
+
+    <div class="section">位置</div>
+    <div class="card">
+      <div class="r"><div class="l">副島</div><div class="seg" data-seg="sec"><span>無</span><span>左</span><span>右</span><span class="on">雙側</span></div></div>
+      <div class="r"><div class="l">顯示時機</div><div class="seg"><span class="on">常駐</span><span>短暫</span><span>懸停</span></div></div>
+      <div class="r"><div class="l">避開選單列</div><div><span class="badge no">需輔助使用</span> <div class="tog" style="display:inline-block;vertical-align:middle"></div></div></div>
+      <div class="r"><div class="l">下沉</div><div class="tog"></div></div>
+    </div>
+
+    <div class="section">小膠囊</div>
+    <div class="card">
+      <div class="r"><div class="l">專輯封面</div><div class="tog on" data-t="cover"></div></div>
+      <div class="r"><div class="l">音波圖</div><div class="tog on" data-t="wave"></div></div>
+      <div class="r"><div class="l">換歌顯示歌名</div><div class="tog on"></div></div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <details><summary>尺寸</summary>
+        <div class="r"><div class="l">島間距</div><div><input type="range" min="2" max="20" value="9"> <span class="badge">9 pt</span></div></div>
+        <div class="r"><div class="l">總寬度上限</div><div><input type="range" value="40"> <span class="badge">40 %</span></div></div>
+        <div class="r"><div class="l">副島最大寬度</div><div><input type="range" value="50"> <span class="badge">100 pt</span></div></div>
+        <div class="r"><div class="l">左側偏移</div><div><input type="range" value="30"> <span class="badge">0 pt</span></div></div>
+        <div class="r"><div class="l">右側偏移</div><div><input type="range" value="30"> <span class="badge">0 pt</span></div></div></details>
+    </div>
+  </main>
+</div>
+<script>
+  document.querySelectorAll('.tog').forEach(t=>t.onclick=()=>{t.classList.toggle('on');sync();});
+  document.querySelectorAll('.seg').forEach(s=>s.querySelectorAll('span').forEach(sp=>sp.onclick=()=>{s.querySelectorAll('span').forEach(x=>x.classList.remove('on'));sp.classList.add('on');sync();}));
+  function sync(){
+    const w=document.getElementById('b');
+    const t=n=>{const e=w.querySelector('[data-t='+n+']');return !e||e.classList.contains('on')};
+    w.querySelectorAll('[data-cover]').forEach(e=>e.classList.toggle('hide',!t('cover')));
+    w.querySelectorAll('[data-wave]').forEach(e=>e.classList.toggle('hide',!t('wave')));
+    const v=w.querySelector('[data-seg=sec] .on').textContent.trim();
+    w.querySelectorAll('[data-side=left]').forEach(e=>e.classList.toggle('hide',!['左','雙側'].includes(v)));
+    w.querySelectorAll('[data-side=right]').forEach(e=>e.classList.toggle('hide',!['右','雙側'].includes(v)));
+  }
+  sync();
+</script>
+</body>
+</html>
