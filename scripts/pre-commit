@@ -1,0 +1,10 @@
+#!/bin/sh
+# Secret scan + lint before each commit. Install with scripts/install-hooks.sh
+if command -v gitleaks >/dev/null 2>&1; then
+  gitleaks protect --staged --config .gitleaks.toml --redact || { echo "gitleaks: possible secret found, commit aborted"; exit 1; }
+else
+  echo "warning: gitleaks not installed (brew install gitleaks); skipping secret scan" >&2
+fi
+if command -v swiftlint >/dev/null 2>&1; then
+  swiftlint lint --quiet --strict || exit 1
+fi
