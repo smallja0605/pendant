@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>小工具與動態島設定：逐項檢查版</title>
+<style>
+  :root { --bg:#1d1d20; --win:#2b2b2f; --side:#232326; --card:#34343a; --line:#46464d; --txt:#f2f2f5; --mut:#9a9aa3; --acc:#0a84ff; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--txt); font:14px/1.5 -apple-system,"PingFang TC",sans-serif; }
+  .top { padding:16px 24px 0; } .top h1 { font-size:18px; margin:0; } .top p { margin:2px 0 0; color:var(--mut); }
+  .win { display:grid; grid-template-columns:200px 1fr; margin:14px 24px 40px; border-radius:16px; background:var(--win); border:1px solid var(--line); overflow:hidden; }
+  aside { background:var(--side); padding:16px 10px; } aside .app { font-weight:700; font-size:16px; padding:6px 10px 14px; }
+  aside .item { padding:7px 10px; border-radius:9px; color:var(--mut); cursor:pointer; } aside .item.sel { background:#4a4a52; color:#fff; }
+  main { padding:20px 26px 28px; min-width:0; } h2 { font-size:28px; margin:0 0 12px; }
+  .seg { display:inline-flex; background:#26262a; border-radius:9px; padding:2px; } .seg span { padding:4px 14px; border-radius:7px; cursor:pointer; color:var(--mut); } .seg span.on { background:#5b5b63; color:#fff; }
+  .pane { display:none; margin-top:14px; } .pane.on { display:block; }
+  .split { display:grid; grid-template-columns:230px 1fr; gap:16px; }
+  .list { background:var(--card); border-radius:12px; padding:6px; align-self:start; }
+  .li { display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:9px; cursor:pointer; color:var(--mut); } .li.sel { background:var(--acc); color:#fff; }
+  .li .grow { flex:1; } .li small { opacity:.7; } .li.soon { opacity:.45; cursor:default; }
+  .card { background:var(--card); border-radius:12px; margin-bottom:12px; overflow:hidden; }
+  .r { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 14px; border-top:1px solid var(--line); } .card>.r:first-child, details>div>.r:first-child { border-top:0; }
+  .r .l { display:flex; flex-direction:column; } .r .tip { color:var(--mut); font-size:12px; line-height:1.35; margin-top:1px; }
+  .sec { margin:14px 0 6px; color:var(--mut); font-weight:600; font-size:12px; }
+  .tog { width:40px; height:24px; border-radius:999px; background:#55555c; position:relative; flex:none; cursor:pointer; } .tog::after { content:""; position:absolute; top:2px; left:2px; width:20px; height:20px; border-radius:50%; background:#fff; transition:.2s; } .tog.on { background:var(--acc); } .tog.on::after { left:18px; }
+  .badge { font-size:11px; border-radius:999px; padding:2px 9px; background:#26262a; color:var(--mut); } .badge.no { background:rgba(255,159,10,.18); color:#ff9f0a; }
+  .caps { background:#000; border-radius:16px; padding:12px; display:flex; gap:8px; margin-bottom:12px; }
+  .tile { flex:1; background:#2a2a2e; border-radius:12px; padding:10px 6px; text-align:center; font-size:12px; cursor:pointer; }
+  .tile.sel { background:#4a4a52; }
+  .drag { display:flex; align-items:center; gap:10px; padding:9px 14px; border-top:1px solid var(--line); } .drag:first-child { border-top:0; } .drag .n { flex:1; } .drag .h { color:var(--mut); }
+  .drag button.act { padding:0 8px; }
+  input[type=range] { accent-color:var(--acc); width:170px; }
+  select, input[type=text], input[type=number] { background:#26262a; color:#fff; border:1px solid var(--line); border-radius:7px; padding:3px 8px; font:inherit; }
+  input[type=number] { width:64px; text-align:right; }
+  .ctl { display:flex; align-items:center; gap:8px; }
+  .dim { opacity:.45; pointer-events:none; }
+  .mut { color:var(--mut); }
+  button.act { background:#4a4a52; color:#fff; border:0; border-radius:8px; padding:4px 12px; font:inherit; cursor:pointer; }
+  /* demos */
+  .demo { background:#3a3a40; border-radius:14px; padding:12px; margin-bottom:12px; }
+  .desk { position:relative; height:136px; border-radius:10px; background:linear-gradient(135deg,#2c4a9c,#7a3f8a); overflow:hidden; }
+  .bar { position:absolute; inset:0 0 auto 0; height:30px; background:rgba(0,0,0,.35); }
+  .menus { position:absolute; left:10px; top:0; height:30px; display:flex; gap:12px; align-items:center; font-size:12px; color:#fff; }
+  .isl { position:absolute; top:0; background:#000; color:#fff; height:30px; display:flex; align-items:center; gap:6px; padding:0 12px; font-weight:600; font-size:12px; transition:all .35s cubic-bezier(.3,1.4,.5,1); white-space:nowrap; overflow:hidden; }
+  .isl.main { border-radius:0 0 14px 14px; justify-content:space-between; }
+  .isl.sec { border-radius:999px; height:26px; margin-top:2px; padding:0 10px; }
+  .isl.sec.dot { width:10px !important; padding:0; color:transparent; }
+  .cover { width:16px; height:16px; border-radius:5px; background:linear-gradient(#ff9a3c,#ff4f7a); transition:transform .15s; flex:none; }
+  .ring { width:14px; height:14px; border-radius:50%; border:2px solid #34c759; border-right-color:transparent; flex:none; }
+  .info { position:absolute; left:50%; transform:translateX(-50%); top:30px; background:#000; color:#aaa; font-size:11px; padding:0 14px; height:0; overflow:hidden; border-radius:0 0 12px 12px; transition:height .3s; white-space:nowrap; }
+  .info.show { height:24px; line-height:24px; }
+  .hud { position:absolute; top:0; left:calc(50% - 150px); width:300px; height:0; background:#000; color:#fff; border-radius:0 0 14px 14px; overflow:hidden; transition:height .3s; display:flex; align-items:center; justify-content:space-between; padding:0 16px; font-size:12px; font-weight:600; }
+  .hud.show { height:30px; }
+  .sysosd { position:absolute; right:14px; bottom:12px; background:rgba(255,255,255,.85); color:#222; border-radius:14px; padding:6px 12px; font-size:12px; opacity:0; transition:.3s; }
+  .sysosd.show { opacity:1; }
+  .trig { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; align-items:center; }
+  .trig .mut { font-size:12px; }
+  .bigdemo { background:#000; border-radius:0 0 20px 20px; margin:0 auto; padding:10px 12px 12px; max-width:560px; }
+  .bigdemo .tabsrow { display:flex; gap:6px; justify-content:center; margin-bottom:8px; }
+  .bigdemo .tabsrow span { font-size:11px; color:#aaa; padding:2px 10px; border-radius:999px; background:#1c1c1f; } .bigdemo .tabsrow span.on { background:#4a4a52; color:#fff; }
+  .bigdemo .row { display:flex; gap:6px; height:64px; }
+  .bigdemo .blk { background:#2a2a2e; border-radius:10px; display:grid; place-items:center; font-size:12px; color:#ccc; min-width:0; transition:flex-grow .3s; overflow:hidden; white-space:nowrap; }
+  .bigdemo .blk.sel { background:#4a4a52; color:#fff; outline:2px solid var(--acc); }
+  .bigdemo .blk.glow { box-shadow:0 0 18px 2px rgba(255,120,90,.7); }
+  .bigx { position:absolute; top:0; left:50%; transform:translateX(-50%); background:#000; border-radius:0 0 20px 20px; height:0; overflow:hidden; display:flex; gap:6px; padding:0 10px; transition:height .4s cubic-bezier(.3,1.3,.5,1); }
+  .bigx.show { height:96px; padding-top:10px; } .bigx .blk, .bigx .zone { height:70px; }
+  .bigx .blk { flex:1; background:#2a2a2e; border-radius:10px; display:grid; place-items:center; font-size:12px; color:#ccc; padding:0 14px; white-space:nowrap; }
+  .zone { border-radius:12px; display:grid; place-items:center; font-size:12px; color:#fff; transition:flex .3s; min-width:0; overflow:hidden; white-space:nowrap; } .zone.dr { border:2px dashed rgba(255,255,255,.7); } .zone.ad { background:#5ab0ee; }
+  .ptr { position:absolute; font-size:18px; color:#fff; left:80%; top:90px; transition:left .5s ease, top .5s ease; }
+  .abs { position:absolute; } .ringx { position:absolute; top:-60px; border:1px dashed rgba(255,255,255,.5); border-radius:50%; opacity:0; transition:opacity .3s; pointer-events:none; }
+  .gsrow { display:flex; gap:10px; } .pad { position:relative; width:180px; height:136px; border-radius:14px; background:#404046; flex:none; }
+  .fing { position:absolute; width:20px; height:20px; border-radius:50%; background:#fff; top:58px; opacity:0; } .calx { position:absolute; left:calc(50% + 140px); top:4px; color:#fff; font-weight:600; font-size:13px; background:#000; border-radius:999px; padding:2px 12px; }
+  .btnrow { display:flex; gap:14px; align-items:center; justify-content:center; height:100%; } .bubble { padding:10px 20px; border-radius:999px; color:#fff; font-weight:600; transition:.3s; }
+  .bubble.glass { backdrop-filter:blur(8px) saturate(1.6); background:rgba(255,255,255,.2); border:1px solid rgba(255,255,255,.4); box-shadow:inset 0 1px 0 rgba(255,255,255,.5); } .bubble.plain { background:#4a4a52; } .bubble.own { background:linear-gradient(rgba(255,255,255,.28),rgba(255,255,255,.1)); border:1px solid rgba(255,255,255,.55); }
+  .strip { position:absolute; right:12px; top:8px; display:flex; gap:10px; align-items:center; color:#fff; font-size:12px; font-weight:600; } .tagx { background:#ffc7cd; color:#6b0d1a; border-radius:7px; padding:0 8px; font-size:11px; }
+  .state { font-size:12px; color:var(--mut); } .state.ok { color:#34c759; } .state.no { color:#ff453a; }
+.hint{text-align:center;color:var(--mut);font-size:12px;margin-top:8px}
+  .filechip{position:absolute;left:12px;bottom:8px;font-size:26px;cursor:grab;touch-action:none;user-select:none;z-index:5;transition:left .4s,top .4s} .filechip.drag{cursor:grabbing;transition:none}
+  .isl.paused span{opacity:.5} .menus span[data-menu]{cursor:pointer;padding:0 6px;border-radius:5px}
+  .li.over{box-shadow:0 -2px 0 var(--acc)}
+  .lkset{display:flex;gap:18px;align-items:center;justify-content:center;height:100%;color:#fff;font-weight:600;font-size:13px}
+  .lkset .c{padding:8px 18px;border-radius:999px;border:1px solid transparent;cursor:pointer;user-select:none;transition:.2s}
+  .lkset .c:active{transform:scale(.93)}
+  .lkset.glass .c,.lkset.glass .lkseg{backdrop-filter:blur(8px) saturate(1.6);background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.4);box-shadow:inset 0 1px 0 rgba(255,255,255,.5)}
+  .lkset.plain .c,.lkset.plain .lkseg{background:#4a4a52}
+  .lkseg{display:flex;padding:3px;border-radius:999px;border:1px solid transparent} .lkseg span{padding:5px 14px;border-radius:999px;cursor:pointer;transition:.2s} .lkseg span.on{background:rgba(255,255,255,.35)}
+  .lkset.plain .lkseg span.on{background:#6a6a73}
+  .lkseg.own{background:linear-gradient(rgba(255,255,255,.3),rgba(255,255,255,.08)) !important;border:1px solid rgba(255,255,255,.6) !important;backdrop-filter:blur(14px) saturate(2) !important} .lkseg.own span.on{background:rgba(255,255,255,.5);box-shadow:0 1px 6px rgba(0,0,0,.25)}
+  .lktog{width:44px;height:26px;border-radius:999px;position:relative;cursor:pointer;transition:.2s} .lktog::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:.2s} .lktog.on::after{left:21px}
+  .lkset.glass .lktog{background:rgba(255,255,255,.22);border:1px solid rgba(255,255,255,.4)} .lkset.glass .lktog.on{background:rgba(52,199,89,.8)} .lkset.plain .lktog{background:#4a4a52} .lkset.plain .lktog.on{background:#34c759}
+  .lkset input[type=range]{width:120px} .bcol{display:inline-block;min-width:112px;text-align:right} .scol{display:inline-block;width:60px;text-align:right}
+</style>
+</head>
+<body>
+<div class="top"><h1>設定 › 小工具／動態島：逐項檢查版（網頁模擬，App 沒動）</h1><p>每頁上方是示例，下方設定項會改變它；按鈕用來觸發情境。其餘沒有示例的設定只影響該工具內部。</p></div>
+<div class="win">
+  <aside><div class="app">Pendant</div><div class="item" data-page="general">一般</div><div class="item" data-page="island">動態島</div><div class="item sel" data-page="tools">小工具</div><div class="item" data-page="shelf">檔案中轉站</div><div class="item" data-page="gesture">手勢操控</div><div class="item" data-page="status">狀態列</div><div class="item" data-page="look">外觀</div><div class="item" data-page="perm">隱私</div><div class="item" data-page="about">關於</div></aside>
+  <main>
+    <div id="pg-tools">
+      <h2>小工具</h2>
+      <div class="seg" id="tabs"><span class="on" data-p="big">大膠囊</span><span data-p="small">小膠囊</span></div>
+      <div class="pane on" id="big">
+        <div class="demo"><div class="bigdemo"><div class="tabsrow" id="bd-tabs"></div><div class="row" id="bd-row"></div></div><div class="hint">將游標移入即可體驗</div></div>
+        <div class="split"><div class="list" id="bigList"></div><div id="bigRight"></div></div>
+      </div>
+      <div class="pane" id="small">
+        <div class="demo" id="demo-small"></div>
+        <div class="split"><div class="list" id="smallList"></div><div id="smallRight"></div></div>
+      </div>
+    </div>
+    <div id="pg-island" style="display:none">
+      <h2>動態島</h2>
+      <div class="demo" id="demo-island"></div>
+      <div class="sec">副島</div>
+      <div class="card" id="isl-sub"></div>
+      <div class="card" id="isl-idle"></div>
+    </div>
+    <div id="pg-general" style="display:none"><h2>一般</h2>
+      <div class="demo"><div class="desk" id="gn-desk"><div class="bar"><div class="menus"><b>Safari</b><span>檔案</span><span>編輯</span></div><span id="gn-icon" style="position:absolute;right:12px;top:6px;font-size:13px">◐</span></div>
+        <div class="isl main" id="gn-main"></div><div class="bigx" id="gn-big"><div class="blk">媒體播放器</div><div class="blk">行事曆</div></div></div><div class="hint">將游標移入即可體驗</div></div>
+      <div class="card" id="gn-1"></div><div class="sec">顯示</div><div class="card" id="gn-2"></div><div class="sec">瀏海</div><div class="card" id="gn-3"></div><div class="sec">展開</div><div class="card" id="gn-4"></div><div class="sec">快捷鍵與回饋</div><div class="card" id="gn-5"></div><div class="card" id="gn-6"></div></div>
+    <div id="pg-shelf" style="display:none"><h2>檔案中轉站</h2>
+      <div class="demo"><div class="desk" id="sh-desk"><div class="bar"></div><div class="isl main" id="sh-main"></div><div class="info" id="sh-info"></div>
+        <div class="bigx" id="sh-big"><div class="zone dr" id="sh-dr">檔案抽屜</div><div class="zone ad" id="sh-ad">AirDrop</div></div>
+        <div class="ringx" id="sh-ring"></div><div class="filechip" id="sh-file">📄</div></div><div class="hint">將游標移入即可體驗</div></div>
+      <div class="card" id="sh-1"></div><div class="sec">版面</div><div class="card" id="sh-2"></div><div class="sec">拖曳自動展開</div><div class="card" id="sh-3"></div></div>
+    <div id="pg-gesture" style="display:none"><h2>手勢操控</h2>
+      <div class="demo"><div class="desk" id="gs-desk"><div class="bar"></div><div class="isl main" id="gs-main"></div><div class="calx" id="gs-cal"></div></div><div class="hint">將游標移入即可體驗</div></div>
+      <div class="sec">媒體</div><div class="card" id="gs-1"></div><div class="sec">日曆</div><div class="card" id="gs-2"></div></div>
+    <div id="pg-status" style="display:none"><h2>狀態列</h2>
+      <div class="demo"><div class="desk" id="st-desk"><div class="bar"></div><div class="bigx show" id="st-big" style="height:110px"><div class="strip" id="st-strip"></div><div class="blk" style="margin-top:26px">媒體播放器</div></div></div><div class="hint">將游標移入即可體驗</div></div>
+      <div class="card" id="st-1"></div></div>
+    <div id="pg-look" style="display:none"><h2>外觀</h2>
+      <div class="demo"><div class="desk" id="lk-desk" style="height:150px"><div class="lkset" id="lk-set"></div></div><div class="hint">將游標移入即可體驗</div></div>
+      <div class="card" id="lk-1"></div><div class="sec">膠囊尺寸</div><div class="card" id="lk-2"></div></div>
+    <div id="pg-perm" style="display:none"><h2>隱私</h2><div class="card" id="pm-1"></div><p class="mut" style="font-size:12px">資料只留在本機，不蒐集遙測。權限在首次使用該功能時請求。</p></div>
+    <div id="pg-about" style="display:none"><h2>關於</h2>
+      <div class="card"><div class="r"><span style="display:flex;gap:14px;align-items:center"><span class="cover" style="width:56px;height:56px;border-radius:14px"></span><span class="l"><b style="font-size:17px">Pendant</b><span class="tip">版本 0.2.9</span><span class="tip">作者：smallja</span></span></span></div></div>
+      <div class="sec">更新</div><div class="card" id="ab-1"></div><div class="card" id="ab-2"></div></div>
+  </main>
+</div>
+<script>
+/* ---------- 狀態 ---------- */
+const S={
+  // 動態島
+  left:1,right:1,prio:'右',disp:'一直顯示',hidemenu:1,sink:0,avoid:0,idle:3,gap:9,span:40,maxw:100,loff:0,roff:0,
+  // 小膠囊
+  on_media:1,on_timer:1,on_shelf:1,on_volume:1,
+  mode_media:'主島、副島',mode_timer:'主島、副島',mode_stop:'主島、副島',mode_shelf:'主島、副島',
+  cover:1,wave:1,song:1,songsec:2,ring:1,count:1,peek:'圖示 名稱 · 大小',vol:1,bri:1,osd:1,hud:1.6,
+  // 大膠囊
+  on_b_media:1,on_b_cal:1,on_b_todo:1,on_b_timer:1,on_b_mirror:1,on_b_notes:1,on_b_shelf:1,on_b_short:1,
+  t_media:'功能',t_cal:'功能',t_todo:'功能',t_timer:'功能',t_mirror:'功能',t_notes:'筆記',t_shelf:'檔案中轉站',t_short:'功能',
+  w_media:4,w_cal:4,w_todo:3,w_timer:3,w_mirror:2,w_notes:6,w_shelf:6,w_short:4,glow:1,month:0
+};
+let order=['media','timer','shelf','volume']; let bigOrder=['media','cal','todo','timer','mirror','notes','shelf','short']; let bigTabs=['功能','檔案中轉站','筆記']; let dragKey=null; S.cnt=3;
+const NAME={media:'媒體播放器',timer:'計時器',shelf:'檔案中轉站',volume:'音量與亮度'};
+const paused={}; let menuOpen=false, hoverDesk=false, briefUntil=0, lastSig='', bigSel='媒體播放器', pulse={};
+
+/* ---------- 控制項建構 ---------- */
+const T=(on,k)=>`<div class="tog ${on?'on':''}" ${k?`data-k="${k}"`:''}></div>`;
+const SEL=(opts,v,k)=>`<select ${k?`data-k="${k}"`:''}>${opts.map(o=>`<option ${o===v?'selected':''}>${o}</option>`).join('')}</select>`;
+const SEG=(opts,v,k)=>`<div class="seg" data-k="${k}">${opts.map(o=>`<span class="${o===v?'on':''}">${o}</span>`).join('')}</div>`;
+const SL=(min,max,val,unit,step=1,k)=>`<span class="ctl"><input type="range" ${k?`data-k="${k}"`:''} min="${min}" max="${max}" step="${step}" value="${val}"><input type="number" min="${min}" max="${max}" step="${step}" value="${val}"><span class="mut">${unit}</span></span>`;
+const BTN=(t,id)=>`<button class="act" ${id?`data-do="${id}"`:''}>${t}</button>`;
+const row=(l,r,tip,dim)=>`<div class="r ${dim?'dim':''}"><span class="l"><span>${l}</span>${tip?`<span class="tip">${tip}</span>`:''}</span><span class="ctl">${r}</span></div>`;
+const tab=k=>row('所在分頁',SEL(bigTabs,S['t_'+k],'t_'+k));
+const width=k=>row('寬度',SL(1,10,S['w_'+k],'格',1,'w_'+k));
+const MODES=['主島、副島','僅主島','僅副島'];
+const MODE=k=>SEL(MODES,S[k],k);
+const lists=items=>items.map(i=>row(i,T(1))).join('');
+
+/* ---------- 示例（動態島，兩處共用） ---------- */
+function deskHTML(p,buttons){return `<div class="desk" data-p="${p}"><div class="bar"><div class="menus" data-r="menus"></div></div>
+ <div class="isl sec" data-r="left"></div><div class="isl main" data-r="main"></div><div class="isl sec" data-r="right"></div>
+ <div class="info" data-r="info">♪ 歌名　🎤 歌手</div>
+ <div class="hud" data-r="hud"><span data-r="hudl"></span><span data-r="hudr"></span></div><div class="sysosd" data-r="osd">🔊 系統音量提示</div><div class="filechip" data-r="chip">📄</div></div>
+<div class="hint">將游標移入即可體驗</div>`;}
+document.getElementById('demo-island').innerHTML=deskHTML('a','');
+document.getElementById('demo-small').innerHTML=deskHTML('b','');
+
+const ICON={media:'♪',timer:'⏱',shelf:'🗂'};
+function content(id){
+  const pz='';
+  if(id==='media')return pz+(S.cover?'<span class="cover" data-r="cover"></span>':'')+(S.wave?'<span>'+(paused.media?'▁▁▁':'▮▮▮')+'</span>':'')+(!S.cover&&!S.wave?'<span>♪</span>':'');
+  if(id==='timer')return pz+(S.ring?'<span class="ring"></span>':'')+'<span>01:28</span>';
+  return '<span>🗂</span>'+(S.count?'<span>'+S.cnt+'</span>':'');
+}
+function secContent(id){const pz='';return id==='media'?'<span>'+pz+'♪</span>':id==='timer'?'<span>'+pz+'⏱ 01:28</span>':'<span>🗂'+(S.count?' '+S.cnt:'')+'</span>';}
+function visible(id){
+  if(!S['on_'+id])return false;
+  const t=paused[id]; if(t&&Date.now()-t>=S.idle*1000)return false;
+  return true;
+}
+function modeOf(id){return id==='media'?S.mode_media:id==='timer'?S.mode_timer:id==='shelf'?S.mode_shelf:'';}
+function plan(){
+  const vis=order.filter(id=>id!=='volume'&&visible(id));
+  const main=vis.find(id=>modeOf(id)!=='僅副島');
+  const subs=vis.filter(id=>id!==main&&modeOf(id)!=='僅主島').slice(0,2);
+  return {main,subs};
+}
+function renderDesk(desk){
+  const q=r=>desk.querySelector(`[data-r="${r}"]`);
+  const {main,subs}=plan();
+  const W=desk.clientWidth||600, cx=W/2, k=W/1100; // 示例以 1100 pt 寬的螢幕換算
+  const m=q('main'); const mw=main?230*k:0;
+  m.innerHTML=main?content(main):'';m.dataset.id=main||'';m.classList.toggle('paused',!!main&&!!paused[main]); m.style.width=mw+'px'; m.style.left=(cx-mw/2)+'px'; m.style.opacity=main?1:0;
+  const slots=S.prio==='右'?['right','left']:['left','right'];
+  const sw0=Math.min(S.maxw*0.8,120)*k, gap=S.gap*k;
+  const asg={left:null,right:null}; subs.forEach((x,i)=>{if(S[slots[i]])asg[slots[i]]=x;});
+  // 合計寬度超過上限時，優先級最低的副島先被隱藏
+  const spanOf=()=>mw+['left','right'].reduce((a,sd)=>a+(asg[sd]?gap+sw0:0),0);
+  [...subs].reverse().forEach(x=>{if(spanOf()>W*S.span/100){for(const sd of ['left','right'])if(asg[sd]===x)asg[sd]=null;}});
+  const sig=JSON.stringify(asg)+(main||'')+S.cnt;
+  if(sig!==lastSig){lastSig=sig; if(S.disp==='變化時短暫顯示'){briefUntil=Date.now()+2500;setTimeout(renderAll,2600);}}
+  const sink=S.sink?34:0, w=sw0;
+  ['left','right'].forEach(side=>{
+    const e=q(side),x=asg[side]; e.innerHTML=x?secContent(x):'';e.dataset.id=x||'';e.classList.toggle('paused',!!x&&!!paused[x]);
+    const hideMenu=menuOpen&&S.hidemenu;
+    const collapsed=S.disp==='變化時短暫顯示'&&Date.now()>briefUntil;
+    const hiddenHover=S.disp==='游標靠近才顯示'&&!hoverDesk;
+    e.style.width=w+'px';
+    e.classList.toggle('dot',!!x&&collapsed&&!hideMenu);
+    e.style.opacity=(!x||hideMenu||hiddenHover)?0:1;
+    const off=(side==='left'?-S.loff:S.roff)*k, avoid=(S.avoid&&side==='left')?-26:0;
+    const wd=e.classList.contains('dot')?10:w;
+    e.style.left=(side==='left'?(cx-mw/2-gap-wd+off+avoid):(cx+mw/2+gap+off))+'px';
+    e.style.top=sink+'px';
+  });
+  q('menus').innerHTML='<b>Safari</b><span>檔案</span><span data-menu="1" style="'+(menuOpen?'background:#fff3':'')+'">編輯'+(menuOpen?' ▾':'')+'</span>';
+}
+function renderAll(){document.querySelectorAll('.desk[data-p]').forEach(renderDesk);renderBig();}
+
+/* ---------- 示例（大膠囊） ---------- */
+const BIGKEYS={'媒體播放器':'media','行事曆':'cal','待辦事項':'todo','計時器':'timer','鏡子':'mirror','筆記':'notes','檔案中轉站':'shelf','捷徑':'short'};
+const KEYNAME=Object.fromEntries(Object.entries(BIGKEYS).map(([n,k])=>[k,n]));
+function renderBig(){
+  const cur=bigTabCur;
+  document.getElementById('bd-tabs').innerHTML=bigTabs.map(t=>`<span class="${t===cur?'on':''}" data-bt="${t}">${t}</span>`).join('')+'<span data-addtab="1">＋</span>';
+  const row=document.getElementById('bd-row');
+  row.innerHTML=bigOrder.filter(k=>S['on_b_'+k]&&S['t_'+k]===cur).map(k=>{const n=KEYNAME[k];
+    return `<div class="blk ${n===bigSel?'sel':''} ${(k==='media'&&S.glow)?'glow':''}" draggable="true" data-bk="${k}" style="flex:${S['w_'+k]} 1 0">${n==='行事曆'&&S.month?'整月':n}</div>`;}).join('')||'<div class="mut" style="margin:auto">此分頁沒有工具</div>';
+}
+document.addEventListener('click',e=>{
+  if(e.target.closest('[data-addtab]')){const n='分頁 '+(bigTabs.length-2);bigTabs.push(n);bigTabCur=n;rebuildRight();renderBig();return;}
+  const b=e.target.closest('[data-bk]');if(b){document.getElementById('bigList')._select(KEYNAME[b.dataset.bk]);}
+});
+document.addEventListener('dragstart',e=>{const b=e.target.closest&&e.target.closest('[data-bk]');if(b){dragKey=b.dataset.bk;e.dataTransfer.effectAllowed='move';}});
+document.addEventListener('dragover',e=>{if(dragKey&&e.target.closest&&e.target.closest('[data-bk],[data-bt]'))e.preventDefault();});
+document.addEventListener('drop',e=>{
+  if(!dragKey)return;const tgt=e.target.closest('[data-bk]'),pill=e.target.closest('[data-bt]');
+  if(tgt&&tgt.dataset.bk!==dragKey){S['t_'+dragKey]=S['t_'+tgt.dataset.bk];bigOrder=bigOrder.filter(k=>k!==dragKey);bigOrder.splice(bigOrder.indexOf(tgt.dataset.bk),0,dragKey);}
+  else if(pill){S['t_'+dragKey]=pill.dataset.bt;bigOrder=bigOrder.filter(k=>k!==dragKey);bigOrder.push(dragKey);bigTabCur=pill.dataset.bt;}
+  dragKey=null;rebuildRight();renderBig();
+});
+let bigTabCur='功能';
+document.addEventListener('click',e=>{const t=e.target.closest('[data-bt]');if(t){bigTabCur=t.dataset.bt;renderBig();}});
+
+/* ---------- 工具設定內容 ---------- */
+const big={
+ '媒體播放器':()=>[tab('media'),width('media'),row('專輯光暈',T(S.glow,'glow')),row('線上封面',T(1)),row('封面快取',T(1)+'<span class="badge">5.8 MB</span>'+BTN('清除')),row('音樂來源',SEL(['自動','Apple Music','Spotify'],'自動'))],
+ '筆記':()=>[tab('notes'),width('notes'),row('字級',SL(10,22,14,'pt')),row('開啟上次筆記',T(1)),row('儲存位置','<span class="mut">預設</span>'+BTN('選擇…')+BTN('預設'))],
+ '行事曆':()=>[tab('cal'),width('cal'),row('日曆',BTN('全選')+BTN('清除')),lists(['個人','工作','節日']),row('已結束行程',T(1)),row('全天行程',T(1)),row('跨日行程',T(1)),row('整月',T(S.month,'month')),row('',BTN('開啟行事曆'))],
+ '待辦事項':()=>[tab('todo'),width('todo'),row('清單',BTN('全選')+BTN('清除')),lists(['提醒事項','購物']),row('已完成',T(0)),row('排序',SEL(['到期日','優先度','名稱'],'到期日')),row('顯示筆數',SL(3,100,30,'筆')),row('',BTN('開啟提醒事項'))],
+ '計時器':()=>[tab('timer'),width('timer'),row('快速計時','<input type="text" value="1, 5, 10, 25" style="width:130px"><span class="mut">分鐘</span>'),row('提示音',T(1)),row('系統通知',T(1))],
+ '鏡子':()=>[tab('mirror'),width('mirror'),row('水平鏡像',T(1)),row('鏡頭',SEL(['自動 (前鏡頭)','FaceTime 高畫質相機'],'自動 (前鏡頭)'))],
+ '檔案中轉站':()=>[tab('shelf'),width('shelf')],
+ '捷徑':()=>[tab('short'),width('short'),row('排列',SEL(['圖示','清單'],'圖示')),row('捷徑',BTN('全選')+BTN('清除')+BTN('重新整理')),lists(['翻譯剪貼簿','新增提醒'])],
+ '快速應用':null
+};
+const small={
+ '媒體播放器':()=>[row('顯示模式',MODE('mode_media')),row('專輯封面',T(S.cover,'cover')),row('音波圖',T(S.wave,'wave')),row('換歌顯示歌名',T(S.song,'song')),row('顯示時間',SL(1,8,S.songsec,'秒',0.5,'songsec'))],
+ '計時器':()=>[row('倒數顯示模式',MODE('mode_timer')),row('碼錶顯示模式',MODE('mode_stop')),row('剩餘圓圈',T(S.ring,'ring'))],
+ '檔案中轉站':()=>[row('顯示模式',MODE('mode_shelf')),row('數量',T(S.count,'count')),row('懸停資訊',SEL(['名稱 · 大小','圖示 名稱 · 大小','關閉'],S.peek,'peek'))],
+ '音量與亮度':()=>[row('音量',T(S.vol,'vol')),row('亮度',T(S.bri,'bri')),row('取代系統提示',T(S.osd,'osd')+'<span class="badge no">需輔助使用</span>'),row('顯示時間',SL(0.8,4,S.hud,'秒',0.2,'hud'))],
+ '待辦事項':null
+};
+const SMALLKEY={'媒體播放器':'media','計時器':'timer','檔案中轉站':'shelf','音量與亮度':'volume'};
+const BIGON={...BIGKEYS};
+function build(listId,rightId,data,keyOf){
+  const L=document.getElementById(listId),R=document.getElementById(rightId);L.innerHTML='';
+  const show=n=>{R.innerHTML='<div class="card">'+data[n]().join('')+'</div>';};
+  const isSmall=listId==='smallList';
+  Object.keys(data).forEach((k,i)=>{const soon=data[k]===null;const d=document.createElement('div');d.className='li'+(soon?' soon':'');d.dataset.name=k;if(isSmall&&!soon){d.draggable=true;d.dataset.key=keyOf[k];}
+    const key=keyOf[k]; const onKey=isSmall?'on_'+key:'on_b_'+key;
+    d.innerHTML='<span class="grow">'+k+(soon?' <small>(即將推出)</small>':'')+'</span>'+(soon?'':T(S[onKey],onKey));
+    d.onclick=e=>{if(soon||e.target.classList.contains('tog')||e.target.closest('button'))return;L._select(k);};L.appendChild(d);});
+  L._select=k=>{L.querySelectorAll('.li').forEach(x=>x.classList.toggle('sel',x.dataset.name===k));L.dataset.cur=k;if(!isSmall){bigSel=k;bigTabCur=S['t_'+keyOf[k]];}show(k);renderAll();};
+  const keep=L._keep&&data[L._keep]?L._keep:Object.keys(data)[0];
+  L.querySelectorAll('.li').forEach(x=>x.classList.toggle('sel',x.dataset.name===keep));L.dataset.cur=keep;
+  L._show=()=>show(L.dataset.cur);L._show();
+}
+const smallData=()=>{const o={};order.forEach(id=>{const n=Object.keys(SMALLKEY).find(k=>SMALLKEY[k]===id);o[n]=small[n];});o['待辦事項']=null;return o;};
+function rebuildRight(){['bigList','smallList'].forEach(id=>{const L=document.getElementById(id);L._show&&L._show();});}
+build('bigList','bigRight',big,BIGKEYS);build('smallList','smallRight',smallData(),SMALLKEY);
+
+/* ---------- 排序（小膠囊）：拖曳 ---------- */
+let sDrag=null;
+document.addEventListener('dragstart',e=>{const li=e.target.closest&&e.target.closest('#smallList .li[data-key]');if(li)sDrag=li.dataset.key;});
+document.addEventListener('dragover',e=>{const li=e.target.closest&&e.target.closest('#smallList .li[data-key]');document.querySelectorAll('#smallList .li.over').forEach(x=>x!==li&&x.classList.remove('over'));if(sDrag&&li){e.preventDefault();li.classList.add('over');}});
+document.addEventListener('drop',e=>{const t=e.target.closest&&e.target.closest('#smallList .li[data-key]');document.querySelectorAll('#smallList .li.over').forEach(x=>x.classList.remove('over'));
+  if(sDrag&&t&&t.dataset.key!==sDrag){order=order.filter(x=>x!==sDrag);order.splice(order.indexOf(t.dataset.key),0,sDrag);const L=document.getElementById('smallList');L._keep=L.dataset.cur;build('smallList','smallRight',smallData(),SMALLKEY);renderAll();}
+  sDrag=null;});
+document.addEventListener('dragend',()=>{sDrag=null;document.querySelectorAll('#smallList .li.over').forEach(x=>x.classList.remove('over'));});
+/* ---------- 動態島頁 ---------- */
+document.getElementById('isl-sub').innerHTML=
+  row('左副島',T(S.left,'left'))+row('右副島',T(S.right,'right'))+
+  row('優先側',SEG(['左','右'],S.prio,'prio'),'只有一個副島時，放在優先側')+
+  row('顯示方式',SEL(['一直顯示','變化時短暫顯示','游標靠近才顯示'],S.disp,'disp'),'一直顯示：副島常駐<br>變化時短暫顯示：有變化時展開幾秒，之後縮成小點<br>游標靠近才顯示：游標移到瀏海時才出現')+
+  row('選單展開時隱藏',T(S.hidemenu,'hidemenu'),'選單列的選單展開時，暫時收起副島')+
+  row('下沉',T(S.sink,'sink'),'副島垂直下移，避免與瀏海邊緣重疊')+
+  row('避開選單列',T(S.avoid,'avoid')+'<span class="badge no">需輔助使用</span>')+
+  `<details><summary style="padding:11px 14px;cursor:pointer;color:var(--mut);border-top:1px solid var(--line)">尺寸</summary><div>${row('總寬度上限',SL(20,80,S.span,'%',1,'span'),'主島與副島合計；超過時，優先級最低的副島會被隱藏')}${row('島間距',SL(2,20,S.gap,'pt',1,'gap'))}${row('最大寬度',SL(44,120,S.maxw,'pt',1,'maxw'))}${row('左側偏移',SL(-40,80,S.loff,'pt',1,'loff'))}${row('右側偏移',SL(-40,80,S.roff,'pt',1,'roff'))}</div></details>`;
+document.getElementById('isl-idle').innerHTML=row('閒置隱藏延時',SL(0,300,S.idle,'秒',1,'idle'),'小工具閒置（例如音樂暫停、計時器暫停）時，繼續顯示在動態島上的時間');
+
+/* ---------- 統一事件 ---------- */
+document.addEventListener('click',e=>{
+  const tg=e.target.closest('.tog');
+  if(tg){tg.classList.toggle('on');const k=tg.dataset.k;if(k){S[k]=tg.classList.contains('on')?1:0;if(k.startsWith('on_b_')||k.startsWith('on_'))renderAll();else renderAll();}else{}return;}
+  const sp=e.target.closest('.seg[data-k] span');
+  if(sp){const g=sp.parentElement;g.querySelectorAll('span').forEach(x=>x.classList.toggle('on',x===sp));S[g.dataset.k]=sp.textContent;renderAll();return;}
+  const b=e.target.closest('button.act');
+  if(b){
+    if(!b.dataset.busy){b.dataset.busy=1;const t=b.textContent;if(!b.dataset.do){b.textContent='✓';setTimeout(()=>{b.textContent=t;delete b.dataset.busy;},700);}else delete b.dataset.busy;}
+    act(b.dataset.do);
+  }
+});
+document.addEventListener('input',e=>{
+  const el=e.target; if(el.type==='range'||el.type==='number'){
+    const wrap=el.closest('.ctl'); wrap.querySelectorAll('input').forEach(x=>{if(x!==el)x.value=el.value;});
+    const k=wrap.querySelector('[data-k]')?.dataset.k; if(k){S[k]=+el.value;renderAll();}
+  }
+});
+document.addEventListener('change',e=>{const el=e.target;if(el.tagName==='SELECT'&&el.dataset.k){const k=el.dataset.k;S[k]=el.value;
+  if(k.startsWith('t_')){bigTabCur=el.value;}
+  if(k==='disp'&&el.value==='變化時短暫顯示'){briefUntil=Date.now()+2500;setTimeout(renderAll,2600);}
+  renderAll();}});
+function act(id){
+  const show=(desk,l,r,key)=>{const q=n=>desk.querySelector(`[data-r="${n}"]`);q('hudl').textContent=l;q('hudr').textContent=r;q('hud').classList.add('show');if(S.osd)0;else q('osd').classList.add('show');setTimeout(()=>{q('hud').classList.remove('show');q('osd').classList.remove('show');},S.hud*1000);};
+  if(id==='menu'){menuOpen=true;renderAll();setTimeout(()=>{menuOpen=false;renderAll();},1800);}
+  if(id==='pm'||id==='pt'){const k=id==='pm'?'media':'timer';if(paused[k])delete paused[k];else{paused[k]=Date.now();setTimeout(renderAll,S.idle*1000+50);}renderAll();}
+  if(id==='change'){S.cnt++;renderAll();}
+  if(id==='song'&&S.song){document.querySelectorAll('.desk').forEach(d=>{const i=d.querySelector('[data-r="info"]');i.classList.add('show');setTimeout(()=>i.classList.remove('show'),S.songsec*1000);const c=d.querySelector('[data-r="cover"]');if(c){c.style.transform='scale(.6)';setTimeout(()=>c.style.transform='',160);}});}
+  if((id==='vol'&&S.vol)||(id==='bri'&&S.bri)){document.querySelectorAll('.desk').forEach(d=>show(d,id==='vol'?'🔊 音量':'☀ 亮度',id==='vol'?'70% ▬▬▬':'60% ▬▬▬'));}
+}
+document.querySelectorAll('.desk').forEach(d=>{d.onmouseenter=()=>{hoverDesk=true;renderAll();};d.onmouseleave=()=>{hoverDesk=false;renderAll();};});
+document.querySelectorAll('#tabs span').forEach(s=>s.onclick=()=>{document.querySelectorAll('#tabs span').forEach(x=>x.classList.toggle('on',x===s));document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on',p.id===s.dataset.p));rebuildRight();renderAll();});
+document.querySelectorAll('.seg:not([data-k]):not(#tabs)').forEach(g=>g.querySelectorAll(':scope>span').forEach(s=>s.onclick=()=>g.querySelectorAll(':scope>span').forEach(x=>x.classList.toggle('on',x===s))));
+document.querySelectorAll('.tile').forEach(t=>t.onclick=()=>document.querySelectorAll('.tile').forEach(x=>x.classList.toggle('sel',x===t)));
+document.querySelectorAll('aside .item').forEach(i=>i.onclick=()=>{document.querySelectorAll('aside .item').forEach(x=>x.classList.toggle('sel',x===i));
+  document.querySelectorAll('main>div').forEach(d=>d.style.display=d.id==='pg-'+i.dataset.page?'':'none');renderAll();});
+
+/* ================= 其餘頁面 ================= */
+Object.assign(S,{login:0,menuIcon:1,fs:0,screen:'主螢幕',hoverFx:1,notchAdj:0,hoverMode:'僅小膠囊顯示時',hd:0.3,cd:0.3,hotkey:1,haptics:1,lang:'跟隨系統',
+  clear:'不自動清除',days:7,ratio:80,drag:1,dist:120,
+  gsOn:1,gsSens:60,gsRev:0,calOn:1,calSens:60,
+  bat:1,pct:1,tag:1,lg:1,own:0,wing:14,cell:76,ch:150,autoChk:1,autoInst:0,chan:'正式版'});
+const $=id=>document.getElementById(id);
+const fill=(id,html)=>{$(id).innerHTML=html;};
+fill('gn-1',row('登入時啟動',T(S.login,'login')));
+fill('gn-2',row('在選單列顯示圖示',T(S.menuIcon,'menuIcon'),'隱藏後可在瀏海按右鍵開啟設定')+row('全螢幕時顯示',T(S.fs,'fs'))+row('顯示螢幕',SEL(['主螢幕','游標所在螢幕','所有螢幕同時顯示'],S.screen,'screen')));
+fill('gn-3',row('瀏海懸停效果',T(S.hoverFx,'hoverFx'),'控制膨脹動畫與進入震動')+row('實體瀏海寬度微調',SL(-30,30,S.notchAdj,'pt',1,'notchAdj')+BTN('重設')));
+fill('gn-4',row('懸停展開',SEL(['關閉','僅小膠囊顯示時','永遠啟用'],S.hoverMode,'hoverMode'))+row('懸停延遲',SL(0,1.5,S.hd,'秒',0.05,'hd'))+row('離開後收合延遲',SL(0.1,1.5,S.cd,'秒',0.05,'cd')));
+fill('gn-5',row('全域快捷鍵',T(S.hotkey,'hotkey'))+row('快捷鍵',BTN('⌥ Space')));
+fill('gn-6',row('觸覺回饋',T(S.haptics,'haptics'),'關閉後停用所有震動')+row('語言',SEL(['跟隨系統','繁體中文','English'],S.lang,'lang'),'重新啟動後生效'));
+fill('sh-2',row('檔案中轉站比例',SL(10,90,S.ratio,'% 抽屜',10,'ratio')));
+fill('lk-2',row('小膠囊側翼寬度',SL(-10,40,S.wing,'pt',1,'wing'))+row('大膠囊每格寬度',SL(40,110,S.cell,'pt',1,'cell'))+row('大膠囊內容高度',SL(110,240,S.ch,'pt',1,'ch')));
+let condSig='';
+function fillCond(){const sig=[S.clear,S.drag,S.gsOn,S.calOn,S.bat,S.lg,S.autoChk].join('|');if(sig===condSig)return;condSig=sig;
+fill('sh-1',row('清除時機',SEL(['不自動清除','登出時','重新開機時','天數後'],S.clear,'clear'))+(S.clear==='天數後'?row('天數',SL(1,365,S.days,'天',1,'days')):''));
+fill('sh-3',row('拖曳檔案靠近瀏海時自動展開',T(S.drag,'drag'))+row('觸發距離',SL(60,200,S.dist,'pt',5,'dist'),'',!S.drag));
+fill('gs-1',row('啟用',T(S.gsOn,'gsOn'))+row('靈敏度','<span class="mut">低</span>'+SL(30,120,S.gsSens,'',1,'gsSens')+'<span class="mut">高</span>',0,!S.gsOn)+row('反轉方向',T(S.gsRev,'gsRev'),'',!S.gsOn));
+fill('gs-2',row('啟用',T(S.calOn,'calOn'))+row('靈敏度','<span class="mut">低</span>'+SL(30,120,S.calSens,'',1,'calSens')+'<span class="mut">高</span>',0,!S.calOn));
+fill('st-1',row('電量',T(S.bat,'bat'))+row('百分比',T(S.pct,'pct'),'',!S.bat)+row('更新提示',T(S.tag,'tag')));
+fill('lk-1',row('使用 Liquid Glass',T(S.lg,'lg'),'macOS 26 以上')+row('自製 Liquid Glass 元件',T(S.own,'own'),'系統沒有提供的元件改用自製版本',!S.lg));
+fill('ab-1',row('檢查更新','<span class="state" id="ab-state"></span>'+BTN('檢查更新','ab-check'))+row('自動檢查更新',T(S.autoChk,'autoChk'))+row('自動安裝更新',T(S.autoInst,'autoInst'),'',!S.autoChk)+row('更新頻道',SEL(['正式版','含預覽版'],S.chan,'chan')));
+}
+fillCond();
+const PERM=[['行事曆','顯示你的行程','已允許'],['提醒事項','讀寫提醒事項','尚未詢問'],['相機','鏡子僅在可見時使用前鏡頭','已拒絕'],['自動化：Music','顯示與控制 Apple Music','已允許'],['自動化：Spotify','顯示與控制 Spotify','尚未詢問']];
+function renderPerm(){fill('pm-1',PERM.map((r,i)=>row(r[0],`<span class="bcol">`+(r[2]==='尚未詢問'?`<button class="act" data-perm="${i}">請求權限</button>`:'')+(r[2]==='已拒絕'?BTN('開啟系統設定'):'')+`</span><span class="scol state ${r[2]==='已允許'?'ok':r[2]==='已拒絕'?'no':''}">${r[2]}</span>`,r[1])).join(''));}
+renderPerm();
+document.addEventListener('click',e=>{const b=e.target.closest('[data-perm]');if(b){PERM[+b.dataset.perm][2]='已允許';renderPerm();}});
+fill('ab-2',row('解除安裝 Pendant…','<button class="act" style="color:#ff453a">解除安裝</button>'));
+
+/* --- 真實滑鼠事件 --- */
+function dragChip(chip,desk,onMove,onDrop){
+  chip.onpointerdown=e=>{chip.setPointerCapture(e.pointerId);const r=desk.getBoundingClientRect(),home={l:chip.offsetLeft,t:chip.offsetTop};chip.classList.add('drag');
+    chip.onpointermove=ev=>{const x=ev.clientX-r.left,y=ev.clientY-r.top;chip.style.left=(x-13)+'px';chip.style.top=(y-13)+'px';onMove&&onMove(x,y,r);};
+    chip.onpointerup=ev=>{chip.onpointermove=null;chip.onpointerup=null;onDrop&&onDrop(ev.clientX-r.left,ev.clientY-r.top,r);chip.classList.remove('drag');chip.style.left=home.l+'px';chip.style.top=home.t+'px';};};
+}
+/* 動態島與小膠囊示例：點島＝暫停／繼續；滾輪橫向＝換歌，縱向＝音量，⌥＋縱向＝亮度；拖檔案到瀏海；點選單 */
+let vL=70,bL=60,songAcc=0,songLock=0;
+function hudShow(desk,kind,lv){const q=n=>desk.querySelector(`[data-r="${n}"]`);q('hudl').textContent=(kind==='vol'?'🔊 音量':'☀ 亮度');q('hudr').textContent=Math.round(lv)+'% '+'▬'.repeat(Math.round(lv/20)+1);
+  q('hud').classList.add('show');if(!S.osd)q('osd').classList.add('show');clearTimeout(desk._ht);desk._ht=setTimeout(()=>{q('hud').classList.remove('show');q('osd').classList.remove('show');},S.hud*1000);}
+function songChange(desk){if(!S.song)return;const i=desk.querySelector('[data-r="info"]');i.classList.add('show');clearTimeout(desk._st);desk._st=setTimeout(()=>i.classList.remove('show'),S.songsec*1000);const c=desk.querySelector('[data-r="cover"]');if(c){c.style.transform='scale(.6)';setTimeout(()=>c.style.transform='',160);}}
+document.querySelectorAll('.desk[data-p]').forEach(desk=>{
+  desk.addEventListener('wheel',e=>{e.preventDefault();
+    if(Math.abs(e.deltaX)>Math.abs(e.deltaY)){if(Date.now()<songLock)return;songAcc+=e.deltaX;clearTimeout(desk._wa);desk._wa=setTimeout(()=>songAcc=0,200);if(Math.abs(songAcc)>=60){songAcc=0;songLock=Date.now()+450;songChange(desk);}}
+    else if(e.altKey){if(!S.bri)return;bL=Math.max(0,Math.min(100,bL-e.deltaY*0.2));hudShow(desk,'bri',bL);}
+    else{if(!S.vol)return;vL=Math.max(0,Math.min(100,vL-e.deltaY*0.2));hudShow(desk,'vol',vL);}
+  },{passive:false});
+  desk.addEventListener('click',e=>{
+    if(e.target.closest('[data-menu]')){menuOpen=!menuOpen;renderAll();return;}
+    const isl=e.target.closest('.isl[data-id]');const id=isl&&isl.dataset.id;
+    if(id==='media'||id==='timer'){if(paused[id]){delete paused[id];}else{const t=Date.now();paused[id]=t;
+      setTimeout(renderAll,S.idle*1000+50);setTimeout(()=>{if(paused[id]===t){delete paused[id];renderAll();}},S.idle*1000+2600);}renderAll();}
+  });
+  desk.addEventListener('mouseleave',()=>{if(menuOpen){menuOpen=false;renderAll();}});
+  const chip=desk.querySelector('[data-r="chip"]');
+  dragChip(chip,desk,null,(x,y,r)=>{const k=r.width/1100;if(Math.hypot(x-r.width/2,y)<=110*k){S.cnt++;renderAll();}});
+});
+/* --- 一般 --- */
+let gnHover=false,gnT1=null,gnT2=null,gnCap=true;
+function renderGn(){
+  $('gn-icon').style.display=S.menuIcon?'':'none';
+  const m=$('gn-main'),W=$('gn-desk').clientWidth||600,k=W/1100;
+  const w=(130+S.notchAdj)*k+(gnCap?2*S.wing*k:0);
+  m.style.width=w+'px';m.style.left=(W/2-w/2)+'px';m.innerHTML=gnCap?'<span class="cover"></span><span>▮▮▮</span>':'';
+  m.style.transform=(gnHover&&S.hoverFx)?'scale(1.07)':'scale(1)';
+  const big=$('gn-big');big.style.width=Math.min(W-40,S.cell*k*4+20)+'px';
+}
+function gnIn(){clearTimeout(gnT2);gnHover=true;renderGn();
+  const ok=S.hoverMode==='永遠啟用'||(S.hoverMode==='僅小膠囊顯示時'&&gnCap);
+  if(ok){clearTimeout(gnT1);gnT1=setTimeout(()=>$('gn-big').classList.add('show'),S.hd*1000);}}
+function gnOut(){clearTimeout(gnT1);gnHover=false;renderGn();gnT2=setTimeout(()=>$('gn-big').classList.remove('show'),S.cd*1000);}
+{const gd=$('gn-desk');
+ gd.addEventListener('mousemove',e=>{const r=gd.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top,W=r.width,mw=parseFloat($('gn-main').style.width)||150,big=$('gn-big');
+   const inside=(Math.abs(x-W/2)<=mw/2+4&&y<=34)||(big.classList.contains('show')&&Math.abs(x-W/2)<=big.offsetWidth/2&&y<=big.offsetHeight);
+   if(inside&&!gnHover)gnIn();if(!inside&&gnHover)gnOut();});
+ gd.addEventListener('mouseleave',()=>{if(gnHover)gnOut();});}
+/* --- 檔案中轉站 --- */
+function renderSh(){
+  const W=$('sh-desk').clientWidth||600,k=W/1100;
+  $('sh-main').innerHTML='<span>🗂</span><span>1</span>';$('sh-main').style.width=(150*k)+'px';$('sh-main').style.left=(W/2-75*k)+'px';
+  const big=$('sh-big');big.style.width=Math.min(W-30,520*k+60)+'px';
+  $('sh-dr').style.flex=S.ratio;$('sh-ad').style.flex=100-S.ratio;
+  const r=S.dist*k;const ring=$('sh-ring');ring.style.width=ring.style.height=(2*r)+'px';ring.style.left=(W/2-r)+'px';ring.style.top=(15-r)+'px';
+}
+{const sd=$('sh-desk'),big=$('sh-big'),ring=$('sh-ring');
+ dragChip($('sh-file'),sd,(x,y,r)=>{ring.style.opacity=1;const k=r.width/1100;if(S.drag&&Math.hypot(x-r.width/2,y-15)/k<=S.dist)big.classList.add('show');else big.classList.remove('show');},()=>{ring.style.opacity=0;setTimeout(()=>big.classList.remove('show'),700);});
+ const peek=$('sh-info');
+ $('sh-main').addEventListener('mouseenter',()=>{if(S.peek==='關閉')return;peek.textContent=S.peek==='名稱 · 大小'?'bootstrap.css · 211 KB':'📄 bootstrap.css · 211 KB';peek.classList.add('show');});
+ $('sh-main').addEventListener('mouseleave',()=>peek.classList.remove('show'));}
+/* --- 手勢：真實滾輪 --- */
+let gsTrack=0,gsDay=21;const gsAcc={m:0,c:0},gsLock={m:0,c:0};
+function gsWheel(kind,e){e.preventDefault();if(Math.abs(e.deltaX)<Math.abs(e.deltaY))return;
+  const on=kind==='m'?S.gsOn:S.calOn,sens=kind==='m'?S.gsSens:S.calSens;if(!on||Date.now()<gsLock[kind])return;
+  gsAcc[kind]+=e.deltaX;clearTimeout(gsWheel['t'+kind]);gsWheel['t'+kind]=setTimeout(()=>gsAcc[kind]=0,200);
+  if(Math.abs(gsAcc[kind])>=(150-sens)*1.6){const fwd=(gsAcc[kind]>0)!==!!(kind==='m'&&S.gsRev);gsAcc[kind]=0;gsLock[kind]=Date.now()+450;
+    if(kind==='m'){gsTrack+=fwd?1:-1;const c=$('gs-main').querySelector('.cover');if(c)c.style.transform='scale(.6)';setTimeout(renderGs,150);}else{gsDay+=fwd?1:-1;renderGs();}}}
+function renderGs(){const m=$('gs-main'),W=$('gs-desk').clientWidth||400;m.style.width='200px';m.style.left=(W/2-100)+'px';m.innerHTML='<span class="cover"></span><span>歌曲 '+(gsTrack+1)+'</span><span>▮▮▮</span>';$('gs-cal').textContent='10 月 '+gsDay+' 日';$('gs-cal').style.left=(W/2+130)+'px';}
+$('gs-main').addEventListener('wheel',e=>gsWheel('m',e),{passive:false});$('gs-cal').addEventListener('wheel',e=>gsWheel('c',e),{passive:false});
+/* --- 狀態列 --- */
+function renderSt(){$('st-strip').innerHTML=(S.bat?'<span>🔋'+(S.pct?' 82%':'')+'</span>':'')+(S.tag?'<span class="tagx">新版本</span>':'');$('st-big').style.width='420px';}
+/* --- 外觀：真實元件 --- */
+let lkSeg=0,lkTog=1,lkVal=40;
+function renderLk(){
+  const cls=S.lg?'glass':'plain';
+  $('lk-set').className='lkset '+cls;
+  $('lk-set').innerHTML=`<div class="c">按鈕</div><div class="lkseg ${S.lg&&S.own?'own':''}">${['日','週','月'].map((t,i)=>`<span class="${i===lkSeg?'on':''}" data-seg="${i}">${t}</span>`).join('')}</div><div class="lktog ${lkTog?'on':''}"></div><div class="c" style="padding:6px 14px"><input type="range" min="0" max="100" value="${lkVal}"></div>`;
+}
+document.addEventListener('click',e=>{const sg=e.target.closest('[data-seg]');if(sg){lkSeg=+sg.dataset.seg;renderLk();return;}if(e.target.closest('.lktog')){lkTog=lkTog?0:1;renderLk();}});
+document.addEventListener('input',e=>{if(e.target.closest&&e.target.closest('.lkset')&&e.target.type==='range')lkVal=+e.target.value;});
+/* --- 關於 --- */
+const abDo={'ab-check':()=>{const st=$('ab-state');st.textContent='檢查中…';setTimeout(()=>st.textContent='已是最新版本',1200);}};
+const pageDo={...abDo};
+document.addEventListener('click',e=>{const b=e.target.closest('button[data-do]');if(b&&pageDo[b.dataset.do])pageDo[b.dataset.do]();});
+const _renderAll=renderAll;
+renderAll=function(){fillCond();_renderAll();renderGn();renderSh();renderGs();renderSt();if(!(document.activeElement&&document.activeElement.type==='range'&&document.activeElement.closest('.lkset')))renderLk();
+  // 受條件影響的列需要重畫
+  const set=(id,h)=>{const el=$(id);if(el.dataset.h!==h){el.dataset.h=h;}};};
+
+// 示例：媒體光暈的 key 與開關
+window.addEventListener('resize',renderAll);
+renderAll();
+</script>
+</body></html>

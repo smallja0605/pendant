@@ -1,0 +1,118 @@
+import SwiftUI
+
+/// The detailed media page (shown alone in a wider capsule): the normal player on the left, the synchronised lyrics on the right.
+struct MediaFocusView: View {
+    let controller: MediaController
+    let size: CGSize
+    @State private var lyrics = LyricsStore.shared
+    @State private var settings = AppSettings.shared
+
+    var body: some View {
+        let left = min(CGFloat(5) * Tuning.shared.cellWidth, size.width * 0.56)
+        HStack(spacing: 0) {
+            MediaView(controller: controller).frame(width: left, height: size.height)
+            Rectangle().fill(.white.opacity(0.18)).frame(width: 2, height: size.height * Tuning.shared.dividerLengthRatio)
+                .frame(width: 20, height: size.height)
+            LyricsView(controller: controller, lyrics: lyrics, enabled: settings.onlineLyrics)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .frame(width: size.width, height: size.height)
+        .task(id: controller.nowPlaying?.snapshot.trackKey) {
+            if let snapshot = controller.nowPlaying?.snapshot { lyrics.load(for: snapshot) }
+        }
+    }
+}
+
+/// Lyrics that follow the song: the current line is white and centred, the others fade away above and below it.
+struct LyricsView: View {
+    let controller: MediaController
+    let lyrics: LyricsStore
+    let enabled: Bool
+
+    var body: some View {
+        Group {
+            if !enabled {
+                note("線上歌詞已關閉")
+            } else if controller.nowPlaying == nil {
+                EmptyView()
+            } else {
+                switch lyrics.state {
+                case .idle, .loading: ProgressView().controlSize(.small).tint(.white)
+                case .none: note("沒有歌詞")
+                case let .plain(lines): plain(lines)
+                case let .synced(lines): synced(lines)
+                }
+            }
+        }
+        .animation(.easeOut(duration: 0.25), value: lyrics.state)
+    }
+
+    private func note(_ text: String) -> some View {
+        Text(text).font(.system(size: 13, weight: .medium)).foregroundStyle(.white.opacity(0.4))
+    }
+
+    private func plain(_ lines: [String]) -> some View {
+        ScrollView(.vertical, showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 10) {
+                ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
+                    Text(line).font(.system(size: 15, weight: .semibold)).foregroundStyle(.white.opacity(0.7))
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 20)
+        }
+        .mask(edgeFade)
+    }
+
+    private func synced(_ lines: [LyricLine]) -> some View {
+        ScrollViewReader { proxy in
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 14) {
+                    ForEach(lines) { line in
+                        LyricRow(line: line, controller: controller, lines: lines)
+                            .id(line.id)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.vertical, 60)
+            }
+            .mask(edgeFade)
+            .background {
+                TimelineView(.periodic(from: .now, by: 0.3)) { context in
+                    Color.clear.onChange(of: currentIndex(lines, at: context.date)) { _, index in
+                        withAnimation(.easeInOut(duration: 0.45)) { proxy.scrollTo(index, anchor: .center) }
+                    }
+                }
+            }
+        }
+    }
+
+    private var edgeFade: some View {
+        LinearGradient(stops: [.init(color: .clear, location: 0), .init(color: .black, location: 0.18),
+                               .init(color: .black, location: 0.82), .init(color: .clear, location: 1)],
+                       startPoint: .top, endPoint: .bottom)
+    }
+
+    private func currentIndex(_ lines: [LyricLine], at date: Date) -> Int {
+        guard let position = controller.nowPlaying?.position(at: date) else { return 0 }
+        return lines.lastIndex { $0.time <= position + 0.25 } ?? 0
+    }
+}
+
+private struct LyricRow: View {
+    let line: LyricLine
+    let controller: MediaController
+    let lines: [LyricLine]
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 0.3)) { context in
+            let position = controller.nowPlaying?.position(at: context.date) ?? 0
+            let current = (lines.lastIndex { $0.time <= position + 0.25 } ?? 0) == line.id
+            Text(line.text.isEmpty ? "♪" : line.text)
+                .font(.system(size: 17, weight: .bold))
+                .foregroundStyle(.white.opacity(current ? 1 : 0.32))
+                .scaleEffect(current ? 1 : 0.96, anchor: .leading)
+                .animation(.easeOut(duration: 0.3), value: current)
+        }
+    }
+}

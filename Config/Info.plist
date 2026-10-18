@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key><string>zh-Hant</string>
+	<key>CFBundleDisplayName</key><string>Pendant</string>
+	<key>CFBundleExecutable</key><string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key><string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
+	<key>CFBundleName</key><string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key><string>APPL</string>
+	<key>CFBundleShortVersionString</key><string>$(MARKETING_VERSION)</string>
+	<key>CFBundleVersion</key><string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>CFBundleLocalizations</key><array><string>zh-Hant</string><string>en</string></array>
+	<key>LSMinimumSystemVersion</key><string>$(MACOSX_DEPLOYMENT_TARGET)</string>
+	<key>LSUIElement</key><true/>
+	<key>NSPrincipalClass</key><string>NSApplication</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>日曆模組需要讀取你的行事曆行程以顯示於膠囊中。資料只留在本機。</string>
+	<key>NSRemindersFullAccessUsageDescription</key>
+	<string>提醒事項模組需要讀寫你的提醒事項。資料只留在本機。</string>
+	<key>NSCameraUsageDescription</key>
+	<string>鏡子模組僅在可見時使用前鏡頭顯示即時影像，不會錄影或儲存。</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>藍牙裝置連接時，在瀏海顯示裝置名稱與電量。只讀取已連接的裝置，資料只留在本機。</string>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>媒體模組需要與 Music、Spotify 通訊以顯示與控制播放。</string>
+</dict>
+</plist>

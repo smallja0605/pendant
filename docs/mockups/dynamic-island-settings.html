@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>動態島設定：兩種排版</title>
+<style>
+  :root { --bg:#1d1d20; --win:#2b2b2f; --side:#232326; --card:#34343a; --line:#46464d; --txt:#f2f2f5; --mut:#9a9aa3; --acc:#0a84ff; --ok:#30d158; --warn:#ff9f0a; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--txt); font:14px/1.5 -apple-system, "PingFang TC", sans-serif; }
+  header { padding:18px 24px 0; }
+  h1 { font-size:18px; margin:0 0 4px; }
+  header p { margin:0; color:var(--mut); }
+  .tabs { display:flex; gap:8px; margin:14px 24px; }
+  .tabs button { background:var(--card); color:var(--txt); border:1px solid var(--line); border-radius:999px; padding:7px 16px; font:inherit; cursor:pointer; }
+  .tabs button.on { background:var(--acc); border-color:var(--acc); }
+  .win { display:none; margin:0 24px 40px; border-radius:16px; background:var(--win); border:1px solid var(--line); overflow:hidden; }
+  .win.on { display:grid; grid-template-columns: 200px 1fr; }
+  aside { background:var(--side); padding:16px 10px; }
+  aside .app { font-weight:700; font-size:16px; padding:6px 10px 14px; }
+  aside div.item { padding:7px 10px; border-radius:9px; color:var(--mut); }
+  aside div.item.sel { background:#4a4a52; color:var(--txt); }
+  main { padding:22px 28px 30px; }
+  main h2 { font-size:28px; margin:0 0 14px; }
+  .preview { background:#3a3a40; border-radius:14px; padding:14px; margin-bottom:18px; }
+  .desk { position:relative; height:112px; border-radius:10px; background:linear-gradient(135deg,#2c4a9c,#7a3f8a); overflow:hidden; }
+  .bar { position:absolute; inset:0 0 auto 0; height:30px; background:rgba(0,0,0,.35); }
+  .row { position:absolute; top:0; left:50%; transform:translateX(-50%); display:flex; gap:8px; align-items:flex-start; }
+  .isl { background:#000; color:#fff; height:30px; display:flex; align-items:center; gap:8px; padding:0 14px; font-weight:600; transition:all .25s; }
+  .isl.main { width:230px; border-radius:0 0 14px 14px; justify-content:space-between; }
+  .isl.sec { border-radius:999px; height:26px; margin-top:2px; font-size:12px; }
+  .cover { width:16px; height:16px; border-radius:5px; background:linear-gradient(#ff9a3c,#ff4f7a); }
+  .hide { display:none !important; }
+  .section { margin:18px 0 6px; font-weight:600; color:var(--mut); font-size:12px; letter-spacing:.04em; }
+  .card { background:var(--card); border-radius:12px; }
+  .r { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:10px 14px; border-top:1px solid var(--line); }
+  .card > .r:first-child { border-top:0; }
+  .r .l { min-width:0; }
+  .r .l small { display:block; color:var(--mut); font-size:12px; }
+  .tog { width:40px; height:24px; border-radius:999px; background:#55555c; position:relative; cursor:pointer; flex:none; transition:.2s; }
+  .tog::after { content:""; position:absolute; top:2px; left:2px; width:20px; height:20px; border-radius:50%; background:#fff; transition:.2s; }
+  .tog.on { background:var(--acc); } .tog.on::after { left:18px; }
+  .seg { display:flex; background:#26262a; border-radius:9px; padding:2px; flex:none; }
+  .seg span { padding:4px 11px; border-radius:7px; cursor:pointer; font-size:13px; color:var(--mut); }
+  .seg span.on { background:#5b5b63; color:#fff; }
+  input[type=range] { width:200px; accent-color:var(--acc); }
+  .drag { display:flex; align-items:center; gap:10px; padding:9px 14px; border-top:1px solid var(--line); }
+  .drag:first-child { border-top:0; } .drag .h { color:var(--mut); cursor:grab; } .drag .n { flex:1; }
+  .badge { font-size:11px; border-radius:999px; padding:2px 9px; background:#26262a; color:var(--mut); }
+  .badge.ok { background:rgba(48,209,88,.18); color:var(--ok); } .badge.no { background:rgba(255,159,10,.18); color:var(--warn); }
+  details { border-top:1px solid var(--line); } details:first-child { border-top:0; }
+  details > summary { list-style:none; padding:11px 14px; cursor:pointer; display:flex; justify-content:space-between; color:var(--mut); }
+  details > summary::after { content:"›"; transition:.2s; } details[open] > summary::after { transform:rotate(90deg); }
+  .note { padding:8px 14px 12px; color:var(--mut); font-size:12px; }
+  .tipbox { margin:0 24px 14px; padding:12px 16px; background:#2a3342; border:1px solid #3b4a63; border-radius:12px; color:#cfe0ff; }
+  .cmp { margin:0 24px 40px; padding:14px 18px; background:var(--win); border:1px solid var(--line); border-radius:14px; }
+  .cmp td, .cmp th { text-align:left; padding:6px 14px 6px 0; vertical-align:top; }
+  .cmp th { color:var(--mut); font-weight:600; }
+  .gr { margin-top:6px; }
+  .gh { padding:12px 14px 4px; font-weight:700; font-size:15px; display:flex; gap:8px; align-items:center; }
+  .gh small { color:var(--mut); font-weight:400; }
+</style>
+</head>
+<body>
+<header>
+  <h1>設定 › 動態島：兩種排版（只是網頁模擬，App 沒有動）</h1>
+  <p>每個版本都可以點開關、拖滑桿、切換選項，上方的預覽會跟著變。</p>
+</header>
+<div class="tabs">
+  <button class="on" data-v="a">版本 A：你提出的四個分類</button>
+  <button data-v="b">版本 B：我的想法（依「使用者想做什麼」分）</button>
+  <button data-v="c">差異比較</button>
+</div>
+
+<!-- ============ A ============ -->
+<div class="win on" id="a">
+  <aside><div class="app">Pendant</div><div class="item">一般</div><div class="item sel">動態島</div><div class="item">小工具</div><div class="item">檔案中轉站</div><div class="item">手勢操控</div><div class="item">狀態列</div><div class="item">外觀</div><div class="item">隱私</div><div class="item">關於</div></aside>
+  <main>
+    <h2>動態島</h2>
+    <div class="preview"><div class="desk"><div class="bar"></div>
+      <div class="row"><div class="isl sec" data-side="left">⏱ 01:28</div><div class="isl main"><span class="cover" data-cover></span><span data-wave>▮▮▮</span></div><div class="isl sec" data-side="right">🗂 3</div></div></div></div>
+
+    <div class="section">📂 活動與優先權</div>
+    <div class="card">
+      <div class="drag"><span class="h">☰</span><span class="n">🎵 媒體播放中</span><span class="badge">主島</span></div>
+      <div class="drag"><span class="h">☰</span><span class="n">⏱ 倒數計時器</span><span class="badge">副島</span></div>
+      <div class="drag"><span class="h">☰</span><span class="n">⏲ 碼錶</span><span class="badge">副島</span></div>
+      <div class="drag"><span class="h">☰</span><span class="n">🗂 檔案抽屜暫存數</span><span class="badge">副島</span></div>
+      <div class="r"><div class="l">媒體暫停後保留時間<small>暫停超過這個時間，音樂就不再算進行中活動</small></div><div><input type="range" min="0" max="300" value="60"> <span class="badge">60 秒</span></div></div>
+    </div>
+
+    <div class="section">📂 島嶼版面配置</div>
+    <div class="card">
+      <div class="r"><div class="l">副島位置</div><div class="seg" data-seg="sec"><span>關閉</span><span>左</span><span>右</span><span class="on">雙側</span></div></div>
+      <div class="r"><div class="l">智慧避讓選單列<small>需要「輔助使用」權限</small></div><div class="tog"></div></div>
+      <div class="r"><div class="l">下沉模式<small>副島懸掛在選單列下方</small></div><div class="tog"></div></div>
+    </div>
+
+    <div class="section">📂 外觀與微調</div>
+    <div class="card">
+      <details><summary>間距、寬度、偏移量（5 個滑桿）</summary>
+        <div class="r"><div class="l">島間距</div><input type="range" min="2" max="20" value="9"></div>
+        <div class="r"><div class="l">總寬度上限</div><input type="range" value="40"></div>
+        <div class="r"><div class="l">副島最大寬度</div><input type="range" value="50"></div>
+        <div class="r"><div class="l">左側偏移</div><input type="range" value="30"></div>
+        <div class="r"><div class="l">右側偏移</div><input type="range" value="30"></div></details>
+      <div class="r"><div class="l">顯示專輯封面</div><div class="tog on" data-t="cover"></div></div>
+      <div class="r"><div class="l">顯示音波圖</div><div class="tog on" data-t="wave"></div></div>
+      <div class="r"><div class="l">換歌時顯示歌曲資訊</div><div class="tog on"></div></div>
+    </div>
+
+    <div class="section">📂 系統整合與權限</div>
+    <div class="card">
+      <div class="r"><div class="l">音量與亮度接管<small>用 Pendant 的提示取代系統的</small></div><div class="tog on"></div></div>
+      <div class="r"><div class="l">輔助使用權限</div><div><span class="badge no">未授權</span> <span class="badge">開啟系統設定</span></div></div>
+    </div>
+  </main>
+</div>
+
+<!-- ============ B ============ -->
+<div class="win" id="b">
+  <aside><div class="app">Pendant</div><div class="item">一般</div><div class="item sel">動態島</div><div class="item">小工具</div><div class="item">檔案中轉站</div><div class="item">手勢操控</div><div class="item">狀態列</div><div class="item">外觀</div><div class="item">隱私</div><div class="item">關於</div></aside>
+  <main>
+    <h2>動態島</h2>
+    <div class="preview"><div class="desk"><div class="bar"></div>
+      <div class="row"><div class="isl sec" data-side="left">⏱ 01:28</div><div class="isl main"><span class="cover" data-cover></span><span data-wave>▮▮▮</span></div><div class="isl sec" data-side="right">🗂 3</div></div></div></div>
+
+    <div class="gh">① 顯示什麼 <small>哪些事情會出現在瀏海旁邊，以及誰優先</small></div>
+    <div class="card gr">
+      <div class="drag"><span class="h">☰</span><span class="n">🎵 媒體播放中</span><span class="badge">優先 1</span><div class="seg" style="margin-left:auto"><span class="on">可當副島</span><span>只當主島</span><span>不顯示</span></div></div>
+      <div class="drag"><span class="h">☰</span><span class="n">⏱ 倒數計時器</span><span class="badge">優先 2</span><div class="seg" style="margin-left:auto"><span class="on">可當副島</span><span>只當主島</span><span>不顯示</span></div></div>
+      <div class="drag"><span class="h">☰</span><span class="n">🗂 檔案抽屜暫存數</span><span class="badge">優先 3</span><div class="seg" style="margin-left:auto"><span class="on">可當副島</span><span>只當主島</span><span>不顯示</span></div></div>
+      <div class="note">拖曳 ☰ 調整順序：越上面越優先，排第一的當主島，其餘依序變副島。</div>
+      <div class="r"><div class="l">音樂暫停後還顯示多久<small>超過就不再算進行中；0 = 一暫停就消失</small></div><div><input type="range" max="300" value="60"> <span class="badge">60 秒</span></div></div>
+    </div>
+
+    <div class="gh">② 放在哪裡 <small>副島出現在哪一側，怎麼避開選單列</small></div>
+    <div class="card gr">
+      <div class="r"><div class="l">副島位置</div><div class="seg" data-seg="sec"><span>不顯示</span><span>只左</span><span>只右</span><span class="on">兩側</span></div></div>
+      <div class="r"><div class="l">顯示時機</div><div class="seg"><span class="on">常駐</span><span>短暫顯示</span><span>只在游標移到主島時</span></div></div>
+      <div class="r"><div class="l">避開選單列項目<small>左側副島會閃開前景 App 的選單</small></div><div><span class="badge no">需要輔助使用權限</span> <div class="tog" style="display:inline-block;vertical-align:middle"></div></div></div>
+      <div class="r"><div class="l">下沉模式<small>副島改掛在選單列下方</small></div><div class="tog"></div></div>
+    </div>
+
+    <div class="gh">③ 長什麼樣 <small>小膠囊上的內容，預覽即時變化</small></div>
+    <div class="card gr">
+      <div class="r"><div class="l">顯示專輯封面</div><div class="tog on" data-t="cover"></div></div>
+      <div class="r"><div class="l">顯示音波圖</div><div class="tog on" data-t="wave"></div></div>
+      <div class="r"><div class="l">換歌時顯示歌曲資訊</div><div class="tog on"></div></div>
+      <details><summary>進階：間距與寬度（一般不用動）</summary>
+        <div class="r"><div class="l">島間距</div><input type="range" value="40"></div>
+        <div class="r"><div class="l">總寬度上限</div><input type="range" value="40"></div>
+        <div class="r"><div class="l">副島最大寬度</div><input type="range" value="50"></div>
+        <div class="r"><div class="l">左／右位置微調</div><input type="range" value="30"></div></details>
+    </div>
+    <div class="note">音量與亮度提示已移到「狀態列」頁：它跟電量、更新提示一樣，是顯示在瀏海的資訊，不是「活動」。</div>
+  </main>
+</div>
+
+<!-- ============ compare ============ -->
+<div class="win" id="c" style="display:none">
+</div>
+<div class="cmp" id="cmp" style="display:none">
+  <table>
+    <tr><th></th><th>版本 A（你的）</th><th>版本 B（我的）</th></tr>
+    <tr><th>分組依據</th><td>功能類型：排序／版面／外觀／系統</td><td>使用者的問題：顯示什麼？放哪？長怎樣？</td></tr>
+    <tr><th>優先順序與「可當副島/只當主島/不顯示」</th><td>排序在「活動與優先權」，角色在哪裡不明（目前每列有下拉）</td><td>同一列：排序＋角色放在一起，不用跳來跳去</td></tr>
+    <tr><th>權限</th><td>獨立的「系統整合與權限」</td><td>就近放在要用它的功能旁邊，用 badge 顯示狀態</td></tr>
+    <tr><th>音量與亮度</th><td>在「系統整合」</td><td>搬到「狀態列」頁（它是資訊顯示，不是活動）</td></tr>
+    <tr><th>滑桿</th><td>收在「外觀與微調」，可再開子頁</td><td>收進「進階」摺疊，預設不看到</td></tr>
+    <tr><th>優點</th><td>每組名稱像說明書的章節，一目了然</td><td>第一次用的人照著問題往下做就會設定完</td></tr>
+    <tr><th>缺點</th><td>同一功能的開關可能散在兩組（例如智慧避讓的開關與權限）</td><td>多一個要跟你確認的決定：音量亮度搬家</td></tr>
+  </table>
+</div>
+
+<script>
+  const tabs=document.querySelectorAll('.tabs button');
+  tabs.forEach(b=>b.onclick=()=>{
+    tabs.forEach(x=>x.classList.toggle('on',x===b));
+    document.querySelectorAll('.win').forEach(w=>{w.classList.toggle('on',w.id===b.dataset.v); if(w.id==='c') w.style.display='none';});
+    document.getElementById('cmp').style.display = b.dataset.v==='c' ? 'block' : 'none';
+  });
+  document.querySelectorAll('.tog').forEach(t=>t.onclick=()=>{t.classList.toggle('on');sync();});
+  document.querySelectorAll('.seg').forEach(s=>s.querySelectorAll('span').forEach(sp=>sp.onclick=()=>{s.querySelectorAll('span').forEach(x=>x.classList.remove('on'));sp.classList.add('on');sync();}));
+  function sync(){
+    document.querySelectorAll('.win').forEach(w=>{
+      const t=n=>{const e=w.querySelector('[data-t='+n+']');return !e||e.classList.contains('on')};
+      w.querySelectorAll('[data-cover]').forEach(e=>e.classList.toggle('hide',!t('cover')));
+      w.querySelectorAll('[data-wave]').forEach(e=>e.classList.toggle('hide',!t('wave')));
+      const seg=w.querySelector('[data-seg=sec] .on');
+      if(seg){const v=seg.textContent.trim();
+        const left=['左','只左','雙側','兩側'].includes(v), right=['右','只右','雙側','兩側'].includes(v);
+        w.querySelectorAll('[data-side=left]').forEach(e=>e.classList.toggle('hide',!left));
+        w.querySelectorAll('[data-side=right]').forEach(e=>e.classList.toggle('hide',!right));}
+    });
+  }
+  sync();
+</script>
+</body>
+</html>

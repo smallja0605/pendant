@@ -1,0 +1,69 @@
+import SwiftUI
+
+/// The open capsule's status strip, top right beside the notch: battery (icon and percent) and the "new version" tag. Each part
+/// has its own switch in 設定 › 狀態列.
+struct StatusStrip: View {
+    /// The battery is already in the centre strip of a virtual notch.
+    var hidesBattery = false
+    @State private var settings = AppSettings.shared
+    private let battery = BatteryMonitor.shared
+    private let updater = UpdateChecker.shared
+
+    var body: some View {
+        HStack(spacing: 10) {
+            if settings.statusUpdateTag, updater.availableRelease != nil {
+                Button { SettingsWindowController.shared.show(tab: .about) } label: {
+                    Text("有新版本可用")
+                        .font(.system(size: 12, weight: .semibold))
+                        .padding(.horizontal, 9).padding(.vertical, 3)
+                        .foregroundStyle(Color(red: 0.42, green: 0.05, blue: 0.1))
+                        .background(Color(red: 1, green: 0.78, blue: 0.8), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                                .stroke(Color(red: 0.93, green: 0.55, blue: 0.6), lineWidth: 1)
+                        )
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .hapticOnHover()
+                .accessibilityLabel("有新版本可用，打開關於頁面")
+            }
+            if settings.statusBattery, !hidesBattery, let reading = battery.reading {
+                HStack(spacing: 4) {
+                    Image(systemName: reading.charging ? "battery.100percent.bolt" : BatteryMonitor.symbol(percent: reading.percent))
+                        .font(.system(size: 15, weight: .regular))
+                        .symbolRenderingMode(.hierarchical)
+                        .foregroundStyle(reading.percent <= 20 && !reading.pluggedIn ? Color.red : .white)
+                    if settings.statusBatteryPercent {
+                        Text("\(reading.percent)%")
+                            .font(.system(size: 12, weight: .semibold, design: .rounded)).monospacedDigit()
+                            .foregroundStyle(.white.opacity(0.85))
+                    }
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("電量 \(reading.percent)%\(reading.charging ? "，充電中" : "")")
+            }
+        }
+    }
+}
+
+/// 設定 › 狀態列.
+struct StatusBarSettingsView: View {
+    @State private var settings = AppSettings.shared
+
+    var body: some View {
+        Form {
+            SettingsTitleHeader()
+            Section { StatusBarIllustration().illustrationRow() }
+            Section {
+                Toggle("電量", isOn: $settings.statusBattery)
+                if settings.statusBattery {
+                    Toggle("百分比", isOn: $settings.statusBatteryPercent).transition(.opacity.combined(with: .move(edge: .top)))
+                }
+                Toggle("更新提示", isOn: $settings.statusUpdateTag)
+            }
+        }
+        .formStyle(.grouped)
+        .animation(.spring(response: 0.35, dampingFraction: 0.85), value: settings.statusBattery)
+    }
+}
