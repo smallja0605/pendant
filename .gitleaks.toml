@@ -1,0 +1,9 @@
+title = "Pendant gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Placeholders only"
+regexes = ['''YOUR_KEY_HERE''']
+paths = ['''^requirements/''', '''^build/''']
