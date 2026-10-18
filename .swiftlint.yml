@@ -1,0 +1,24 @@
+included:
+  - Pendant
+excluded:
+  - build
+  - DerivedData
+disabled_rules:
+  - trailing_comma
+line_length:
+  warning: 140
+  error: 200
+identifier_name:
+  min_length: 2
+opt_in_rules:
+  - empty_count
+  - force_unwrapping
+
+custom_rules:
+  setting_note_row:
+    name: "A settings note must not be its own form row"
+    regex: '^\s+Text\([^\n]*\)\s*$\n\s+\.font\(\.caption\)\s*\n?\s*\.foregroundStyle\(\.secondary\)'
+    match_kinds: []
+    message: "Use .settingNote(\"…\") on the control (SettingsView.swift): a separate note row gets a separator line above it."
+    severity: warning
+    included: "Pendant/Settings/Tabs/.*\\.swift"
