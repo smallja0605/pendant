@@ -1,0 +1,99 @@
+import AppKit
+import SwiftUI
+
+/// Delivers trackpad / mouse-wheel scrolling that happens over the modified view.
+/// `deltaX`/`deltaY` follow the content direction the user sees (natural scrolling already applied),
+/// in points. Events handled here are consumed so they do not scroll anything underneath.
+private struct ScrollWheelCapture: NSViewRepresentable {
+    /// Return true to consume the event (it then does not scroll anything underneath).
+    var onScroll: (_ deltaX: Double, _ deltaY: Double) -> Bool
+    /// Phase-aware handler (replaces `onScroll` when set).
+    var onPhased: ((_ deltaX: Double, _ deltaY: Double, _ phase: ScrollPhase) -> Bool)?
+
+    func makeNSView(context: Context) -> CaptureView {
+        let view = CaptureView()
+        view.onScroll = onScroll
+        view.onPhased = onPhased
+        return view
+    }
+
+    func updateNSView(_ view: CaptureView, context: Context) {
+        view.onScroll = onScroll
+        view.onPhased = onPhased
+    }
+
+    final class CaptureView: NSView {
+        var onScroll: ((Double, Double) -> Bool)?
+        var onPhased: ((Double, Double, ScrollPhase) -> Bool)?
+        private var monitor: Any?
+
+        // Never intercept clicks / drags: SwiftUI gestures underneath keep working.
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            // Leaving the window (view removed) also lands here with `window == nil`, which removes the monitor.
+            if let monitor { NSEvent.removeMonitor(monitor) }
+            monitor = nil
+            guard window != nil else { return }
+            monitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] event in
+                guard let self, let window, event.window === window else { return event }
+                let point = convert(event.locationInWindow, from: nil)
+                guard bounds.contains(point) else { return event }
+                Log.trace("scroll in view dx=\(event.scrollingDeltaX) dy=\(event.scrollingDeltaY)")
+                // Line-based wheels report coarse "lines"; scale them to points.
+                let scale = event.hasPreciseScrollingDeltas ? 1.0 : 10.0
+                let deltaX = event.scrollingDeltaX * scale, deltaY = event.scrollingDeltaY * scale
+                let consumed: Bool
+                if let onPhased {
+                    var phase = ScrollPhase(event)
+                    phase.location = CGPoint(x: point.x, y: bounds.height - point.y)
+                    consumed = onPhased(deltaX, deltaY, phase)
+                } else {
+                    consumed = onScroll?(deltaX, deltaY) ?? false
+                }
+                return consumed ? nil : event
+            }
+        }
+    }
+}
+
+/// Where an event is in a trackpad gesture. A mouse wheel has no phases (`hasPhase == false`).
+struct ScrollPhase: Sendable {
+    var hasPhase: Bool
+    /// First event of a gesture (fingers just started scrolling).
+    var began: Bool
+    /// Fingers lifted (or the gesture was cancelled); momentum events may still follow.
+    var ended: Bool
+    /// Inertia after the fingers lifted.
+    var momentum: Bool
+    /// Pointer position inside the capture view (top-left origin).
+    var location = CGPoint.zero
+
+    init(_ event: NSEvent) {
+        hasPhase = event.phase != [] || event.momentumPhase != []
+        began = event.phase.contains(.began) || event.phase.contains(.mayBegin)
+        ended = event.phase.contains(.ended) || event.phase.contains(.cancelled)
+        momentum = event.momentumPhase != []
+    }
+}
+
+extension View {
+    /// Phase-aware variant: the handler sees gesture start / end and momentum, and decides per event whether it consumes it.
+    func onScrollWheelPhased(_ action: @escaping (_ deltaX: Double, _ deltaY: Double, _ phase: ScrollPhase) -> Bool) -> some View {
+        background(ScrollWheelCapture(onScroll: { _, _ in false }, onPhased: action))
+    }
+
+    /// Observe two-finger trackpad scrolling (or wheel) over this view.
+    func onScrollWheel(perform action: @escaping (_ deltaX: Double, _ deltaY: Double) -> Void) -> some View {
+        background(ScrollWheelCapture(onScroll: { deltaX, deltaY in
+            action(deltaX, deltaY)
+            return true
+        }))
+    }
+
+    /// Like `onScrollWheel(perform:)` but the handler decides per event whether it consumes it.
+    func onScrollWheelConsuming(_ action: @escaping (_ deltaX: Double, _ deltaY: Double) -> Bool) -> some View {
+        background(ScrollWheelCapture(onScroll: action))
+    }
+}
