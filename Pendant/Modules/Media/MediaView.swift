@@ -74,9 +74,12 @@ private struct PlayerPage: View {
                     )
                     .frame(width: artSize, height: artSize)
                     VStack(alignment: .leading, spacing: Tuning.shared.textLineSpacing) {
-                        Text(nowPlaying.snapshot.title)
-                            .font(.system(size: Tuning.shared.titleSize, weight: .bold))
-                            .foregroundStyle(.white)
+                        HStack(spacing: 2) {
+                            Text(nowPlaying.snapshot.title)
+                                .font(.system(size: Tuning.shared.titleSize, weight: .bold))
+                                .foregroundStyle(.white)
+                            FocusEnterButton()
+                        }
                         Text(nowPlaying.snapshot.album)
                             .font(.system(size: Tuning.shared.albumSize, weight: .semibold))
                             .foregroundStyle(.white.opacity(0.55))
@@ -174,6 +177,7 @@ private struct ArtworkView: View {
     /// Pointer position normalised to -1…1 on both axes while hovering.
     @State private var tilt: CGPoint?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var registry = ModuleRegistry.shared
 
     var body: some View {
         let hovering = tilt != nil
@@ -205,8 +209,11 @@ private struct ArtworkView: View {
         .animation(.interactiveSpring(response: 0.22, dampingFraction: 0.75), value: tilt)
         .animation(.spring(response: 0.3, dampingFraction: 0.6), value: hovering)
         .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        // While the page opens or closes the cover moves under a resting pointer; that must not count as hovering (it would
+        // leave the cover tilted, and blurred, until the pointer moved).
+        .onChange(of: registry.focusTransitioning) { _, moving in if moving { tilt = nil } }
         .onActiveHover(sampled: true) { location in
-            guard let location else { tilt = nil; return }
+            guard let location, !registry.focusTransitioning else { tilt = nil; return }
             tilt = CGPoint(x: min(max(location.x / 50 - 1, -1), 1), y: min(max(location.y / 50 - 1, -1), 1))
         }
         .onTapGesture(perform: onOpen)

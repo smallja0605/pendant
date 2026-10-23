@@ -49,7 +49,7 @@ final class NotchManager {
         bluetooth.onConnect = { [weak self] device in self?.bluetoothConnected(device) }
         syncBluetooth()
         observeSettings()
-        dragWatcher.onFileDrag = { [weak self] point in self?.fileDragMoved(to: point) }
+        dragWatcher.onFileDrag = { [weak self] point, origin in self?.fileDragMoved(to: point, from: origin) }
         dragWatcher.start()
         ShelfStore.shared.cleanDragCopies()
         ShelfStore.shared.applyAutoClearAtLaunch()
@@ -87,10 +87,13 @@ final class NotchManager {
     }
 
     /// A file is being dragged: near the notch, the capsule opens on the shelf (if the shelf is on and the option is set).
-    private func fileDragMoved(to point: CGPoint) {
+    private func fileDragMoved(to point: CGPoint, from origin: CGPoint) {
         let settings = AppSettings.shared
         guard settings.dragOpensShelf, registry.isEnabled("shelf"), !isPaused else { return }
-        controllers.first { $0.isNearNotch(point, distance: settings.dragProximity) }?.openShelfForDrag()
+        guard let controller = controllers.first(where: { $0.isNearNotch(point, distance: settings.dragProximity) }) else { return }
+        // A drag that began on another screen is on its way across, not to the shelf (settings › 檔案中轉站).
+        if settings.dragIgnoresOtherScreens, !controller.isOnMyScreen(origin) { return }
+        controller.openShelfForDrag()
     }
 
     func setMenuTracking(_ tracking: Bool) {

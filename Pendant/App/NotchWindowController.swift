@@ -28,9 +28,9 @@ final class NotchWindowController { // swiftlint:disable:this type_body_length
     private var observers: [NSObjectProtocol] = []
     private(set) var geometry: NotchGeometry?
     private var islandWatch: Task<Void, Never>?
-    /// Polls (only while a virtual notch is on screen and the setting is on) whether a window is maximized on this screen.
-    private var maximizedWatch: Task<Void, Never>?
-    private var windowMaximized = false
+    /// Polls (only while a virtual notch is on screen and the setting is on) whether an app is full screen on this screen.
+    private var fullscreenWatch: Task<Void, Never>?
+    private var appFullscreen = false
     private var timerPulsed = false
     private var alertFlashTask: Task<Void, Never>?
     private var collapsedFromExpanded = false
@@ -66,7 +66,9 @@ final class NotchWindowController { // swiftlint:disable:this type_body_length
             applyPanel(for: model.state, shrinkImmediately: false)
         }
         toast.onVisibilityChange = { [weak self] showing in self?.model.setHUDShowing(showing || self?.hud.isShowing == true) }
-        model.keepsOpen = { AnchoredPopover.isAnyOpen }
+        model.keepsOpen = { [weak self] in
+            AnchoredPopover.isAnyOpen || (self?.registry.focusedModuleID != nil && !AppSettings.shared.focusCollapsesOnLeave)
+        }
         let hosting = NSHostingView(rootView: CapsuleView(
             model: model,
             registry: registry,
@@ -451,7 +453,7 @@ final class NotchWindowController { // swiftlint:disable:this type_body_length
         interaction.shutdown()
         shrinkTask?.cancel()
         islandWatch?.cancel()
-        maximizedWatch?.cancel()
+        fullscreenWatch?.cancel()
         alertFlashTask?.cancel()
         hud.hideNow()
         toast.hideNow()
@@ -464,6 +466,11 @@ final class NotchWindowController { // swiftlint:disable:this type_body_length
     var isPointerOnMyScreen: Bool {
         guard let frame = geometry?.screenFrame else { return false }
         return frame.containsPointer(NSEvent.mouseLocation)
+    }
+
+    /// Whether `point` is on the screen this controller's notch sits on.
+    func isOnMyScreen(_ point: CGPoint) -> Bool {
+        geometry?.screenFrame.containsPointer(point) ?? false
     }
 
     private func targetScreen() -> NSScreen? {
@@ -536,15 +543,9 @@ final class NotchWindowController { // swiftlint:disable:this type_body_length
         }
         model.updateLayout(layout, animated: animated)
 
-        // A real notch is always on screen; a virtual one only makes sense with a menu bar,
-        // and is hidden in fullscreen when the user opted out.
-        let inFullscreen = geometry.isVirtual && menuBarHeight == 0
-        if inFullscreen && !settings.showInFullscreen {
-            panel.orderOut(nil)
-            return
-        }
-        updateMaximizedWatch(on: screen)
-        if geometry.isVirtual, settings.virtualNotchEnabled, settings.virtualHideWhenMaximized, windowMaximized, model.state != .expanded {
+        // A real notch is always on screen; a virtual one hides while an app is full screen on this screen (settings › 虛擬瀏海).
+        updateFullscreenWatch(on: screen)
+        if geometry.isVirtual, settings.virtualHideInFullscreen, appFullscreen, model.state != .expanded {
             panel.orderOut(nil)
             return
         }
@@ -553,25 +554,25 @@ final class NotchWindowController { // swiftlint:disable:this type_body_length
         updateIslandWatch()
     }
 
-    // MARK: Maximized windows
+    // MARK: Full screen
 
-    private func updateMaximizedWatch(on screen: NSScreen) {
-        let wanted = geometry?.isVirtual == true && settings.virtualNotchEnabled && settings.virtualHideWhenMaximized
+    private func updateFullscreenWatch(on screen: NSScreen) {
+        let wanted = geometry?.isVirtual == true && settings.virtualHideInFullscreen
         guard wanted else {
-            maximizedWatch?.cancel()
-            maximizedWatch = nil
-            windowMaximized = false
+            fullscreenWatch?.cancel()
+            fullscreenWatch = nil
+            appFullscreen = false
             return
         }
-        guard maximizedWatch == nil else { return }
-        windowMaximized = MaximizedWindowDetector.isWindowMaximized(on: screen)
-        maximizedWatch = Task { [weak self] in
+        guard fullscreenWatch == nil else { return }
+        appFullscreen = FullscreenDetector.isFullscreen(on: screen)
+        fullscreenWatch = Task { [weak self] in
             while !Task.isCancelled {
-                try? await Task.sleep(for: .milliseconds(700))
+                try? await Task.sleep(for: .milliseconds(500))
                 guard !Task.isCancelled, let self, let screen = targetScreen() else { return }
-                let maximized = MaximizedWindowDetector.isWindowMaximized(on: screen)
-                if maximized != windowMaximized {
-                    windowMaximized = maximized
+                let fullscreen = FullscreenDetector.isFullscreen(on: screen)
+                if fullscreen != appFullscreen {
+                    appFullscreen = fullscreen
                     reposition()
                 }
             }

@@ -231,18 +231,24 @@ struct UpdateSourceTests {
     }
 }
 
-struct MaximizedWindowTests {
-    private let visible = CGRect(x: 0, y: 30, width: 1920, height: 1020)
+struct FullscreenDetectorTests {
+    private let screen = CGRect(x: 0, y: 0, width: 1920, height: 1080)
 
-    @Test func aWindowFillingTheUsableAreaCountsAsMaximized() {
-        #expect(MaximizedWindowDetector.covers(window: CGRect(x: 0, y: 30, width: 1920, height: 1020), visible: visible))
-        #expect(MaximizedWindowDetector.covers(window: CGRect(x: -2, y: 28, width: 1924, height: 1024), visible: visible))
-        #expect(MaximizedWindowDetector.covers(window: CGRect(x: 3, y: 33, width: 1914, height: 1014), visible: visible)) // within tolerance
+    @Test func aWindowCoveringTheWholeScreenIsFullscreen() {
+        #expect(FullscreenDetector.topWindowIsFullscreen(frames: [screen], screen: screen))
+        #expect(FullscreenDetector.topWindowIsFullscreen(frames: [CGRect(x: -1, y: -1, width: 1922, height: 1082)], screen: screen))
     }
 
-    @Test func smallerWindowsDoNot() {
-        #expect(!MaximizedWindowDetector.covers(window: CGRect(x: 100, y: 100, width: 800, height: 600), visible: visible))
-        #expect(!MaximizedWindowDetector.covers(window: CGRect(x: 0, y: 30, width: 960, height: 1020), visible: visible)) // half the screen
-        #expect(!MaximizedWindowDetector.covers(window: CGRect(x: 0, y: 200, width: 1920, height: 850), visible: visible))
+    @Test func aMaximizedWindowBelowTheMenuBarIsNot() {
+        #expect(!FullscreenDetector.topWindowIsFullscreen(frames: [CGRect(x: 0, y: 30, width: 1920, height: 1050)], screen: screen))
+        #expect(!FullscreenDetector.topWindowIsFullscreen(frames: [CGRect(x: 100, y: 100, width: 800, height: 600)], screen: screen))
+    }
+
+    @Test func theFrontmostBigWindowDecides() {
+        let normal = CGRect(x: 200, y: 150, width: 1200, height: 800)
+        let palette = CGRect(x: 50, y: 60, width: 200, height: 300)
+        #expect(!FullscreenDetector.topWindowIsFullscreen(frames: [normal, screen], screen: screen)) // the full one is behind
+        #expect(FullscreenDetector.topWindowIsFullscreen(frames: [palette, screen], screen: screen)) // a small one in front is ignored
+        #expect(!FullscreenDetector.topWindowIsFullscreen(frames: [], screen: screen))
     }
 }

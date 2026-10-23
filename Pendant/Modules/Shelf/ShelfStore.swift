@@ -16,6 +16,8 @@ final class ShelfStore {
     /// Set when a drop was refused because of the limits; shown briefly.
     private(set) var limitMessage: String?
     private(set) var lastDropAt = Date.distantPast
+    /// Files that just arrived (they are uncovered with an animation for a moment).
+    private(set) var freshIDs: Set<UUID> = []
 
     @ObservationIgnored private let folder = AppPaths.subdirectory("Shelf")
     @ObservationIgnored private var thumbnails: [UUID: NSImage] = [:]
@@ -61,8 +63,14 @@ final class ShelfStore {
                 pendingCopies -= 1
                 reservedNames.remove(name)
                 if ok {
-                    items.append(ShelfItem(name: name, isDirectory: isDirectory, bytes: size))
+                    let item = ShelfItem(name: name, isDirectory: isDirectory, bytes: size)
+                    freshIDs.insert(item.id)
+                    items.append(item)
                     save()
+                    Task {
+                        try? await Task.sleep(for: .seconds(1.5))
+                        freshIDs.remove(item.id)
+                    }
                 }
             }
         }

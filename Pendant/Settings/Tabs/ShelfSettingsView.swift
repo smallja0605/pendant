@@ -30,6 +30,8 @@ struct ShelfSettingsView: View {
                 Toggle("拖曳檔案靠近瀏海時自動展開", isOn: $settings.dragOpensShelf)
                 SliderRow(title: "觸發距離", value: $settings.dragProximity, range: 60...200, step: 5, unit: "pt")
                     .dimmed(when: !settings.dragOpensShelf)
+                Toggle("跨螢幕拖曳時不展開", isOn: $settings.dragIgnoresOtherScreens)
+                    .dimmed(when: !settings.dragOpensShelf)
             }
         }
         .formStyle(.grouped)

@@ -33,6 +33,7 @@ protocol PendantModule: AnyObject, Identifiable where ID == String {
     func makeFocusView(size: CGSize) -> AnyView?
     /// Width of that page in cells.
     var focusCells: Int { get }
+    var focusTitle: String { get }
     /// Content of this module's island while it is a live activity (3.5). `nil`: the generic icon is used.
     func makeCompactView(role: IslandRole) -> AnyView?
     func makeSettingsView() -> AnyView
@@ -47,6 +48,8 @@ extension PendantModule {
     var supportsCompact: Bool { false }
     func makeFocusView(size: CGSize) -> AnyView? { nil }
     var focusCells: Int { min(cells.default + 4, 10) }
+    /// Title of the detailed page in the capsule's top-left corner.
+    var focusTitle: String { displayName }
     var activityPriority: Int { 100 }
     func makeCompactView(role: IslandRole) -> AnyView? { nil }
     var requiredPermissions: [PendantPermission] { [] }

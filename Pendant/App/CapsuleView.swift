@@ -96,7 +96,12 @@ struct CapsuleView: View {
                     .frame(width: expandedSize.width, height: expandedSize.height, alignment: .top)
                     .modifier(RevealEffect(isVisible: isExpanded, delay: 0.1, blurOnExit: false))
                 // Top-left, beside the notch: switch between the modules and the file shelf.
-                if registry.availableTabs.count > 1 {
+                if registry.focusedModuleID != nil {
+                    FocusHeader(registry: registry)
+                        .padding(.leading, 18)
+                        .frame(width: expandedSize.width, height: notchHeight, alignment: .leading)
+                        .modifier(RevealEffect(isVisible: isExpanded, delay: 0.14, blurOnExit: false))
+                } else if registry.availableTabs.count > 1 {
                     // Only the strip left of the physical notch is free: the pair shrinks to icons when it is narrow.
                     let notchWidth = model.layout?.notch.size.width ?? 0
                     let blocked = virtualStrip ? max(notchWidth, VirtualBigStrip.width) : notchWidth

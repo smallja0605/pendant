@@ -1,25 +1,39 @@
 import SwiftUI
 
-/// The detailed media page (shown alone in a wider capsule): the normal player on the left, the synchronised lyrics on the right.
+/// The media page, and its detailed version (`focused`): the player on the left, the synchronised lyrics on the right. It is one view
+/// either way, so opening and closing the detailed page moves the player instead of swapping it.
 struct MediaFocusView: View {
     let controller: MediaController
     let size: CGSize
+    let focused: Bool
+
+    var body: some View {
+        let left = focused ? min(CGFloat(5) * Tuning.shared.cellWidth, size.width * 0.56) : size.width
+        HStack(spacing: 0) {
+            MediaView(controller: controller).frame(width: left, height: size.height)
+            if focused {
+                Rectangle().fill(.white.opacity(0.18)).frame(width: 2, height: size.height * Tuning.shared.dividerLengthRatio)
+                    .frame(width: 20, height: size.height)
+                    .transition(.opacity)
+                LyricsPane(controller: controller)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .transition(.opacity)
+            }
+        }
+        .frame(width: size.width, height: size.height, alignment: .leading)
+    }
+}
+
+private struct LyricsPane: View {
+    let controller: MediaController
     @State private var lyrics = LyricsStore.shared
     @State private var settings = AppSettings.shared
 
     var body: some View {
-        let left = min(CGFloat(5) * Tuning.shared.cellWidth, size.width * 0.56)
-        HStack(spacing: 0) {
-            MediaView(controller: controller).frame(width: left, height: size.height)
-            Rectangle().fill(.white.opacity(0.18)).frame(width: 2, height: size.height * Tuning.shared.dividerLengthRatio)
-                .frame(width: 20, height: size.height)
-            LyricsView(controller: controller, lyrics: lyrics, enabled: settings.onlineLyrics)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .frame(width: size.width, height: size.height)
-        .task(id: controller.nowPlaying?.snapshot.trackKey) {
-            if let snapshot = controller.nowPlaying?.snapshot { lyrics.load(for: snapshot) }
-        }
+        LyricsView(controller: controller, lyrics: lyrics, enabled: settings.lyricsSource != .online || settings.onlineLyrics)
+            .task(id: "\(controller.nowPlaying?.snapshot.trackKey ?? "")|\(settings.lyricsSource.rawValue)|\(settings.onlineLyrics)") {
+                if let snapshot = controller.nowPlaying?.snapshot { lyrics.load(for: snapshot) }
+            }
     }
 }
 
@@ -77,6 +91,11 @@ struct LyricsView: View {
                 .padding(.vertical, 60)
             }
             .mask(edgeFade)
+            // Opening the page lands on the line being sung (the timer below only reacts to a change of line).
+            .task(id: lines.count) {
+                try? await Task.sleep(for: .milliseconds(60))
+                proxy.scrollTo(currentIndex(lines, at: Date()), anchor: .center)
+            }
             .background {
                 TimelineView(.periodic(from: .now, by: 0.3)) { context in
                     Color.clear.onChange(of: currentIndex(lines, at: context.date)) { _, index in

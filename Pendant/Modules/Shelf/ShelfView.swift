@@ -9,6 +9,7 @@ struct ShelfView: View {
     @State private var airDropTargeted = false
 
     @State private var settings = AppSettings.shared
+    @State private var drag = ShelfDragState.shared
 
     var body: some View {
         GeometryReader { proxy in
@@ -23,13 +24,15 @@ struct ShelfView: View {
     /// The drawer takes what the AirDrop area leaves (its width is a share of the page, set in the shelf settings).
     private func row(airDropWidth: CGFloat) -> some View {
         HStack(spacing: 8) {
-            DrawerZone(store: store, targeted: drawerTargeted)
+            DrawerZone(store: store, targeted: drawerTargeted, dragging: drag.isDragging)
+                .hoverLift(drawerTargeted)
                 .onDrop(of: [.fileURL], isTargeted: $drawerTargeted) { providers in
                     Self.urls(from: providers) { store.add(urls: $0) }
                     return true
                 }
-            AirDropZone(store: store, targeted: airDropTargeted)
+            AirDropZone(store: store, targeted: airDropTargeted, dragging: drag.isDragging)
                 .frame(width: airDropWidth)
+                .hoverLift(airDropTargeted)
                 .onDrop(of: [.fileURL], isTargeted: $airDropTargeted) { providers in
                     Self.urls(from: providers) { ShelfStore.sendViaAirDrop($0) }
                     return true
@@ -65,28 +68,50 @@ private struct TileFrame: PreferenceKey {
 private struct DrawerZone: View {
     let store: ShelfStore
     let targeted: Bool
+    let dragging: Bool
     @State private var anchor: UUID?
     @State private var tileFrames: [UUID: CGRect] = [:]
     @State private var marquee: CGRect?
+    @State private var sheen: CGFloat = 1
 
     var body: some View {
         ZStack(alignment: .topLeading) {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(.white.opacity(targeted ? 0.1 : 0))
+                .fill(.white.opacity(targeted ? 0.12 : dragging ? 0.05 : 0))
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .strokeBorder(.white.opacity(targeted ? 0.7 : 0.22), style: StrokeStyle(lineWidth: targeted ? 3 : 2, dash: [7, 6]))
+                .strokeBorder(.white.opacity(targeted ? 0.8 : dragging ? 0.45 : 0.22),
+                              style: StrokeStyle(lineWidth: targeted ? 3 : 2, dash: [7, 6]))
             if store.items.isEmpty && store.pendingCopies == 0 {
-                VStack(alignment: .leading, spacing: 8) {
-                    Image(systemName: "tray.and.arrow.down.fill").font(.system(size: 22, weight: .semibold))
-                    Text("檔案抽屜").font(.system(size: 13, weight: .bold))
+                if !dragging {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Image(systemName: "tray.and.arrow.down.fill").font(.system(size: 22, weight: .semibold))
+                        Text("檔案抽屜").font(.system(size: 13, weight: .bold))
+                    }
+                    .foregroundStyle(.white.opacity(0.6))
+                    .padding(16)
+                    .transition(.opacity)
                 }
-                .foregroundStyle(.white.opacity(targeted ? 0.95 : 0.6))
-                .padding(16)
             } else {
                 content
+                    .opacity(dragging ? 0.18 : 1)
+                    .blur(radius: dragging ? 2 : 0)
+                    .allowsHitTesting(!dragging)
+            }
+            if dragging {
+                DropHint(symbol: "tray.and.arrow.down.fill", text: "放開即可加入檔案抽屜", active: targeted)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .transition(.opacity.combined(with: .scale(scale: 0.94)))
             }
         }
-        .animation(.easeOut(duration: 0.12), value: targeted)
+        .overlay {
+            SweepGradient(progress: sheen).clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous)).allowsHitTesting(false)
+        }
+        .animation(.easeOut(duration: 0.18), value: targeted)
+        .animation(.spring(response: 0.32, dampingFraction: 0.82), value: dragging)
+        .onChange(of: store.lastDropAt) { _, _ in
+            sheen = 0
+            withAnimation(.easeInOut(duration: 0.75)) { sheen = 1 }
+        }
     }
 
     private var content: some View {
@@ -172,6 +197,7 @@ private struct ShelfTile: View {
             onSelectAll: { store.selectAll() }
         ))
         .task(id: item.id) { image = await store.thumbnail(for: item) }
+        .dropReveal(store.freshIDs.contains(item.id))
     }
 }
 
@@ -180,6 +206,7 @@ private struct ShelfTile: View {
 private struct AirDropZone: View {
     let store: ShelfStore
     let targeted: Bool
+    let dragging: Bool
     @State private var hovering = false
 
     var body: some View {
@@ -192,17 +219,101 @@ private struct AirDropZone: View {
                 if targeted {
                     RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(Color.blue.opacity(0.9), lineWidth: 3)
                 }
-                VStack(alignment: .leading, spacing: 8) {
-                    Image(systemName: "airplayaudio").font(.system(size: 24, weight: .semibold)).foregroundStyle(Color.blue)
-                    Text("AirDrop").font(.system(size: 13, weight: .bold)).foregroundStyle(.white.opacity(0.7))
+                if dragging {
+                    DropHint(symbol: "airplayaudio", text: "放開即可 AirDrop", active: targeted, tint: .blue)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .transition(.opacity.combined(with: .scale(scale: 0.94)))
+                } else {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Image(systemName: "airplayaudio").font(.system(size: 24, weight: .semibold)).foregroundStyle(Color.blue)
+                        Text("AirDrop").font(.system(size: 13, weight: .bold)).foregroundStyle(.white.opacity(0.7))
+                    }
+                    .padding(16)
+                    .transition(.opacity)
                 }
-                .padding(16)
             }
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .onActiveHover { hovering = $0 != nil }
-        .animation(.easeOut(duration: 0.12), value: targeted)
+        .animation(.easeOut(duration: 0.18), value: targeted)
+        .animation(.spring(response: 0.32, dampingFraction: 0.82), value: dragging)
         .accessibilityLabel("AirDrop")
+    }
+}
+
+// MARK: - Drag feedback
+
+/// "Release to add": what a zone shows while a file is being dragged, bigger and brighter once the pointer is over it.
+private struct DropHint: View {
+    let symbol: String
+    let text: String
+    let active: Bool
+    var tint: Color = .white
+
+    var body: some View {
+        VStack(spacing: 8) {
+            Image(systemName: symbol).font(.system(size: 24, weight: .semibold)).foregroundStyle(tint)
+                .symbolEffect(.pulse, isActive: active)
+            Text(text).font(.system(size: 13, weight: .bold)).foregroundStyle(.white.opacity(active ? 0.95 : 0.7))
+        }
+        .scaleEffect(active ? 1.06 : 1)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: active)
+    }
+}
+
+/// A soft band of light that runs from the top of a zone to the bottom (progress 0 → 1), then is gone.
+private struct SweepGradient: View {
+    let progress: CGFloat
+
+    var body: some View {
+        GeometryReader { proxy in
+            let band = proxy.size.height * 0.7
+            LinearGradient(colors: [.clear, .white.opacity(0.3), .clear], startPoint: .top, endPoint: .bottom)
+                .frame(height: band)
+                .offset(y: -band + (proxy.size.height + band) * progress)
+                .opacity(progress >= 1 ? 0 : 1)
+        }
+    }
+}
+
+private extension View {
+    /// The zone under the dragged files swells a little.
+    func hoverLift(_ on: Bool) -> some View {
+        scaleEffect(on ? 1.035 : 1)
+            .zIndex(on ? 1 : 0)
+            .animation(.spring(response: 0.3, dampingFraction: 0.65), value: on)
+    }
+
+    /// A newly dropped file is uncovered from the top down (a soft edge moves down over it) while it settles in from above.
+    func dropReveal(_ fresh: Bool) -> some View { modifier(DropReveal(fresh: fresh)) }
+}
+
+private struct DropReveal: ViewModifier {
+    let fresh: Bool
+    @State private var progress: CGFloat
+
+    init(fresh: Bool) {
+        self.fresh = fresh
+        _progress = State(initialValue: fresh ? 0 : 1)
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .mask {
+                GeometryReader { proxy in
+                    let edge = proxy.size.height * 0.8
+                    VStack(spacing: 0) {
+                        Color.black.frame(height: proxy.size.height)
+                        LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom).frame(height: edge)
+                    }
+                    .offset(y: -(proxy.size.height + edge) * (1 - progress))
+                }
+            }
+            .offset(y: -10 * (1 - progress))
+            .onAppear {
+                guard fresh, progress < 1 else { return }
+                withAnimation(.easeOut(duration: 0.7)) { progress = 1 }
+            }
     }
 }

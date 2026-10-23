@@ -3,6 +3,8 @@ import SwiftUI
 /// Reminders page: lists with their open items, check to complete, quick add at the bottom.
 struct RemindersView: View {
     let store: RemindersStore
+    /// The detailed page: the list on the left, a tall box for a new item on the right.
+    var focused = false
     @State private var settings = AppSettings.shared
 
     private var reloadKey: String {
@@ -13,28 +15,59 @@ struct RemindersView: View {
     }
 
     var body: some View {
-        VStack(spacing: 6) {
-            HStack {
-                Text("待辦事項").font(.system(size: 20, weight: .bold)).foregroundStyle(.white)
-                Spacer()
-                if store.access == .allowed {
-                    Text("\(store.totalIncomplete)")
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.6))
-                        .padding(.horizontal, 8).padding(.vertical, 3)
-                        .background(Capsule().fill(.white.opacity(0.12)))
-                }
-            }
-            .frame(height: 28)
-            .padding(.top, ModuleHeader.topPadding(rowHeight: 28)) // on the calendar's month-label line
-            content
-            if store.access == .allowed { QuickAddRow(store: store) }
+        Group {
+            if focused { split } else { page }
         }
         .padding(.bottom, 8)
         .onDisappear { store.flushCompleted() }
         .task(id: reloadKey) {
             await store.ensureAccess()
             await store.reload()
+        }
+    }
+
+    private var countBadge: some View {
+        Text("\(store.totalIncomplete)")
+            .font(.system(size: 12, weight: .bold, design: .rounded))
+            .foregroundStyle(.white.opacity(0.6))
+            .padding(.horizontal, 8).padding(.vertical, 3)
+            .background(Capsule().fill(.white.opacity(0.12)))
+    }
+
+    private var page: some View {
+        VStack(spacing: 6) {
+            HStack(spacing: 0) {
+                Text("待辦事項").font(.system(size: 20, weight: .bold)).foregroundStyle(.white)
+                FocusEnterButton().padding(.leading, 2)
+                Spacer()
+                if store.access == .allowed { countBadge }
+            }
+            .frame(height: 28)
+            .padding(.top, ModuleHeader.topPadding(rowHeight: 28)) // on the calendar's month-label line
+            content
+            if store.access == .allowed { QuickAddRow(store: store) }
+        }
+    }
+
+    private var split: some View {
+        HStack(spacing: 0) {
+            VStack(spacing: 6) {
+                HStack {
+                    Spacer()
+                    if store.access == .allowed { countBadge }
+                }
+                .frame(height: 28)
+                .padding(.top, 6)
+                content
+            }
+            .frame(maxWidth: .infinity)
+            Rectangle().fill(.white.opacity(0.18)).frame(width: 2)
+                .frame(width: 20).padding(.vertical, 14)
+            if store.access == .allowed {
+                QuickAddRow(store: store, tall: true)
+                    .padding(.top, 6)
+                    .frame(width: 300)
+            }
         }
     }
 
@@ -71,148 +104,6 @@ struct RemindersView: View {
                     }
                 }
             }
-        }
-    }
-}
-
-/// Two-finger swipe left on a row, in three stages (like Mail): (1) swiping — let go before the haptic and it springs
-/// back; (2) past the first haptic the delete pill stays open, even after the fingers leave the trackpad; (3) past the
-/// second haptic the pill fills the whole row and letting go deletes. The row's text stays visible (it is squeezed,
-/// not covered) until the pill fills the row.
-private struct SwipeToDelete<Content: View>: View {
-    let onDelete: () -> Void
-    @ViewBuilder let content: Content
-
-    @State private var offset: CGFloat = 0
-    @State private var width: CGFloat = 240
-    @State private var height: CGFloat = 30
-    @State private var swiping = false
-    @State private var decided = false
-    @State private var armed = false
-    @State private var fullArmed = false
-    @State private var collapsed = false
-    @State private var settleTask: Task<Void, Never>?
-    @State private var hovering = false
-
-    private let arm: CGFloat = 34
-    private let openWidth: CGFloat = 52
-    private var full: CGFloat { max(width * 0.6, 110) }
-
-    var body: some View {
-        let amount = -offset
-        let pillWidth = amount > 0 ? min(max(amount - 6, 0), width - 4) : 0
-        ZStack(alignment: .trailing) {
-            // The whole row (with its highlight) slides left, its left part falls out of view, while the text inside
-            // is pushed back right by the same amount, so the text stays where it was until the pill covers it.
-            ZStack(alignment: .leading) {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(.white.opacity(hovering || amount > 0 ? 0.1 : 0))
-                content
-                    .padding(.horizontal, 6)
-                    .offset(x: amount)
-                    .opacity(amount > width * 0.82 ? 0 : 1)
-            }
-            // Flexible, not `width`: a fixed frame of the measured width could never get narrower than its first value (the
-            // measurement saw the frame itself), and the list overflowed the module on both sides.
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .offset(x: -amount)
-            Button {
-                HapticService.shared.play(.stateSettled)
-                remove()
-            } label: {
-                ZStack(alignment: .leading) {
-                    Capsule().fill(Color.red)
-                    // Always centred in the pill until stage 3 (full swipe), where it moves to the pill's left end.
-                    Image(systemName: "trash.fill")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(.white)
-                        .frame(width: 14)
-                        .offset(x: (amount >= full ? 26 : pillWidth / 2) - 7)
-                        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: amount >= full)
-                        .opacity(pillWidth > 18 ? 1 : 0)
-                }
-                .frame(width: pillWidth, height: 28)
-                .contentShape(Capsule())
-            }
-            .buttonStyle(.plain)
-            .padding(.trailing, 2)
-            .opacity(amount > 2 ? 1 : 0)
-            .allowsHitTesting(amount > arm)
-            .accessibilityLabel("刪除")
-        }
-        .background(GeometryReader { proxy in
-            Color.clear
-                .onAppear { width = proxy.size.width; if !collapsed { height = proxy.size.height } }
-                .onChange(of: proxy.size) { _, size in width = size.width; if !collapsed { height = size.height } }
-        })
-        .animation(.easeOut(duration: 0.12), value: hovering)
-        .clipped()
-        .onActiveHover { hovering = $0 != nil }
-        .frame(height: collapsed ? 0 : nil)
-        .opacity(collapsed ? 0 : 1)
-        .clipped()
-        .onScrollWheelPhased { deltaX, deltaY, phase in handle(deltaX, deltaY, phase) }
-    }
-
-    private func handle(_ deltaX: Double, _ deltaY: Double, _ phase: ScrollPhase) -> Bool {
-        if phase.momentum { return swiping } // inertia after the fingers left: swallow it, nothing more to do
-        // A gesture is claimed by its first moving event, by direction; vertical gestures stay with the list.
-        if phase.began || !phase.hasPhase { decided = false }
-        if !decided, deltaX != 0 || deltaY != 0 {
-            swiping = abs(deltaX) > abs(deltaY)
-            decided = true
-        }
-        if phase.ended { decided = false }
-        guard swiping else { return false }
-        settleTask?.cancel()
-        let next = min(max(offset + deltaX, -width), 0)
-        withAnimation(.interactiveSpring(response: 0.16, dampingFraction: 0.9)) { offset = next }
-        updateHaptics()
-        if phase.ended {
-            finish()
-        } else if !phase.hasPhase {
-            settleTask = Task { // a mouse wheel has no "fingers lifted": a short pause counts as letting go
-                try? await Task.sleep(for: .milliseconds(160))
-                guard !Task.isCancelled else { return }
-                finish()
-            }
-        }
-        return true
-    }
-
-    private func updateHaptics() {
-        let amount = -offset
-        if (amount >= arm) != armed {
-            armed = amount >= arm
-            if armed { HapticService.shared.play(.stateSettled) }
-        }
-        if (amount >= full) != fullArmed {
-            fullArmed = amount >= full
-            if fullArmed { HapticService.shared.play(.stateSettled) }
-        }
-    }
-
-    private func finish() {
-        swiping = false
-        let amount = -offset
-        if amount >= full {
-            remove()
-        } else {
-            let target: CGFloat = amount >= arm ? -openWidth : 0
-            withAnimation(.spring(response: 0.38, dampingFraction: 0.78)) { offset = target }
-            armed = target != 0
-            fullArmed = false
-        }
-    }
-
-    private func remove() {
-        swiping = false
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) { offset = -width }
-        Task {
-            try? await Task.sleep(for: .milliseconds(160))
-            withAnimation(.easeIn(duration: 0.22)) { collapsed = true }
-            try? await Task.sleep(for: .milliseconds(230))
-            onDelete()
         }
     }
 }
@@ -273,6 +164,8 @@ private struct ReminderRow: View {
 /// optional due date.
 private struct QuickAddRow: View {
     let store: RemindersStore
+    /// Fills the height it is given, and the title can run over several lines (the detailed page).
+    var tall = false
     @State private var draft = ReminderDraft()
     @State private var popover = AnchoredPopover()
     @State private var optionsPopover = AnchoredPopover()
@@ -285,13 +178,17 @@ private struct QuickAddRow: View {
     var body: some View {
         // Two rows in one box: the title on top, the controls underneath (date, options on the left, send on the right).
         VStack(spacing: 2) {
-            TextField(text: $draft.title, prompt: Text("新增待辦⋯").foregroundStyle(.white.opacity(0.45))) { EmptyView() }
-                .textFieldStyle(.plain)
-                .font(.system(size: 12.5))
-                .foregroundStyle(.white)
-                .focused($focused)
-                .onSubmit(submit)
-                .frame(height: 22)
+            let prompt = Text("新增待辦⋯").foregroundStyle(.white.opacity(0.45))
+            TextField(text: $draft.title, prompt: prompt, axis: tall ? .vertical : .horizontal) {
+                EmptyView()
+            }
+            .textFieldStyle(.plain)
+            .font(.system(size: tall ? 14 : 12.5))
+            .foregroundStyle(.white)
+            .focused($focused)
+            .onSubmit(submit)
+            .frame(maxWidth: .infinity, maxHeight: tall ? .infinity : 22, alignment: .topLeading)
+            .frame(height: tall ? nil : 22)
             HStack(spacing: 6) {
                 Button {
                     popover.toggle(size: .zero, autoSize: true) { _ in
@@ -365,32 +262,5 @@ private struct QuickAddRow: View {
         popover.close()
         optionsPopover.close()
         Task { await store.add(pending) }
-    }
-}
-
-/// Graphical date picker scaled up to fill a 250 pt-wide popover (the size the user liked), with a small margin
-/// and no empty space below; the popover sizes itself to this view.
-private struct DuePicker: View {
-    @Binding var due: Date?
-    @Binding var includeTime: Bool
-    @State private var date = Date()
-
-    var body: some View {
-        VStack(spacing: 6) {
-            CalendarPicker(date: $date)
-                .onChange(of: date) { _, newValue in due = newValue }
-            if includeTime {
-                DatePicker("", selection: $date, displayedComponents: .hourAndMinute)
-                    .labelsHidden()
-            }
-            HStack {
-                Toggle("包含時間", isOn: $includeTime)
-                Spacer()
-                Button("清除") { due = nil }
-            }
-        }
-        .padding(10)
-        .fixedSize()
-        .onAppear { date = due ?? Date(); due = due ?? date }
     }
 }

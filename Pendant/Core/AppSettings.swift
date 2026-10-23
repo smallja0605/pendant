@@ -12,14 +12,13 @@ final class AppSettings: @unchecked Sendable {
     @ObservationIgnored private let defaults: UserDefaults
 
     // MARK: General (7.1)
-    var showInFullscreen: Bool { didSet { save(showInFullscreen, "showInFullscreen") } }
     var screenChoice: ScreenChoice { didSet { save(screenChoice.rawValue, "screenChoice") } }
     var hoverExpandMode: HoverExpandMode { didSet { save(hoverExpandMode.rawValue, "hoverExpandMode") } }
     var hoverDelay: Double { didSet { save(hoverDelay, "hoverDelay") } }
     // MARK: Virtual notch (screens without a physical notch)
     var virtualNotchEnabled: Bool { didSet { save(virtualNotchEnabled, "virtualNotchEnabled") } }
-    /// Hide the virtual notch while a window is maximized on its screen.
-    var virtualHideWhenMaximized: Bool { didSet { save(virtualHideWhenMaximized, "virtualHideWhenMaximized") } }
+    /// Hide the virtual notch while an app is full screen (its own Space, the green button) on its screen.
+    var virtualHideInFullscreen: Bool { didSet { save(virtualHideInFullscreen, "virtualHideInFullscreen") } }
     var virtualMiddle: VirtualMiddle { didSet { save(virtualMiddle.rawValue, "virtualMiddle") } }
     var virtualClock24h: Bool { didSet { save(virtualClock24h, "virtualClock24h") } }
     var virtualClockSeconds: Bool { didSet { save(virtualClockSeconds, "virtualClockSeconds") } }
@@ -33,6 +32,8 @@ final class AppSettings: @unchecked Sendable {
     var virtualLeft: VirtualSide { didSet { save(virtualLeft.rawValue, "virtualLeft") } }
     var virtualBatteryPercent: Bool { didSet { save(virtualBatteryPercent, "virtualBatteryPercent") } }
     var virtualRight: VirtualSide { didSet { save(virtualRight.rawValue, "virtualRight") } }
+    /// A module's detailed page closes when the pointer leaves the capsule (off: it stays until it is closed or clicked away).
+    var focusCollapsesOnLeave: Bool { didSet { save(focusCollapsesOnLeave, "focusCollapsesOnLeave") } }
     var collapseDelay: Double { didSet { save(collapseDelay, "collapseDelay") } }
     var hotkeyEnabled: Bool { didSet { save(hotkeyEnabled, "hotkeyEnabled") } }
     var hotkeyKeyCode: Int { didSet { save(hotkeyKeyCode, "hotkeyKeyCode") } }
@@ -127,6 +128,8 @@ final class AppSettings: @unchecked Sendable {
     var artworkCache: Bool { didSet { save(artworkCache, "artworkCache") } }
     var onlineArtwork: Bool { didSet { save(onlineArtwork, "onlineArtwork") } }
     var onlineLyrics: Bool { didSet { save(onlineLyrics, "onlineLyrics") } }
+    /// Where the detailed music page takes lyrics from.
+    var lyricsSource: LyricsSource { didSet { save(lyricsSource.rawValue, "lyricsSource") } }
 
     // MARK: Timer (4.4)
     /// Quick presets in minutes (default 1, 5, 10, 25).
@@ -179,7 +182,11 @@ final class AppSettings: @unchecked Sendable {
     var shelfAutoClearDays: Int { didSet { save(shelfAutoClearDays, "shelfAutoClearDays") } }
     var dragOpensShelf: Bool { didSet { save(dragOpensShelf, "dragOpensShelf") } }
     var dragProximity: Double { didSet { save(dragProximity, "dragProximity") } }
+    /// A file dragged over from another screen does not open the shelf (moving a file between screens is not a trip to the shelf).
+    var dragIgnoresOtherScreens: Bool { didSet { save(dragIgnoresOtherScreens, "dragIgnoresOtherScreens") } }
 
+    /// `auto`: online first (it has timed lines), then what the player itself holds. `player`: only Apple Music's own lyrics.
+    enum LyricsSource: String, CaseIterable, Sendable { case auto, player, online }
     enum ScreenChoice: String, CaseIterable, Sendable { case main, underCursor, all }
     enum ShelfAutoClear: String, CaseIterable, Sendable { case never, onLogout, onReboot, afterDays }
 
@@ -198,12 +205,11 @@ final class AppSettings: @unchecked Sendable {
         func int(_ key: String, _ fallback: Int) -> Int { defaults.object(forKey: Self.prefix + key) as? Int ?? fallback }
         func string(_ key: String) -> String? { defaults.string(forKey: Self.prefix + key) }
 
-        showInFullscreen = bool("showInFullscreen", true)
         screenChoice = string("screenChoice").flatMap(ScreenChoice.init(rawValue:)) ?? .main
         hoverExpandMode = string("hoverExpandMode").flatMap(HoverExpandMode.init(rawValue:)) ?? .off
         hoverDelay = double("hoverDelay", 0.3)
         virtualNotchEnabled = bool("virtualNotchEnabled", true)
-        virtualHideWhenMaximized = bool("virtualHideWhenMaximized", true)
+        virtualHideInFullscreen = bool("virtualHideInFullscreen", true)
         virtualMiddle = string("virtualMiddle").flatMap(VirtualMiddle.init(rawValue:)) ?? .clock
         virtualClock24h = bool("virtualClock24h", true)
         virtualClockSeconds = bool("virtualClockSeconds", false)
@@ -218,6 +224,7 @@ final class AppSettings: @unchecked Sendable {
         virtualBatteryPercent = bool("virtualBatteryPercent", true)
         virtualRight = string("virtualRight").flatMap(VirtualSide.init(rawValue:)) ?? .none
         collapseDelay = double("collapseDelay", 0.3)
+        focusCollapsesOnLeave = bool("focusCollapsesOnLeave", false)
         hotkeyEnabled = bool("hotkeyEnabled", true)
         hotkeyKeyCode = int("hotkeyKeyCode", 49) // Space
         hotkeyModifiers = int("hotkeyModifiers", 1 << 19) // ⌥ (NSEvent.ModifierFlags.option)
@@ -284,6 +291,7 @@ final class AppSettings: @unchecked Sendable {
         artworkGlow = bool("artworkGlow", true)
         onlineArtwork = bool("onlineArtwork", true)
         onlineLyrics = bool("onlineLyrics", true)
+        lyricsSource = string("lyricsSource").flatMap(LyricsSource.init(rawValue:)) ?? .auto
         artworkCache = bool("artworkCache", true)
         mediaSourcePreference = string("mediaSourcePreference").flatMap(MediaSourcePreference.init(rawValue:)) ?? .auto
         timerPresets = (defaults.array(forKey: Self.prefix + "timerPresets") as? [Int]) ?? [1, 5, 10, 25]
@@ -317,6 +325,7 @@ final class AppSettings: @unchecked Sendable {
         shelfAutoClearDays = int("shelfAutoClearDays", 7)
         dragOpensShelf = bool("dragOpensShelf", true)
         dragProximity = double("dragProximity", 120)
+        dragIgnoresOtherScreens = bool("dragIgnoresOtherScreens", true)
     }
 
     private func save(_ value: Any, _ key: String) {
@@ -353,9 +362,9 @@ final class AppSettings: @unchecked Sendable {
 
     /// Changes whenever something affecting the panel geometry / visibility changes.
     var geometrySignature: [Double] {
-        [notchWidthAdjust, showInFullscreen ? 1 : 0, screenChoice == .main ? 0 : 1,
+        [notchWidthAdjust, screenChoice == .main ? 0 : 1,
          islandLeftEnabled ? 1 : 0, islandRightEnabled ? 1 : 0, islandPrioritySide == .left ? 0 : 1, islandGap,
          islandMaxSpanPercent, islandLeftOffset, islandRightOffset, islandMaxWidth, islandSinking ? 1 : 0,
-         islandSmartAvoid ? 1 : 0, virtualNotchEnabled ? 1 : 0, virtualHideWhenMaximized ? 1 : 0]
+         islandSmartAvoid ? 1 : 0, virtualNotchEnabled ? 1 : 0, virtualHideInFullscreen ? 1 : 0]
     }
 }

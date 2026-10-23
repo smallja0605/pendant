@@ -23,39 +23,41 @@ struct ShelfDemoView: View {
     private var drawerShare: CGFloat { CGFloat(100 - settings.shelfAirDropPercent) / 100 }
 
     private var compact: some View {
-        ZStack(alignment: .top) {
-            UnevenRoundedRectangle(bottomLeadingRadius: 15, bottomTrailingRadius: 15)
-                .fill(Color.black)
-                .frame(width: compactWidth, height: bar)
-                .overlay {
-                    HStack(spacing: 0) {
-                        Image(systemName: "tray.and.arrow.down").font(.system(size: 15, weight: .semibold))
-                            .frame(width: wing, alignment: .leading).padding(.leading, tuning.iconMargin + 3)
-                        Spacer(minLength: 0)
-                        if settings.shelfShowsCount {
-                            Text("3").font(.system(size: 15, weight: .bold, design: .rounded))
-                                .frame(width: wing, alignment: .trailing).padding(.trailing, tuning.iconMargin + 3)
-                        }
+        // One black shape, as in the real capsule: the file line is part of it, so no corner shows between the two.
+        let peekHeight: CGFloat = settings.shelfPeekEnabled ? 28 : 0
+        return UnevenRoundedRectangle(bottomLeadingRadius: 15, bottomTrailingRadius: 15)
+            .fill(Color.black)
+            .frame(width: compactWidth, height: bar + peekHeight)
+            .overlay(alignment: .top) {
+                HStack(spacing: 0) {
+                    Image(systemName: "tray.and.arrow.down").font(.system(size: 15, weight: .semibold))
+                        .frame(width: wing, alignment: .leading).padding(.leading, tuning.iconMargin + 3)
+                    Spacer(minLength: 0)
+                    if settings.shelfShowsCount {
+                        Text("3").font(.system(size: 15, weight: .bold, design: .rounded))
+                            .frame(width: wing, alignment: .trailing).padding(.trailing, tuning.iconMargin + 3)
                     }
-                    .foregroundStyle(.white)
                 }
-            if settings.shelfPeekEnabled {
-                HStack(spacing: 6) {
-                    if settings.shelfPeekWithIcon { Image(systemName: "doc.fill") }
-                    Text("檔案 1.txt · 211 KB")
-                }
-                .font(.system(size: 13, weight: .semibold)).foregroundStyle(.white.opacity(0.6))
-                .lineLimit(1)
-                .frame(width: compactWidth, height: 28)
-                .background(UnevenRoundedRectangle(bottomLeadingRadius: 14, bottomTrailingRadius: 14).fill(.black))
-                .offset(y: bar)
-                .transition(.move(edge: .top).combined(with: .opacity))
+                .foregroundStyle(.white)
+                .frame(width: compactWidth, height: bar)
             }
-        }
-        .frame(width: screenWidth, alignment: .top)
-        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: settings.shelfPeekEnabled)
-        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: settings.shelfShowsCount)
-        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: tuning.wingExtra)
+            .overlay(alignment: .bottom) {
+                if settings.shelfPeekEnabled {
+                    HStack(spacing: 6) {
+                        if settings.shelfPeekWithIcon { Image(systemName: "doc.fill") }
+                        Text("檔案 1.txt · 211 KB")
+                    }
+                    .font(.system(size: 13, weight: .semibold)).foregroundStyle(.white.opacity(0.6))
+                    .lineLimit(1)
+                    .frame(width: compactWidth, height: peekHeight)
+                    .transition(.opacity)
+                }
+            }
+            .frame(width: screenWidth, alignment: .top)
+            .frame(maxHeight: .infinity, alignment: .top)
+            .animation(.spring(response: 0.35, dampingFraction: 0.8), value: settings.shelfPeekEnabled)
+            .animation(.spring(response: 0.35, dampingFraction: 0.8), value: settings.shelfShowsCount)
+            .animation(.spring(response: 0.35, dampingFraction: 0.8), value: tuning.wingExtra)
     }
 
     private var open: some View {

@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 import Observation
 
 /// One line of synchronised lyrics.
@@ -30,28 +30,46 @@ final class LyricsStore {
 
     /// Loads the lyrics for a track (once per track).
     func load(for snapshot: PlaybackSnapshot) {
-        guard AppSettings.shared.onlineLyrics else {
-            state = .idle
+        let settings = AppSettings.shared
+        let source = settings.lyricsSource
+        let online = settings.onlineLyrics && source != .player
+        let player = source != .online && snapshot.source == .appleMusic
+        guard online || player else {
+            state = .none
             loadedKey = ""
             return
         }
-        guard snapshot.trackKey != loadedKey else { return }
-        loadedKey = snapshot.trackKey
-        if let cached = cache[snapshot.trackKey] {
+        let key = "\(snapshot.trackKey)|\(online)|\(player)"
+        guard key != loadedKey else { return }
+        loadedKey = key
+        if let cached = cache[key] {
             state = cached
             return
         }
         state = .loading
         task?.cancel()
-        let key = snapshot.trackKey
         task = Task { [weak self] in
-            let result = await Self.fetch(
-                title: snapshot.title, artist: snapshot.artist, album: snapshot.album, duration: snapshot.duration
-            )
+            var result = State.none
+            if online {
+                result = await Self.fetch(
+                    title: snapshot.title, artist: snapshot.artist, album: snapshot.album, duration: snapshot.duration
+                )
+            }
+            if result == .none, player, let lines = await Self.playerLyrics() { result = .plain(lines) }
             guard !Task.isCancelled, let self, loadedKey == key else { return }
             cache[key] = result
             state = result
         }
+    }
+
+    /// The lyrics Apple Music itself holds for the current track (plain text, no timing), if it is running and has some.
+    private static func playerLyrics() async -> [String]? {
+        let musicApps = NSRunningApplication.runningApplications(withBundleIdentifier: MediaSourceID.appleMusic.bundleIdentifier)
+        guard !musicApps.isEmpty else { return nil }
+        let result = await AppleScriptRunner.shared.run("tell application \"Music\" to return lyrics of current track")
+        guard case let .success(value) = result, let text = value.asString else { return nil }
+        let lines = text.split(whereSeparator: \.isNewline).map { $0.trimmingCharacters(in: .whitespaces) }
+        return lines.contains { !$0.isEmpty } ? lines : nil
     }
 
     // MARK: Network

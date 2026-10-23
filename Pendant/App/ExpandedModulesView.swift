@@ -46,57 +46,55 @@ struct ExpandedModulesView: View {
         }
         .padding(.horizontal, layout.contentInset)
         .frame(width: contentSize.width, height: contentSize.height)
-        .id(registry.focusedModuleID ?? "page")
         .transition(.opacity)
     }
 
-    @ViewBuilder private func moduleView(_ module: any PendantModule, size: CGSize, focused: Bool, canFocus: Bool) -> some View {
-        if focused {
-            (module.makeFocusView(size: size) ?? module.makeView(size: size))
-                .overlay(alignment: .topLeading) { FocusHandle(direction: .back) { registry.unfocus() } }
-        } else if canFocus, ModuleFocus.supports(module.id) {
-            module.makeView(size: size)
-                .overlay(alignment: .topTrailing) { FocusHandle(direction: .enter) { registry.focus(module.id) } }
-        } else {
-            module.makeView(size: size)
-        }
+    /// One module. The same view type is used in the page and in its detailed page, so the module keeps its identity and
+    /// glides to its new size and place instead of being swapped.
+    private func moduleView(_ module: any PendantModule, size: CGSize, focused: Bool, canFocus: Bool) -> some View {
+        let content = focused ? (module.makeFocusView(size: size) ?? module.makeView(size: size)) : module.makeView(size: size)
+        let enter: (() -> Void)? = !focused && canFocus && ModuleFocus.supports(module.id)
+            ? { registry.focus(module.id) } : nil
+        return content.environment(\.focusEnter, enter)
     }
 }
 
 /// Which modules have a detailed page to open.
 enum ModuleFocus {
-    static func supports(_ id: String) -> Bool { ["media", "reminders", "calendar", "timer"].contains(id) }
+    static func supports(_ id: String) -> Bool { ["media", "reminders", "calendar"].contains(id) }
 }
 
-/// A muted arrow in a module's top corner, shown while the pointer is over the module's top edge: ">" opens its detailed page
-/// (the other modules give way), "<" goes back to the whole tab.
-struct FocusHandle: View {
-    enum Direction { case enter, back }
-    let direction: Direction
-    let action: () -> Void
-    @State private var nearby = false
-    @State private var overButton = false
+private struct FocusEnterKey: EnvironmentKey {
+    nonisolated(unsafe) static let defaultValue: (() -> Void)? = nil
+}
+
+extension EnvironmentValues {
+    /// Opens this module's detailed page (nil: it has none, or it is already open).
+    var focusEnter: (() -> Void)? {
+        get { self[FocusEnterKey.self] }
+        set { self[FocusEnterKey.self] = newValue }
+    }
+}
+
+/// A muted ">" that sits right after a module's title and opens the module's detailed page. Draws nothing where there is none.
+struct FocusEnterButton: View {
+    @Environment(\.focusEnter) private var enter
+    @State private var hovering = false
 
     var body: some View {
-        ZStack(alignment: direction == .enter ? .topTrailing : .topLeading) {
-            Color.clear.frame(maxWidth: .infinity, maxHeight: 34)
-                .onActiveHover { nearby = $0 != nil }
-                .allowsHitTesting(false)
-            Button(action: action) {
-                Image(systemName: direction == .enter ? "chevron.right" : "chevron.left")
+        if let enter {
+            Button(action: enter) {
+                Image(systemName: "chevron.right")
                     .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(.white.opacity(overButton ? 0.85 : 0.42))
-                    .frame(width: 30, height: 30)
+                    .foregroundStyle(.white.opacity(hovering ? 0.85 : 0.42))
+                    .frame(width: 26, height: 26)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .onActiveHover { overButton = $0 != nil }
-            .opacity(nearby || overButton || direction == .back ? 1 : 0)
-            .allowsHitTesting(nearby || overButton || direction == .back)
-            .animation(.easeOut(duration: 0.18), value: nearby)
-            .animation(.easeOut(duration: 0.12), value: overButton)
+            .onActiveHover { hovering = $0 != nil }
+            .animation(.easeOut(duration: 0.12), value: hovering)
+            .accessibilityLabel("開啟詳細頁")
         }
-        .frame(maxWidth: .infinity, maxHeight: 34, alignment: direction == .enter ? .topTrailing : .topLeading)
     }
 }
 

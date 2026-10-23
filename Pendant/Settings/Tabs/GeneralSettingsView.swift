@@ -22,7 +22,6 @@ struct GeneralSettingsView: View {
                 TipRow(title: "在選單列顯示圖示", tip: "隱藏後可在瀏海按右鍵開啟設定") {
                     Toggle("", isOn: $settings.showMenuBarIcon).labelsHidden()
                 }
-                Toggle("全螢幕時顯示", isOn: $settings.showInFullscreen)
                 DropdownRow(title: "顯示螢幕", selection: $settings.screenChoice, options: [
                     (AppSettings.ScreenChoice.main, "主螢幕"), (.underCursor, "游標所在螢幕"), (.all, "所有螢幕同時顯示"),
                 ])
@@ -41,6 +40,11 @@ struct GeneralSettingsView: View {
                 SliderRow(title: "懸停延遲", value: $settings.hoverDelay, range: 0...1.5, step: 0.05, unit: "秒", fractionDigits: 2)
                     .dimmed(when: settings.hoverExpandMode == .off)
                 SliderRow(title: "離開後收合延遲", value: $settings.collapseDelay, range: 0.1...1.5, step: 0.05, unit: "秒", fractionDigits: 2)
+            }
+            Section("功能單獨膠囊") {
+                TipRow(title: "滑鼠離開時收起", tip: "關閉時會維持開啟，點膠囊外面或按返回才收起") {
+                    Toggle("", isOn: $settings.focusCollapsesOnLeave).labelsHidden()
+                }
             }
             Section("快捷鍵") { HotkeyRow(settings: settings) }
             Section {

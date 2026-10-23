@@ -1,4 +1,13 @@
 import AppKit
+import Observation
+
+/// Whether a file drag is under way right now, so the shelf page can show its "release to add" state while one hovers over it.
+@MainActor
+@Observable
+final class ShelfDragState {
+    static let shared = ShelfDragState()
+    fileprivate(set) var isDragging = false
+}
 
 /// Notices a file drag (from Finder or any app) and reports where the pointer is, so the capsule can open on the
 /// shelf when the drag nears the notch (requirements 4.6). Listens only; no permission needed.
@@ -9,9 +18,12 @@ import AppKit
 /// trusted whatever the pasteboard still held from the last file drag.
 @MainActor
 final class ShelfDragWatcher {
-    var onFileDrag: ((CGPoint) -> Void)?
+    /// The pointer, and where the drag began (a drag that began on another screen is a move between screens, not a trip to the shelf).
+    var onFileDrag: ((_ point: CGPoint, _ origin: CGPoint) -> Void)?
     private var dragMonitor: Any?
     private var downMonitor: Any?
+    private var upMonitor: Any?
+    private var dragOrigin = CGPoint.zero
     private var baselineChangeCount = NSPasteboard(name: .drag).changeCount
     private var draggingFiles = false
 
@@ -19,6 +31,9 @@ final class ShelfDragWatcher {
         guard dragMonitor == nil else { return }
         downMonitor = NSEvent.addGlobalMonitorForEvents(matching: .leftMouseDown) { [weak self] _ in
             MainActor.assumeIsolated { self?.pressed() }
+        }
+        upMonitor = NSEvent.addGlobalMonitorForEvents(matching: .leftMouseUp) { [weak self] _ in
+            MainActor.assumeIsolated { self?.released() }
         }
         dragMonitor = NSEvent.addGlobalMonitorForEvents(matching: .leftMouseDragged) { [weak self] _ in
             MainActor.assumeIsolated { self?.handle() }
@@ -28,13 +43,22 @@ final class ShelfDragWatcher {
     func stop() {
         if let dragMonitor { NSEvent.removeMonitor(dragMonitor) }
         if let downMonitor { NSEvent.removeMonitor(downMonitor) }
+        if let upMonitor { NSEvent.removeMonitor(upMonitor) }
         dragMonitor = nil
         downMonitor = nil
+        upMonitor = nil
+        released()
     }
 
     private func pressed() {
         baselineChangeCount = NSPasteboard(name: .drag).changeCount
         draggingFiles = false
+        dragOrigin = NSEvent.mouseLocation
+    }
+
+    private func released() {
+        draggingFiles = false
+        ShelfDragState.shared.isDragging = false
     }
 
     private func handle() {
@@ -44,6 +68,8 @@ final class ShelfDragWatcher {
             draggingFiles = board.canReadObject(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true])
             if !draggingFiles { baselineChangeCount = board.changeCount } // another kind of drag: stop asking
         }
-        if draggingFiles { onFileDrag?(NSEvent.mouseLocation) }
+        guard draggingFiles else { return }
+        ShelfDragState.shared.isDragging = true
+        onFileDrag?(NSEvent.mouseLocation, dragOrigin)
     }
 }

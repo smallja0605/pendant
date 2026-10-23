@@ -12,8 +12,8 @@ struct VirtualNotchSettingsView: View {
                 TipRow(title: "啟用", tip: "僅限沒有瀏海的螢幕") {
                     Toggle("", isOn: $settings.virtualNotchEnabled).labelsHidden()
                 }
-                TipRow(title: "視窗最大化時隱藏", tip: "有視窗填滿螢幕時，瀏海暫時隱藏") {
-                    Toggle("", isOn: $settings.virtualHideWhenMaximized).labelsHidden()
+                TipRow(title: "全螢幕時隱藏", tip: "App 進入全螢幕（綠燈）時，瀏海暫時隱藏") {
+                    Toggle("", isOn: $settings.virtualHideInFullscreen).labelsHidden()
                 }
                 .dimmed(when: !settings.virtualNotchEnabled)
             }

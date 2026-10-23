@@ -97,6 +97,32 @@ struct IslandPill: View {
     }
 }
 
+/// Top-left of a module's detailed page, in place of the tab switch: "< 返回 | 音樂". The whole thing goes back (title included).
+struct FocusHeader: View {
+    let registry: ModuleRegistry
+
+    var body: some View {
+        let title = registry.focusedModuleID.flatMap { registry.module(for: $0)?.focusTitle } ?? ""
+        Button {
+            HapticService.shared.play(.dragStep)
+            registry.unfocus()
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: "chevron.left").font(.system(size: 11, weight: .bold))
+                Text("返回")
+                Text("|")
+                Text(title).foregroundStyle(.white)
+            }
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(.white.opacity(0.45))
+            .lineLimit(1)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("返回")
+    }
+}
+
 /// Tab switch at the capsule's top-left (the user's tabs that have something to show). With titles when the strip beside
 /// the notch is wide enough, otherwise as icons (the symbol of the tab's first module).
 struct ModeSwitcher: View {

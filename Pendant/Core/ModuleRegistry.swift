@@ -16,8 +16,11 @@ final class ModuleRegistry {
     var selectedTabID = TabConfig.mainID
     /// The module shown alone (its detailed page) in the open capsule; nil = the whole tab. Not saved: the capsule closes it.
     var focusedModuleID: String?
+    /// True while a detailed page is opening or closing (modules move under a resting pointer: hover effects hold off).
+    private(set) var focusTransitioning = false
 
     @ObservationIgnored private let defaults: UserDefaults
+    @ObservationIgnored private var focusTransitionEnd: Task<Void, Never>?
     @ObservationIgnored private var instances: [String: any PendantModule] = [:]
 
     init(defaults: UserDefaults = .standard, modules: [any PendantModule] = []) {
@@ -157,12 +160,24 @@ final class ModuleRegistry {
 
     func focus(_ id: String) {
         guard focusedModuleID != id else { return }
+        beginFocusTransition()
         withAnimation(AnimationTokens.expand) { focusedModuleID = id }
     }
 
     func unfocus() {
         guard focusedModuleID != nil else { return }
+        beginFocusTransition()
         withAnimation(AnimationTokens.expand) { focusedModuleID = nil }
+    }
+
+    private func beginFocusTransition() {
+        focusTransitioning = true
+        focusTransitionEnd?.cancel()
+        focusTransitionEnd = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(900))
+            guard !Task.isCancelled else { return }
+            self?.focusTransitioning = false
+        }
     }
 
     // MARK: Changes

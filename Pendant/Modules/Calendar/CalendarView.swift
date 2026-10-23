@@ -3,6 +3,8 @@ import SwiftUI
 /// Calendar page: month label + magnified date strip on top, the selected day's events below.
 struct CalendarView: View {
     let store: CalendarStore
+    /// The detailed page: the date strip across the whole width, the day's events as tiles.
+    var focused = false
     @State private var position = 0.0
     @State private var settings = AppSettings.shared
 
@@ -22,19 +24,34 @@ struct CalendarView: View {
         ].joined(separator: "|")
     }
 
+    private var monthLabel: some View {
+        Text(CalendarMath.monthLabel(CalendarMath.day(offset: selectedOffset, from: today)))
+            .font(.system(size: Tuning.shared.calMonthSize, weight: .bold))
+            .foregroundStyle(.white)
+            .contentTransition(.numericText())
+            .onTapGesture { withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) { position = 0 } }
+            .accessibilityLabel("回到今天")
+    }
+
     var body: some View {
-        VStack(spacing: 4) {
-            HStack(spacing: 6) {
-                Text(CalendarMath.monthLabel(CalendarMath.day(offset: selectedOffset, from: today)))
-                    .font(.system(size: Tuning.shared.calMonthSize, weight: .bold))
-                    .foregroundStyle(.white)
-                    .frame(width: 58, alignment: .leading)
-                    .contentTransition(.numericText())
-                    .onTapGesture { withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) { position = 0 } }
-                    .accessibilityLabel("回到今天")
-                DayStrip(today: today, range: range, position: $position)
+        VStack(spacing: focused ? 10 : 4) {
+            if focused {
+                // The strip spans the page; the month sits over its faded left end.
+                ZStack(alignment: .leading) {
+                    DayStrip(today: today, range: range, position: $position)
+                    monthLabel
+                        .padding(.trailing, 14)
+                        .background(LinearGradient(colors: [.black, .black, .clear], startPoint: .leading, endPoint: .trailing))
+                }
+                .padding(.top, 8)
+            } else {
+                HStack(spacing: 0) {
+                    monthLabel.frame(width: 58, alignment: .leading)
+                    FocusEnterButton()
+                    DayStrip(today: today, range: range, position: $position)
+                }
+                .padding(.top, 8)
             }
-            .padding(.top, 8)
             content
         }
         .task(id: reloadKey) {
@@ -59,9 +76,19 @@ struct CalendarView: View {
                 EmptyDay(isToday: selectedOffset == 0)
             } else {
                 ScrollView(.vertical, showsIndicators: false) {
-                    VStack(spacing: 4) {
-                        ForEach(store.events) { event in
-                            EventRow(event: event) { store.open(event) }
+                    Group {
+                        if focused {
+                            LazyVGrid(columns: [GridItem(.adaptive(minimum: 200), spacing: 8)], spacing: 8) {
+                                ForEach(store.events) { event in
+                                    EventTile(event: event) { store.open(event) }
+                                }
+                            }
+                        } else {
+                            VStack(spacing: 4) {
+                                ForEach(store.events) { event in
+                                    EventRow(event: event) { store.open(event) }
+                                }
+                            }
                         }
                     }
                     .padding(.bottom, 14) // lets the last row scroll clear of the fade
@@ -94,6 +121,45 @@ private struct EmptyDay: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.bottom, 8)
+    }
+}
+
+/// One event of the detailed page: a tile in the calendar's colour with the title, the time and the place.
+private struct EventTile: View {
+    let event: CalendarEventItem
+    let action: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        let color = Color(red: event.red, green: event.green, blue: event.blue)
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(event.title.isEmpty ? "(無標題)" : event.title)
+                    .font(.system(size: 13.5, weight: .bold))
+                    .foregroundStyle(.white)
+                    .lineLimit(2)
+                Text(CalendarMath.timeText(start: event.start, end: event.end, isAllDay: event.isAllDay))
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.7))
+                if !event.location.isEmpty {
+                    Label(event.location, systemImage: "mappin")
+                        .font(.system(size: 10.5, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.5))
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity, minHeight: 64, alignment: .topLeading)
+            .padding(10)
+            .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(color.opacity(hovering ? 0.38 : 0.28)))
+            .overlay(alignment: .leading) {
+                Capsule().fill(color).frame(width: 3.5).padding(.vertical, 10).padding(.leading, 4)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onActiveHover { hovering = $0 != nil }
+        .animation(.easeOut(duration: 0.12), value: hovering)
     }
 }
 

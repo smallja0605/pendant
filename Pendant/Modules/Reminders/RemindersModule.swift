@@ -16,6 +16,10 @@ final class RemindersModule: PendantModule {
         AnyView(RemindersView(store: store).frame(width: size.width, height: size.height))
     }
 
+    func makeFocusView(size: CGSize) -> AnyView? {
+        AnyView(RemindersView(store: store, focused: true).frame(width: size.width, height: size.height))
+    }
+
     func makeSettingsView() -> AnyView { AnyView(RemindersModuleSettings(store: store)) }
 
     func activate() {}

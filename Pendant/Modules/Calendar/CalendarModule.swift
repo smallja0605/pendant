@@ -16,6 +16,10 @@ final class CalendarModule: PendantModule {
         AnyView(CalendarView(store: store).frame(width: size.width, height: size.height))
     }
 
+    func makeFocusView(size: CGSize) -> AnyView? {
+        AnyView(CalendarView(store: store, focused: true).frame(width: size.width, height: size.height))
+    }
+
     func makeSettingsView() -> AnyView { AnyView(CalendarModuleSettings(store: store)) }
 
     func activate() {}

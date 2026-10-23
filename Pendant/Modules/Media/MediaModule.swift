@@ -17,11 +17,14 @@ final class MediaModule: PendantModule {
         self.controller = controller
     }
 
+    var focusTitle: String { "音樂" }
+
+    // The page and the detailed page are the same view (only `focused` differs), so the player moves rather than being replaced.
     func makeView(size: CGSize) -> AnyView {
-        AnyView(MediaView(controller: controller).frame(width: size.width, height: size.height))
+        AnyView(MediaFocusView(controller: controller, size: size, focused: false))
     }
 
-    func makeFocusView(size: CGSize) -> AnyView? { AnyView(MediaFocusView(controller: controller, size: size)) }
+    func makeFocusView(size: CGSize) -> AnyView? { AnyView(MediaFocusView(controller: controller, size: size, focused: true)) }
 
     func makeSettingsView() -> AnyView { AnyView(MediaModuleSettings()) }
 
@@ -56,6 +59,9 @@ private struct MediaModuleSettings: View {
             TipRow(title: "線上歌詞", tip: "歌名、歌手與長度會送到 lrclib.net") {
                 Toggle("", isOn: $settings.onlineLyrics).labelsHidden()
             }
+            DropdownRow(title: "歌詞來源", selection: $settings.lyricsSource, options: [
+                (AppSettings.LyricsSource.auto, "自動"), (.player, "Apple Music"), (.online, "線上（lrclib.net）"),
+            ])
             DropdownRow(title: "音樂來源", selection: $settings.mediaSourcePreference, options: [
                 (MediaSourcePreference.auto, "自動"), (.appleMusic, "Apple Music"), (.spotify, "Spotify"),
             ])
