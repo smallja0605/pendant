@@ -13,13 +13,13 @@ struct HapticThrottleTests {
         #expect(r3)
     }
 
-    @Test func expandNeedsAHundredMilliseconds() {
+    @Test func notchEnterNeedsFullHundredFiftyMilliseconds() {
         var throttle = HapticThrottle()
-        let r4 = throttle.shouldFire(.expandStarted, at: 1)
+        let r4 = throttle.shouldFire(.notchEnter, at: 1)
         #expect(r4)
-        let r5 = throttle.shouldFire(.expandStarted, at: 1.05)
+        let r5 = throttle.shouldFire(.notchEnter, at: 1.1)
         #expect(!r5)
-        let r6 = throttle.shouldFire(.expandStarted, at: 1.11)
+        let r6 = throttle.shouldFire(.notchEnter, at: 1.16)
         #expect(r6)
     }
 
@@ -83,7 +83,7 @@ struct HapticServiceTests {
         let performer = RecordingPerformer()
         var now: TimeInterval = 0
         let service = makeService(performer: performer) { now }
-        now = 1; service.play(.swipeSwitch)
+        now = 1; service.play(.notchEnter)
         now = 2; service.play(.dragStep)
         now = 3; service.play(.stateSettled)
         #expect(performer.performed == [.generic, .alignment, .levelChange])
@@ -93,12 +93,13 @@ struct HapticServiceTests {
         let performer = RecordingPerformer()
         var now: TimeInterval = 1
         let service = makeService(performer: performer) { now }
-        service.play(.expandStarted)
-        now = 1.05; service.play(.expandStarted)
+        service.play(.notchEnter)
+        now = 1.05; service.play(.notchEnter)
         #expect(performer.performed.count == 1)
     }
 
     @Test func eventTableMatchesRequirements() {
+        #expect(HapticEvent.notchEnter.pattern == .generic)
         #expect(HapticEvent.expandStarted.pattern == .levelChange)
         #expect(HapticEvent.stateSettled.pattern == .levelChange)
         #expect(HapticEvent.dragStep.pattern == .alignment)

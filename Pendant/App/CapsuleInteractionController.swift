@@ -288,9 +288,11 @@ final class CapsuleInteractionController { // swiftlint:disable:this type_body_l
         // Already compact/expanded: no swell and no entry feedback (3.4 rule 4).
         if model.state == .idle, model.hoverEffectEnabled {
             model.setSwelled(true)
+            HapticService.shared.play(.notchEnter)
         } else if model.state == .compact, model.hoverEffectEnabled {
             // Reference recording (音樂小膠囊.mp4): the compact capsule swells on hover too.
             model.setSwelled(true)
+            HapticService.shared.play(.notchEnter)
         }
 
         expandTask?.cancel()

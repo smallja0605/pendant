@@ -82,6 +82,7 @@ final class NotchHUDController {
                 let inside = area.contains(NSEvent.mouseLocation)
                 if inside != model.levelHUDSwelled {
                     model.setLevelHUDSwelled(inside)
+                    if inside { HapticService.shared.play(.notchEnter) }
                 }
                 try? await Task.sleep(for: .milliseconds(80))
             }
