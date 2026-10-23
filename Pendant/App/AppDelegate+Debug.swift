@@ -13,7 +13,8 @@ extension AppDelegate {
         }
         // A/B diagnostics for menu-bar glitches: hide the notch panel entirely (combine with PENDANT_DEBUG_NO_MONITORS).
         if ProcessInfo.processInfo.environment["PENDANT_DEBUG_NO_PANEL"] != nil { notch.isPaused = true }
-        if ProcessInfo.processInfo.environment["PENDANT_DEBUG_CALENDAR"] == "fake" { CalendarStore.shared.enableFakeData() }
+        let calendarMode = ProcessInfo.processInfo.environment["PENDANT_DEBUG_CALENDAR"]
+        if calendarMode == "fake" || calendarMode == "busy" { CalendarStore.shared.enableFakeData() }
         if ProcessInfo.processInfo.environment["PENDANT_DEBUG_REMINDERS"] == "fake" { RemindersStore.shared.enableFakeData() }
         if let mode = ProcessInfo.processInfo.environment["PENDANT_DEBUG_TIMER"] {
             // PENDANT_DEBUG_TIMER=run starts a 5-minute countdown; =finish makes one that ends after 2 s.

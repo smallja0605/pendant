@@ -51,16 +51,13 @@ struct RemindersView: View {
 
     private var split: some View {
         HStack(spacing: 0) {
-            VStack(spacing: 6) {
-                HStack {
-                    Spacer()
-                    if store.access == .allowed { countBadge }
+            // The count sits on the category's own line (top right), not on a line of its own.
+            content
+                .overlay(alignment: .topTrailing) {
+                    if store.access == .allowed { countBadge.padding(.top, 2) }
                 }
-                .frame(height: 28)
                 .padding(.top, 6)
-                content
-            }
-            .frame(maxWidth: .infinity)
+                .frame(maxWidth: .infinity)
             Rectangle().fill(.white.opacity(0.18)).frame(width: 2)
                 .frame(width: 20).padding(.vertical, 14)
             if store.access == .allowed {
@@ -88,16 +85,20 @@ struct RemindersView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollView(.vertical, showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 2) {
+                    // The category line stays at the top while its items scroll, and gives way to the next category.
+                    LazyVStack(alignment: .leading, spacing: 2, pinnedViews: [.sectionHeaders]) {
                         // Iterate a snapshot with stable ids: indexing the live array crashed when it shrank mid-update.
                         ForEach(store.groups.filter { !$0.isEmpty }, id: \.first?.listID) { group in
                             if let first = group.first {
-                                ListHeader(title: first.listTitle, color: Color(red: first.red, green: first.green, blue: first.blue))
-                                ForEach(group) { item in
-                                    // swiftlint:disable:next multiple_closures_with_trailing_closure
-                                    SwipeToDelete(onDelete: { Task { await store.delete(item) } }) {
-                                        ReminderRow(item: item) { done in Task { await store.setCompleted(item, done) } }
+                                Section {
+                                    ForEach(group) { item in
+                                        // swiftlint:disable:next multiple_closures_with_trailing_closure
+                                        SwipeToDelete(onDelete: { Task { await store.delete(item) } }) {
+                                            ReminderRow(item: item) { done in Task { await store.setCompleted(item, done) } }
+                                        }
                                     }
+                                } header: {
+                                    ListHeader(title: first.listTitle, color: Color(red: first.red, green: first.green, blue: first.blue))
                                 }
                             }
                         }
@@ -118,7 +119,9 @@ private struct ListHeader: View {
             Text(title).font(.system(size: 10.5, weight: .bold)).foregroundStyle(.white.opacity(0.5)).lineLimit(1)
         }
         .padding(.horizontal, 6)
-        .padding(.top, 4)
+        .padding(.vertical, 3)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.black) // pinned: the items scroll under it
     }
 }
 

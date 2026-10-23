@@ -7,11 +7,8 @@ enum HapticPattern: Sendable {
 
 /// Every situation in requirements 5.1 that produces feedback.
 enum HapticEvent: String, CaseIterable, Sendable {
-    /// Cursor touches the notch edge (also drives the swell, 3.4).
-    case notchEnter
-    /// Hover over an actionable control (play button, module switcher, …).
-    case hoverControl
-    /// The capsule starts opening (hover dwell or click): second stage after `notchEnter`.
+    // No haptics for hovering (the notch, the controls, the tabs): they were removed on purpose.
+    /// The capsule starts opening (hover dwell or click).
     case expandStarted
     /// Collapse animation finished.
     case stateSettled
@@ -28,8 +25,7 @@ enum HapticEvent: String, CaseIterable, Sendable {
     var pattern: HapticPattern {
         switch self {
         case .dragStep, .dateChanged: .alignment
-        // Notch entry was too faint as `.alignment`; `.generic` sits just below `.levelChange` (stage 2).
-        case .notchEnter, .hoverControl, .swipeSwitch: .generic
+        case .swipeSwitch: .generic
         case .expandStarted, .stateSettled, .timerFinished, .swipeCommit: .levelChange
         }
     }
@@ -37,8 +33,6 @@ enum HapticEvent: String, CaseIterable, Sendable {
     /// Minimum spacing between two firings of the same event (5.2 / 3.4 rule 5).
     var minimumInterval: TimeInterval {
         switch self {
-        case .notchEnter: 0.15
-        case .hoverControl: 0.05
         case .expandStarted, .stateSettled: 0.10
         case .dragStep, .dateChanged: 0.04
         case .swipeSwitch: 0.12

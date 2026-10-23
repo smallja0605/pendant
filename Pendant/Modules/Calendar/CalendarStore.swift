@@ -130,7 +130,9 @@ final class CalendarStore {
             let start = CalendarMath.startOfDay(day)
             let hour: (Double) -> Date = { start.addingTimeInterval($0 * 3600) }
             let weekdayIsEven = Calendar.current.component(.day, from: day) % 2 == 0
-            events = weekdayIsEven ? [] : [
+            // PENDANT_DEBUG_CALENDAR=busy: events on every day (fake: only on odd days).
+            let busy = ProcessInfo.processInfo.environment["PENDANT_DEBUG_CALENDAR"] == "busy"
+            events = (weekdayIsEven && !busy) ? [] : [
                 CalendarEventItem(id: "a", title: "團隊週會", start: hour(10), end: hour(11), isAllDay: false, location: "會議室 B",
                                   red: 0.2, green: 0.6, blue: 1),
                 CalendarEventItem(id: "b", title: "午餐", start: hour(12.5), end: hour(13.5), isAllDay: false, location: "",

@@ -271,7 +271,6 @@ final class CapsuleModel {
 
     private func applyCompactHover(_ hover: CompactHover?) {
         guard hover != compactHover, state == .compact else { return }
-        if hover != nil { HapticService.shared.play(.hoverControl) }
         withAnimation(reduceMotion ? AnimationTokens.reduced : (hover == nil ? AnimationTokens.unswell : AnimationTokens.hoverSwell)) {
             compactHover = hover
         }
@@ -288,6 +287,7 @@ final class CapsuleModel {
 
     func transition(to newState: CapsuleState) {
         guard newState != state else { return }
+        if state == .expanded { Log.collapsed(to: newState) }
         unmountTask?.cancel()
         if newState == .expanded {
             expandedMounted = true

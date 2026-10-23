@@ -10,9 +10,10 @@ struct CalendarView: View {
 
     private var selectedOffset: Int { min(max(Int(position.rounded()), range.lowerBound), range.upperBound) }
     private var range: ClosedRange<Int> {
-        settings.calendarWholeMonth
-            ? CalendarMath.monthRange(today: today)
-            : -settings.calendarDaysBehind...settings.calendarDaysAhead
+        // The detailed page's strip runs across the whole width, so it always has a month of days ahead to show there.
+        if focused { return -max(settings.calendarDaysBehind, 3)...max(settings.calendarDaysAhead, 30) }
+        if settings.calendarWholeMonth { return CalendarMath.monthRange(today: today) }
+        return -settings.calendarDaysBehind...settings.calendarDaysAhead
     }
     private var today: Date { CalendarMath.startOfDay(Date()) }
 
@@ -38,7 +39,7 @@ struct CalendarView: View {
             if focused {
                 // The strip spans the page; the month sits over its faded left end.
                 ZStack(alignment: .leading) {
-                    DayStrip(today: today, range: range, position: $position)
+                    DayStrip(today: today, range: range, position: $position, anchor: 0.15, wide: true)
                     monthLabel
                         .padding(.trailing, 14)
                         .background(LinearGradient(colors: [.black, .black, .clear], startPoint: .leading, endPoint: .trailing))
@@ -46,8 +47,8 @@ struct CalendarView: View {
                 .padding(.top, 8)
             } else {
                 HStack(spacing: 0) {
-                    monthLabel.frame(width: 58, alignment: .leading)
-                    FocusEnterButton()
+                    monthLabel.fixedSize(horizontal: true, vertical: false).frame(minWidth: 48, alignment: .leading)
+                    FocusEnterButton().padding(.leading, -3) // right after the month, not a gap
                     DayStrip(today: today, range: range, position: $position)
                 }
                 .padding(.top, 8)
@@ -78,11 +79,13 @@ struct CalendarView: View {
                 ScrollView(.vertical, showsIndicators: false) {
                     Group {
                         if focused {
-                            LazyVGrid(columns: [GridItem(.adaptive(minimum: 200), spacing: 8)], spacing: 8) {
+                            FlowLayout(spacing: 8) {
                                 ForEach(store.events) { event in
                                     EventTile(event: event) { store.open(event) }
+                                        .frame(width: 210)
                                 }
                             }
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         } else {
                             VStack(spacing: 4) {
                                 ForEach(store.events) { event in
@@ -91,7 +94,7 @@ struct CalendarView: View {
                             }
                         }
                     }
-                    .padding(.bottom, 14) // lets the last row scroll clear of the fade
+                    .padding(.bottom, focused ? 6 : 14) // lets the last row scroll clear of the fade
                 }
                 // Rows fade out towards the bottom instead of being cut off by the capsule's edge, and the list
                 // ends a margin above the edge.
@@ -101,7 +104,7 @@ struct CalendarView: View {
                         LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom).frame(height: 22)
                     }
                 )
-                .padding(.bottom, 10)
+                .padding(.bottom, focused ? 0 : 10)
             }
         }
     }
@@ -133,7 +136,7 @@ private struct EventTile: View {
     var body: some View {
         let color = Color(red: event.red, green: event.green, blue: event.blue)
         Button(action: action) {
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(event.title.isEmpty ? "(無標題)" : event.title)
                     .font(.system(size: 13.5, weight: .bold))
                     .foregroundStyle(.white)
@@ -147,10 +150,9 @@ private struct EventTile: View {
                         .foregroundStyle(.white.opacity(0.5))
                         .lineLimit(1)
                 }
-                Spacer(minLength: 0)
             }
-            .frame(maxWidth: .infinity, minHeight: 64, alignment: .topLeading)
-            .padding(10)
+            .frame(maxWidth: .infinity, minHeight: 42, alignment: .topLeading)
+            .padding(.horizontal, 10).padding(.vertical, 8)
             .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(color.opacity(hovering ? 0.38 : 0.28)))
             .overlay(alignment: .leading) {
                 Capsule().fill(color).frame(width: 3.5).padding(.vertical, 10).padding(.leading, 4)

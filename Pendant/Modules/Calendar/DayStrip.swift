@@ -7,6 +7,10 @@ struct DayStrip: View {
     let today: Date
     let range: ClosedRange<Int>
     @Binding var position: Double
+    /// Where across the strip (0…1) the focus date sits; 0.5 centres it. The strip fills its whole width either way.
+    var anchor: CGFloat = 0.5
+    /// The detailed page's strip: days far from the focus date stay readable instead of fading out.
+    var wide = false
 
     @State private var dragStart: Double?
     @State private var tracker = StepTracker(unit: 1)
@@ -34,15 +38,18 @@ struct DayStrip: View {
     var body: some View {
         let tuning = Tuning.shared
         GeometryReader { proxy in
-            let center = proxy.size.width / 2
-            let lower = max(Int(position.rounded(.down)) - 4, range.lowerBound)
-            let upper = min(Int(position.rounded(.up)) + 4, range.upperBound)
+            let center = proxy.size.width * anchor
+            // Days enough to fill the strip on both sides of the focus date.
+            let before = Int(ceil(center / tuning.calItemWidth)) + 2
+            let after = Int(ceil((proxy.size.width - center) / tuning.calItemWidth)) + 2
+            let lower = max(Int(position.rounded(.down)) - before, range.lowerBound)
+            let upper = min(Int(position.rounded(.up)) + after, range.upperBound)
             ZStack {
                 if lower <= upper {
                     ForEach(lower...upper, id: \.self) { offset in
                         let distance = Double(offset) - position
                         DayCell(date: CalendarMath.day(offset: offset, from: today), isToday: offset == 0, distance: distance,
-                                hovering: hoveredOffset == offset)
+                                hovering: hoveredOffset == offset, wide: wide)
                             .onActiveHover { hoveredOffset = $0 != nil ? offset : (hoveredOffset == offset ? nil : hoveredOffset) }
                             .onTapGesture { jump(to: offset) }
                             .position(x: center + Self.xOffset(for: distance, tuning: tuning), y: proxy.size.height / 2)
@@ -52,8 +59,8 @@ struct DayStrip: View {
             .frame(width: proxy.size.width, height: proxy.size.height)
             .mask(
                 LinearGradient(
-                    stops: [.init(color: .clear, location: 0), .init(color: .black, location: 0.16),
-                            .init(color: .black, location: 0.84), .init(color: .clear, location: 1)],
+                    stops: [.init(color: .clear, location: 0), .init(color: .black, location: anchor < 0.4 ? 0.05 : 0.16),
+                            .init(color: .black, location: anchor < 0.4 ? 0.93 : 0.84), .init(color: .clear, location: 1)],
                     startPoint: .leading, endPoint: .trailing
                 )
             )
@@ -141,6 +148,7 @@ private struct DayCell: View {
     let isToday: Bool
     let distance: Double
     var hovering = false
+    var wide = false
 
     var body: some View {
         let tuning = Tuning.shared
@@ -161,8 +169,8 @@ private struct DayCell: View {
         .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(.white.opacity(max(hovering ? 0.16 : 0, 0.14 * focus))))
         .animation(.easeOut(duration: 0.12), value: hovering)
         .contentShape(Rectangle())
-        .opacity(max(0.1, 1 - 0.3 * min(abs(distance), 3)))
-        .blur(radius: max(0, abs(distance) - 2) * 1.6)
+        .opacity(wide ? max(0.5, 1 - 0.2 * min(abs(distance), 3)) : max(0.1, 1 - 0.3 * min(abs(distance), 3)))
+        .blur(radius: wide ? 0 : max(0, abs(distance) - 2) * 1.6)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(date.formatted(date: .complete, time: .omitted))
     }

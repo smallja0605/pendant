@@ -220,7 +220,6 @@ final class NotchWindowController { // swiftlint:disable:this type_body_length
         // scale itself does that), so only a real change counts: otherwise it buzzed continuously.
         if inside {
             guard model.hoveredIsland != id else { return }
-            HapticService.shared.play(.hoverControl)
         } else if interaction.islandID(at: NSEvent.mouseLocation) == id {
             return
         }

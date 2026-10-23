@@ -166,6 +166,7 @@ final class ModuleRegistry {
 
     func unfocus() {
         guard focusedModuleID != nil else { return }
+        Log.app.info("detail page closed, from: \(Log.callers(), privacy: .public)")
         beginFocusTransition()
         withAnimation(AnimationTokens.expand) { focusedModuleID = nil }
     }
