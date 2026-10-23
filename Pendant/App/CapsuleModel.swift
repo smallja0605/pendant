@@ -86,6 +86,19 @@ final class CapsuleModel {
     /// The volume / brightness HUD is out over the compact capsule: its contents blur out while the HUD's own shape (which starts
     /// exactly as wide as the capsule) widens and shows its contents, and the other way round when it goes.
     private(set) var hudShowing = false
+    // MARK: Volume / brightness HUD (the capsule itself widens into it; the methods are in CapsuleModel+HUD.swift)
+
+    var levelHUD = LevelHUD()
+    /// The capsule is (animating to) its HUD shape.
+    var levelHUDVisible = false
+    /// The pointer is on the HUD: it swells like the compact capsule does.
+    var levelHUDSwelled = false
+    /// The HUD is out or still folding: the window's panel keeps room for it.
+    var levelHUDWanted = false
+    // The system-event card (charging, low battery, a Bluetooth device): the capsule widens and grows into it.
+    var toast = SystemToast(title: "", subtitle: "", progress: 0, tint: .green, ringSymbol: nil, trailing: .value(""))
+    var toastVisible = false
+    var toastWanted = false
 
     func setHUDShowing(_ showing: Bool) {
         guard showing != hudShowing else { return }
@@ -97,6 +110,11 @@ final class CapsuleModel {
         let size = layout.bodySize(for: state)
         // While the HUD is out the capsule stays exactly its resting size under it: no swell, no peek line (it would show
         // around the HUD as a second, bigger capsule).
+        if toastVisible, state != .expanded { return layout.toastSize }
+        if levelHUDVisible, state != .expanded {
+            let hud = layout.hudSize
+            return levelHUDSwelled ? layout.swelledSize(hud, reduceMotion: reduceMotion) : hud
+        }
         if hudShowing, state != .expanded { return size }
         if state == .compact, showsPeek {
             // Same swollen size as a plain hover (the cover must not shrink), plus room for song / artist.
@@ -199,10 +217,12 @@ final class CapsuleModel {
     }
 
     var bottomRadius: CGFloat {
+        if toastVisible, state != .expanded { return 28 }
+        if levelHUDVisible, state != .expanded { return levelHUDSwelled ? 14 : 12 }
         switch state {
-        case .idle: isSwelled ? 12 : 10
-        case .compact: showsPeek ? 22 : (isSwelled ? 14 : 12)
-        case .expanded: 26
+        case .idle: return isSwelled ? 12 : 10
+        case .compact: return showsPeek ? 22 : (isSwelled ? 14 : 12)
+        case .expanded: return 26
         }
     }
 

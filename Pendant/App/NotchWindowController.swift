@@ -34,8 +34,8 @@ final class NotchWindowController { // swiftlint:disable:this type_body_length
     private var timerPulsed = false
     private var alertFlashTask: Task<Void, Never>?
     private var collapsedFromExpanded = false
-    private let hud = NotchHUDController()
-    private let toast = NotchToastController()
+    private lazy var hud = NotchHUDController(model: model)
+    private lazy var toast = NotchToastController(model: model)
 
     private var settings: AppSettings { .shared }
     var isPaused = false {
@@ -57,6 +57,14 @@ final class NotchWindowController { // swiftlint:disable:this type_body_length
         model.media = media
         // The capsule's contents tuck away while the HUD or a system card is out over it.
         hud.onVisibilityChange = { [weak self] showing in self?.model.setHUDShowing(showing || self?.toast.isShowing == true) }
+        hud.updatePanel = { [weak self] in
+            guard let self else { return }
+            applyPanel(for: model.state, shrinkImmediately: false)
+        }
+        toast.updatePanel = { [weak self] in
+            guard let self else { return }
+            applyPanel(for: model.state, shrinkImmediately: false)
+        }
         toast.onVisibilityChange = { [weak self] showing in self?.model.setHUDShowing(showing || self?.hud.isShowing == true) }
         model.keepsOpen = { AnchoredPopover.isAnyOpen }
         let hosting = NSHostingView(rootView: CapsuleView(
@@ -332,17 +340,15 @@ final class NotchWindowController { // swiftlint:disable:this type_body_length
     /// Volume / brightness changed: the notch grows its HUD wings (not while the capsule is open: the page is in use).
     func showHUD(_ level: SystemLevel) {
         guard !isPaused, model.state != .expanded, let notch = model.layout?.notch else { return }
-        let rest = model.layout?.bodySize(for: model.state == .compact ? .compact : .idle).width ?? notch.size.width
         toast.hideNow()
-        hud.show(level, notch: notch.notchRect, restWidth: rest)
+        hud.show(level, notch: notch.notchRect)
     }
 
     /// A system event (charging, low battery, a Bluetooth device): a card grows out of the notch. `seconds` = nil: until it is hidden.
     func showToast(_ card: SystemToast, seconds: Double?) {
         guard !isPaused, model.state != .expanded, let notch = model.layout?.notch else { return }
-        let rest = model.layout?.bodySize(for: model.state == .compact ? .compact : .idle).width ?? notch.size.width
         hud.hideNow()
-        toast.show(card, notch: notch.notchRect, virtual: notch.isVirtual, restWidth: rest, seconds: seconds)
+        toast.show(card, seconds: seconds)
     }
 
     func hideToast() { toast.fold() }
@@ -606,7 +612,12 @@ final class NotchWindowController { // swiftlint:disable:this type_body_length
         panel.allowsKey = state == .expanded
         if state != .expanded, panel.isKeyWindow { panel.resignKey() }
 
-        let target = layout.panelFrame(for: state)
+        var target = layout.panelFrame(for: state)
+        if state != .expanded {
+            // Room for the shape the capsule widens into: the volume / brightness HUD, a system-event card.
+            if model.levelHUDWanted { target = target.union(layout.hudPanelFrame()) }
+            if model.toastWanted { target = target.union(layout.toastPanelFrame()) }
+        }
         if shrinkImmediately {
             setPanelFrame(target)
             return

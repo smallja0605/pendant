@@ -3,13 +3,17 @@
 # under it, builds the ad-hoc signed app and zips it with a SHA-256 file into build.noindex/release/. Nothing is committed, pushed
 # or uploaded and the installed app / the local update folder are not touched; `scripts/publish-github.sh X.Y.Z` does that after
 # the developer has confirmed.
-# Usage: scripts/prepare-daily-release.sh [--force]    (--force: release even when [Unreleased] is empty)
+# Usage: scripts/prepare-daily-release.sh [--force | --rebuild]
+#   --force:   release even when [Unreleased] is empty
+#   --rebuild: rebuild the already prepared, not yet published version from the current tree (a fix went in after preparing it)
 # Prints one of: READY <version> | SKIP <reason>
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 force=0
+rebuild=0
 [ "${1:-}" = "--force" ] && force=1
+[ "${1:-}" = "--rebuild" ] && rebuild=1
 out=build.noindex/release
 mkdir -p "$out"
 
@@ -23,6 +27,25 @@ s = sys.argv[1].split(' ')[-1]
 if not s.endswith('Z'): print(''); sys.exit()
 d = datetime.datetime.fromisoformat(s.replace('Z', '+00:00')).astimezone()
 print(d.strftime('%Y-%m-%d'))" "${latest:-none}")
+
+if [ "$rebuild" = 1 ]; then
+  gh release view "v$current" --repo smallja0605/pendant >/dev/null 2>&1 && { echo "SKIP v$current is already published"; exit 0; }
+  notes=$(python3 - "$current" <<'PY'
+import re, sys
+text = open("CHANGELOG.md", encoding="utf-8").read()
+m = re.search(r"## \[%s\][^\n]*\n(.*?)(?=\n## \[)" % re.escape(sys.argv[1]), text, re.S)
+print((m.group(1) if m else "").strip())
+PY
+)
+  scripts/build-release.sh "$current" >/dev/null
+  rm -f "$out"/Pendant-*.zip "$out"/Pendant-*.zip.sha256 "$out"/notes-*.md
+  ditto -c -k --keepParent build.noindex/Build/Products/Release/Pendant.app "$out/Pendant-$current.zip"
+  (cd "$out" && shasum -a 256 "Pendant-$current.zip" > "Pendant-$current.zip.sha256")
+  printf '%s\n' "$notes" > "$out/notes-$current.md"
+  echo "READY $current (rebuilt)"
+  echo "notes: $out/notes-$current.md"
+  exit 0
+fi
 
 # Already prepared and still waiting for the developer's confirmation (e.g. the midnight run, now the 17:00 reminder): reuse it.
 if [ -f "$out/Pendant-$current.zip" ] && ! gh release view "v$current" --repo smallja0605/pendant >/dev/null 2>&1; then

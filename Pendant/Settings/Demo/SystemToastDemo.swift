@@ -24,10 +24,10 @@ struct SystemToastDemoView: View {
     private func card(_ toast: SystemToast, index: Int) -> some View {
         UnevenRoundedRectangle(bottomLeadingRadius: 28, bottomTrailingRadius: 28)
             .fill(Color.black)
-            .frame(width: NotchToastController.cardWidth(virtual: true), height: NotchToastController.contentHeight)
+            .frame(width: CapsuleLayout.virtualToastWidth, height: CapsuleLayout.toastContentHeight)
             .overlay(alignment: .top) {
                 ToastContent(toast: toast)
-                    .frame(width: NotchToastController.cardWidth(virtual: true), height: NotchToastController.contentHeight)
+                    .frame(width: CapsuleLayout.virtualToastWidth, height: CapsuleLayout.toastContentHeight)
                     .id(index)
                     .transition(.opacity.combined(with: .scale(scale: 0.94)))
             }

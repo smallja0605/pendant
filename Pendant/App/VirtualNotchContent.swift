@@ -13,25 +13,30 @@ struct VirtualNotchContent: View {
         let wing = max((size.width - notch.width) / 2, 0)
         let free = model.activity == nil
         let margin = Tuning.shared.iconMargin + 3
-        ZStack {
+        // The parts are centred in the row the capsule's own icons use (the swollen height without the song line, see
+        // `CompactContent`), so showing the song line under them does not move them, and the gap below the clock is not odd.
+        let compact = model.layout?.bodySize(for: .compact) ?? size
+        let swollen = model.showsSwell ? (model.layout?.swelledSize(compact, reduceMotion: model.reduceMotion) ?? compact) : compact
+        let row = min(swollen.height, size.height)
+        ZStack(alignment: .top) {
             if settings.virtualMiddle == .clock {
-                VirtualClockView(settings: settings).frame(width: notch.width, height: size.height)
+                VirtualClockView(settings: settings).frame(width: notch.width, height: row)
             }
             HStack(spacing: 0) {
                 VirtualBatteryGlyph(style: settings.virtualBatteryStyle, size: 15)
                     .opacity(settings.virtualLeft == .battery ? 1 : 0)
-                    .frame(width: wing, height: size.height, alignment: .leading)
+                    .frame(width: wing, height: row, alignment: .leading)
                     .padding(.leading, margin)
                     .modifier(RevealEffect(isVisible: free, delay: 0.06, blurOnExit: true))
                 Spacer(minLength: 0)
                 VirtualPercentText()
                     .opacity(settings.virtualLeft == .battery && settings.virtualBatteryPercent ? 1 : 0)
-                    .frame(width: wing, height: size.height, alignment: .trailing)
+                    .frame(width: wing, height: row, alignment: .trailing)
                     .padding(.trailing, margin)
                     .modifier(RevealEffect(isVisible: free, delay: 0.06, blurOnExit: true))
             }
         }
-        .frame(width: size.width, height: size.height)
+        .frame(width: size.width, height: size.height, alignment: .top)
         .accessibilityHidden(true)
     }
 }

@@ -68,6 +68,8 @@ struct CapsuleView: View {
                         .animation(.easeOut(duration: 0.18), value: isExpanded)
                         .modifier(RevealEffect(isVisible: !model.hudShowing, delay: 0.02, blurOnExit: true))
                 }
+                // The volume / brightness HUD and the system-event card: shapes the capsule widens into.
+                CapsuleSystemContent(model: model, notchSize: notchSize)
                 if let timerMode = model.activity?.kind.timerMode {
                     // The timer's icon and digits are laid out in the capsule's own animated frame, so they move rigidly
                     // with its edges (no separate target size to drift from).

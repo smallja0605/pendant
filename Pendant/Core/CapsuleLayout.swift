@@ -11,6 +11,8 @@ struct CapsuleLayout: Equatable, Sendable {
     /// Extra height of the compact capsule while it shows the song / artist line.
     static var compactInfoHeight: CGFloat { Tuning.shared.peekExtra }
     static let panelPadding = CGSize(width: 36, height: 56)
+    /// Width of each wing the capsule grows for the volume / brightness HUD.
+    static let hudWing: CGFloat = 100
 
     var notch: NotchGeometry
     /// Compact extension per side. Default is square (≈ 1:1 with the notch height): just icon + margin.
@@ -104,6 +106,35 @@ struct CapsuleLayout: Equatable, Sendable {
             let width = swollen.width + 2 * NotchGeometry.triggerMargin
             return CGRect(x: body.midX - width / 2, y: body.maxY - height, width: width, height: height)
         }
+    }
+
+    /// The system-event card (charging, low battery, a Bluetooth device): on a virtual notch a 56 pt row from the screen's top edge;
+    /// beside a physical notch a square slot each side of it (the notch's height plus the text row), with the text under the notch.
+    static let toastContentHeight: CGFloat = 56
+    static let toastNotchTextHeight: CGFloat = 44
+    static let virtualToastWidth: CGFloat = 340
+
+    var toastSize: CGSize {
+        if notch.isVirtual { return CGSize(width: Self.virtualToastWidth, height: Self.toastContentHeight) }
+        let side = notch.size.height + Self.toastNotchTextHeight
+        return CGSize(width: notch.size.width + 2 * side, height: side)
+    }
+
+    /// The capsule widened into the volume / brightness HUD: the notch plus a wing (`NotchHUDController.wingWidth`) each side.
+    var hudSize: CGSize { CGSize(width: notch.size.width + 2 * Self.hudWing, height: notch.size.height) }
+
+    /// The panel frame the HUD needs (swollen, with the usual room around it), clamped to the screen.
+    func hudPanelFrame() -> CGRect { panelFrame(forBody: swelledSize(hudSize, reduceMotion: false)) }
+
+    func toastPanelFrame() -> CGRect { panelFrame(forBody: toastSize) }
+
+    /// A top-centred body of `size` with the usual room around it, clamped to the screen.
+    private func panelFrame(forBody size: CGSize) -> CGRect {
+        let frame = notch.screenFrame
+        let dx = NotchGeometry.earRadius + Self.panelPadding.width
+        let rect = CGRect(x: frame.midX - size.width / 2 - dx, y: frame.maxY - size.height - Self.panelPadding.height,
+                          width: size.width + 2 * dx, height: size.height + Self.panelPadding.height)
+        return rect.intersection(frame)
     }
 
     /// Panel frame for a state: body + ears + room for swell/shadow, clamped to the screen.

@@ -1,5 +1,4 @@
 import AppKit
-import Observation
 import SwiftUI
 
 /// A system event shown as a card hanging from the notch (charging, low battery, a Bluetooth device): a ring on the left (a
@@ -21,64 +20,29 @@ struct SystemToast: Equatable {
     var persistent = false
 }
 
-@MainActor
-@Observable
-final class ToastModel {
-    var toast = SystemToast(title: "", subtitle: "", progress: 0, tint: .green, ringSymbol: nil, trailing: .value(""))
-    var visible = false
-    /// Width of what is under the card (the capsule, or the notch): the card grows from it and folds back to it.
-    var restWidth: CGFloat = 0
-    /// A virtual notch: the card's row starts at the very top (menu bar included); with a physical notch it sits below it.
-    var virtual = false
-}
-
-/// The system-event card: its own click-through panel above the capsule (like the volume HUD), so the capsule's state is untouched.
+/// The system-event card's timing: the capsule itself widens and grows downward into the card (charging, low battery, a Bluetooth
+/// device) and folds back. This controller only decides when; the capsule model holds the state and `CapsuleView` draws it.
 @MainActor
 final class NotchToastController {
-    /// Width of the card: narrower on a virtual notch (nothing to fit around, the content uses the menu bar's space too).
-    static func cardWidth(virtual: Bool, notchWidth: CGFloat = 0, notchHeight: CGFloat = 0) -> CGFloat {
-        virtual ? 340 : notchWidth + 2 * (notchHeight + notchTextHeight)
-    }
-    static let contentHeight: CGFloat = 56
-    /// Beside a physical notch the ring and value sit in the menu-bar row next to it; only the text line hangs below.
-    static let notchTextHeight: CGFloat = 44
-
-    static func cardHeight(virtual: Bool, notchHeight: CGFloat) -> CGFloat {
-        virtual ? contentHeight : notchHeight + notchTextHeight
-    }
-
-    private let model = ToastModel()
-    private var panel: NSPanel?
+    private let model: CapsuleModel
     private var hideTask: Task<Void, Never>?
-    private var appearTask: Task<Void, Never>?
-    /// True while the card is out: the capsule below tucks its contents away, and brings them back when this turns false.
+    /// True while the card is out: the capsule's own contents tuck away, and come back when this turns false.
     var onVisibilityChange: ((Bool) -> Void)?
+    /// Asks the window to make its panel as big as the card needs (before it grows) or small again (after it has folded).
+    var updatePanel: (() -> Void)?
 
-    var isShowing: Bool { model.visible }
+    init(model: CapsuleModel) { self.model = model }
 
-    /// `notch` is the notch's frame in screen coordinates; the card hangs from it. `seconds` = nil: until `hideNow()`.
-    func show(_ toast: SystemToast, notch: CGRect, virtual: Bool, restWidth: CGFloat, seconds: Double?) {
-        model.toast = toast
-        model.virtual = virtual
-        let firstTime = panel == nil
-        let panel = ensurePanel(notch: notch)
-        panel.orderFrontRegardless()
+    var isShowing: Bool { model.toastWanted }
+
+    /// `seconds` = nil: until `fold()` / `hideNow()`.
+    func show(_ toast: SystemToast, seconds: Double?) {
+        model.presentToast(toast)
+        updatePanel?() // room first, then the animation
         hideTask?.cancel()
-        if !model.visible {
-            model.restWidth = max(restWidth, notch.width)
-            if firstTime {
-                // Let the freshly created view draw once, or there is nothing to animate from.
-                appearTask?.cancel()
-                appearTask = Task { [weak self] in
-                    try? await Task.sleep(for: .milliseconds(60))
-                    guard !Task.isCancelled, let self, !model.visible else { return }
-                    onVisibilityChange?(true)
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.76)) { model.visible = true }
-                }
-            } else {
-                onVisibilityChange?(true)
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.76)) { model.visible = true }
-            }
+        if !model.toastVisible {
+            onVisibilityChange?(true)
+            model.setToastVisible(true)
         }
         guard let seconds else { return }
         hideTask = Task { [weak self] in
@@ -88,91 +52,26 @@ final class NotchToastController {
         }
     }
 
-    /// Folds the card back into the notch.
+    /// Folds the card back into the capsule.
     func fold() {
-        guard model.visible else { return }
+        guard model.toastVisible else { return }
         hideTask?.cancel()
-        withAnimation(.spring(response: 0.38, dampingFraction: 0.86)) { model.visible = false }
+        model.setToastVisible(false)
         onVisibilityChange?(false)
         hideTask = Task { [weak self] in
-            try? await Task.sleep(for: .milliseconds(480))
-            guard !Task.isCancelled else { return }
-            self?.panel?.orderOut(nil)
+            try? await Task.sleep(for: .milliseconds(500))
+            guard !Task.isCancelled, let self else { return }
+            model.clearToast()
+            updatePanel?()
         }
     }
 
     func hideNow() {
-        appearTask?.cancel()
         hideTask?.cancel()
-        if model.visible { onVisibilityChange?(false) }
-        model.visible = false
-        panel?.orderOut(nil)
-    }
-
-    private func ensurePanel(notch: CGRect) -> NSPanel {
-        let ear = NotchGeometry.earRadius
-        let width = Self.cardWidth(virtual: model.virtual, notchWidth: notch.width, notchHeight: notch.height) + 2 * ear + 64
-        let height = Self.cardHeight(virtual: model.virtual, notchHeight: notch.height) + 16
-        let frame = CGRect(x: notch.midX - width / 2, y: notch.maxY - height, width: width, height: height)
-        if let panel {
-            panel.setFrame(frame, display: false)
-            if let hosting = panel.contentView?.subviews.first as? NSHostingView<NotchToastView> {
-                hosting.rootView = NotchToastView(model: model, notchWidth: notch.width, notchHeight: notch.height)
-            }
-            return panel
-        }
-        let panel = NSPanel(contentRect: frame, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
-        panel.isOpaque = false
-        panel.backgroundColor = .clear
-        panel.hasShadow = false
-        panel.level = .statusBar + 2
-        panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary, .ignoresCycle]
-        panel.ignoresMouseEvents = true
-        panel.isReleasedWhenClosed = false
-        panel.animationBehavior = .none
-        let hosting = NSHostingView(rootView: NotchToastView(model: model, notchWidth: notch.width, notchHeight: notch.height))
-        // A plain subview of a container (see the HUD panel): as the content view the hosting view crashed the app.
-        hosting.sizingOptions = []
-        let container = NSView(frame: NSRect(origin: .zero, size: frame.size))
-        hosting.frame = container.bounds
-        hosting.autoresizingMask = [.width, .height]
-        container.addSubview(hosting)
-        panel.contentView = container
-        self.panel = panel
-        return panel
-    }
-}
-
-struct NotchToastView: View {
-    let model: ToastModel
-    let notchWidth: CGFloat
-    let notchHeight: CGFloat
-
-    var body: some View {
-        let ear = NotchGeometry.earRadius
-        let full = NotchToastController.cardWidth(virtual: model.virtual, notchWidth: notchWidth, notchHeight: notchHeight)
-        let height = NotchToastController.cardHeight(virtual: model.virtual, notchHeight: notchHeight)
-        let width = model.visible ? full : max(model.restWidth, notchWidth)
-        let rowHeight = model.visible ? height : notchHeight
-        let shape = NotchShape(bottomRadius: model.visible ? 28 : 12)
-        ZStack(alignment: .top) {
-            shape.fill(Color.black)
-                .opacity(model.visible ? 1 : 0)
-                .animation(model.visible ? nil : .easeOut(duration: 0.2).delay(0.05), value: model.visible)
-            Group {
-                if model.virtual {
-                    ToastContent(toast: model.toast)
-                } else {
-                    ToastNotchContent(toast: model.toast, notchHeight: notchHeight)
-                }
-            }
-            .frame(width: full, height: height, alignment: .top)
-                .modifier(RevealEffect(isVisible: model.visible, delay: 0.1, blurOnExit: true))
-        }
-        .frame(width: width + 2 * ear, height: rowHeight, alignment: .top)
-        .clipShape(shape)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .accessibilityHidden(true)
+        let wasOut = model.toastVisible
+        model.resetToast()
+        if wasOut { onVisibilityChange?(false) }
+        updatePanel?()
     }
 }
 
@@ -182,7 +81,7 @@ struct ToastContent: View {
     let toast: SystemToast
 
     var body: some View {
-        let slot = NotchToastController.contentHeight
+        let slot = CapsuleLayout.toastContentHeight
         ZStack {
             VStack(spacing: 1) {
                 Text(toast.title).font(.system(size: 17, weight: .semibold)).foregroundStyle(.white).lineLimit(1)
@@ -216,7 +115,7 @@ struct ToastNotchContent: View {
     let notchHeight: CGFloat
 
     var body: some View {
-        let side = notchHeight + NotchToastController.notchTextHeight
+        let side = notchHeight + CapsuleLayout.toastNotchTextHeight
         HStack(spacing: 0) {
             ToastRing(progress: toast.progress, tint: toast.tint, symbol: toast.ringSymbol, lineWidth: 4.5, symbolSize: 17)
                 .frame(width: side * 0.7, height: side * 0.7)
@@ -227,7 +126,7 @@ struct ToastNotchContent: View {
             }
             .lineLimit(1)
             .frame(maxWidth: .infinity)
-            .frame(height: NotchToastController.notchTextHeight)
+            .frame(height: CapsuleLayout.toastNotchTextHeight)
             .frame(maxHeight: .infinity, alignment: .bottom)
             Group {
                 switch toast.trailing {
