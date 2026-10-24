@@ -6,6 +6,10 @@ struct RemindersView: View {
     /// The detailed page: the list on the left, a tall box for a new item on the right.
     var focused = false
     @State private var settings = AppSettings.shared
+    /// The page's body is the new-item box instead of the list (the + button in the header; 擠換).
+    @State private var adding = false
+    /// The box stays mounted while it swaps out, so it can fade away.
+    @State private var addMounted = false
 
     private var reloadKey: String {
         [
@@ -19,11 +23,23 @@ struct RemindersView: View {
             if focused { split } else { page }
         }
         .padding(.bottom, 8)
-        .onDisappear { store.flushCompleted() }
+        .onDisappear {
+            store.flushCompleted()
+            adding = false
+            addMounted = false
+        }
         .task(id: reloadKey) {
             await store.ensureAccess()
             await store.reload()
         }
+        #if DEBUG
+        .task {
+            // PENDANT_DEBUG_REMINDER_ADD=1 presses the + a few seconds after the page appears (visual check of 擠換).
+            guard ProcessInfo.processInfo.environment["PENDANT_DEBUG_REMINDER_ADD"] != nil else { return }
+            try? await Task.sleep(for: .seconds(3.5))
+            setAdding(true)
+        }
+        #endif
     }
 
     private var countBadge: some View {
@@ -40,12 +56,51 @@ struct RemindersView: View {
                 Text("待辦事項").font(.system(size: 20, weight: .bold)).foregroundStyle(.white)
                 FocusEnterButton().padding(.leading, 2)
                 Spacer()
-                if store.access == .allowed { countBadge }
+                if store.access == .allowed {
+                    addButton.padding(.trailing, 8)
+                    countBadge
+                }
             }
             .frame(height: 28)
             .padding(.top, ModuleHeader.topPadding(rowHeight: 28)) // on the calendar's month-label line
-            content
-            if store.access == .allowed { QuickAddRow(store: store) }
+            // 擠換: the list and the new-item box take each other's place (the old one blurs out as the new one comes in).
+            ZStack {
+                content
+                    .modifier(SqueezeSwap(isShown: !adding))
+                    .allowsHitTesting(!adding)
+                if addMounted {
+                    QuickAddRow(store: store, tall: true, autoFocus: true, onDone: { setAdding(false) })
+                        .padding(.bottom, 2)
+                        .modifier(SqueezeSwap(isShown: adding))
+                        .allowsHitTesting(adding)
+                }
+            }
+        }
+    }
+
+    /// The + in the header: opens the new-item box; turns into a × to go back to the list.
+    private var addButton: some View {
+        Button { setAdding(!adding) } label: {
+            Image(systemName: "plus")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(.white.opacity(0.75))
+                .rotationEffect(.degrees(adding ? 45 : 0))
+                .frame(width: 26, height: 22)
+                .background(Capsule().fill(.white.opacity(0.12)))
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .hapticOnHover()
+        .accessibilityLabel(adding ? "回到清單" : "新增待辦")
+    }
+
+    private func setAdding(_ on: Bool) {
+        if on { addMounted = true }
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) { adding = on }
+        guard !on else { return }
+        Task {
+            try? await Task.sleep(for: .milliseconds(500))
+            if !adding { addMounted = false }
         }
     }
 
@@ -169,6 +224,10 @@ private struct QuickAddRow: View {
     let store: RemindersStore
     /// Fills the height it is given, and the title can run over several lines (the detailed page).
     var tall = false
+    /// Puts the cursor in the title field shortly after the box appears (the page's new-item box).
+    var autoFocus = false
+    /// Called after an item was added or Esc was pressed.
+    var onDone: (() -> Void)?
     @State private var draft = ReminderDraft()
     @State private var popover = AnchoredPopover()
     @State private var optionsPopover = AnchoredPopover()
@@ -239,6 +298,12 @@ private struct QuickAddRow: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 5)
         .background(RoundedRectangle(cornerRadius: 11, style: .continuous).fill(.white.opacity(focused ? 0.16 : 0.09)))
+        .onExitCommand { onDone?() }
+        .task {
+            guard autoFocus else { return }
+            try? await Task.sleep(for: .milliseconds(250))
+            focused = true
+        }
         #if DEBUG
         .task {
             // PENDANT_DEBUG_DUE=1 opens the due-date popover shortly after the page appears (visual check).
@@ -265,5 +330,6 @@ private struct QuickAddRow: View {
         popover.close()
         optionsPopover.close()
         Task { await store.add(pending) }
+        onDone?()
     }
 }
