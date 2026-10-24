@@ -42,6 +42,7 @@ struct LyricsView: View {
     let controller: MediaController
     let lyrics: LyricsStore
     let enabled: Bool
+    @State private var registry = ModuleRegistry.shared
 
     var body: some View {
         Group {
@@ -65,17 +66,44 @@ struct LyricsView: View {
         Text(text).font(.system(size: 13, weight: .medium)).foregroundStyle(.white.opacity(0.4))
     }
 
+    /// Lyrics without timing (the player's own): the view follows the song's progress by proportion, which is only a guess at
+    /// where the singing is, so no line is marked as current.
     private func plain(_ lines: [String]) -> some View {
-        ScrollView(.vertical, showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 10) {
-                ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
-                    Text(line).font(.system(size: 15, weight: .semibold)).foregroundStyle(.white.opacity(0.7))
+        ScrollViewReader { proxy in
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 10) {
+                    ForEach(Array(lines.enumerated()), id: \.offset) { index, line in
+                        Text(line).font(.system(size: 15, weight: .semibold)).foregroundStyle(.white.opacity(0.7)).id(index)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.vertical, 20)
+            }
+            .mask(edgeFade)
+            // Opening the page (and the animation that follows it) lands on the estimated line.
+            .task(id: lines.count) {
+                for delay in [60, 300, 700] {
+                    try? await Task.sleep(for: .milliseconds(delay))
+                    proxy.scrollTo(estimatedIndex(lines.count, at: Date()), anchor: .center)
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, 20)
+            .onChange(of: registry.focusTransitioning) { _, moving in
+                if !moving { proxy.scrollTo(estimatedIndex(lines.count, at: Date()), anchor: .center) }
+            }
+            .background {
+                TimelineView(.periodic(from: .now, by: 4)) { context in
+                    Color.clear.onChange(of: estimatedIndex(lines.count, at: context.date)) { _, index in
+                        withAnimation(.easeInOut(duration: 0.6)) { proxy.scrollTo(index, anchor: .center) }
+                    }
+                }
+            }
         }
-        .mask(edgeFade)
+    }
+
+    private func estimatedIndex(_ count: Int, at date: Date) -> Int {
+        guard count > 1, let now = controller.nowPlaying, now.snapshot.duration > 0 else { return 0 }
+        let progress = min(max(now.position(at: date) / now.snapshot.duration, 0), 1)
+        return min(Int((progress * Double(count)).rounded(.down)), count - 1)
     }
 
     private func synced(_ lines: [LyricLine]) -> some View {
@@ -93,8 +121,13 @@ struct LyricsView: View {
             .mask(edgeFade)
             // Opening the page lands on the line being sung (the timer below only reacts to a change of line).
             .task(id: lines.count) {
-                try? await Task.sleep(for: .milliseconds(60))
-                proxy.scrollTo(currentIndex(lines, at: Date()), anchor: .center)
+                for delay in [60, 300, 700] {
+                    try? await Task.sleep(for: .milliseconds(delay))
+                    proxy.scrollTo(currentIndex(lines, at: Date()), anchor: .center)
+                }
+            }
+            .onChange(of: registry.focusTransitioning) { _, moving in
+                if !moving { proxy.scrollTo(currentIndex(lines, at: Date()), anchor: .center) }
             }
             .background {
                 TimelineView(.periodic(from: .now, by: 0.3)) { context in

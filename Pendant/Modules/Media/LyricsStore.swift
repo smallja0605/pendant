@@ -30,6 +30,14 @@ final class LyricsStore {
 
     /// Loads the lyrics for a track (once per track).
     func load(for snapshot: PlaybackSnapshot) {
+        #if DEBUG
+        // PENDANT_DEBUG_LYRICS=1: made-up synchronised lyrics (a line every 5 s) instead of the real lookup.
+        if let mode = ProcessInfo.processInfo.environment["PENDANT_DEBUG_LYRICS"] {
+            let lines = (0..<60).map { LyricLine(id: $0, time: Double($0) * 5, text: "第 \($0) 句歌詞") }
+            state = mode == "plain" ? .plain(lines.map(\.text)) : .synced(lines)
+            return
+        }
+        #endif
         let settings = AppSettings.shared
         let source = settings.lyricsSource
         let online = settings.onlineLyrics && source != .player
@@ -85,8 +93,12 @@ final class LyricsStore {
             URLQueryItem(name: "album_name", value: album),
         ]
         if duration > 0 { components.queryItems?.append(URLQueryItem(name: "duration", value: String(Int(duration.rounded())))) }
-        if let found = await request(components.url), let state = parse(found) { return state }
-        // Not an exact match: take the best hit of a search.
+        // An exact match may hold only plain text: keep it, but look for a synchronised version of the same track first.
+        var plain: State?
+        if let found = await request(components.url), let state = parse(found) {
+            if case .synced = state { return state }
+            plain = state
+        }
         var search = URLComponents()
         search.scheme = "https"
         search.host = "lrclib.net"
@@ -94,9 +106,15 @@ final class LyricsStore {
         search.queryItems = [URLQueryItem(name: "track_name", value: title), URLQueryItem(name: "artist_name", value: artist)]
         if let data = await requestData(search.url),
            let list = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
-            for item in list { if let state = parse(item) { return state } }
+            // The synchronised hit whose length is closest to the track's (a different cut of the song would drift).
+            let candidates = list.filter { ($0["syncedLyrics"] as? String)?.isEmpty == false }
+            let best = candidates.min { lhs, rhs in
+                abs((lhs["duration"] as? Double ?? 0) - duration) < abs((rhs["duration"] as? Double ?? 0) - duration)
+            }
+            if let best, duration <= 0 || abs((best["duration"] as? Double ?? 0) - duration) <= 5, let state = parse(best) { return state }
+            if plain == nil { for item in list { if let state = parse(item) { plain = state; break } } }
         }
-        return .none
+        return plain ?? .none
     }
 
     private static func requestData(_ url: URL?) async -> Data? {

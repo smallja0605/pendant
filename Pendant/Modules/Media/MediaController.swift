@@ -281,10 +281,11 @@ final class MediaController {
 
     /// Shows a made-up track without any player (the settings' simulation panel and PENDANT_DEBUG_MEDIA); the next real
     /// report from a player replaces it.
-    func simulate(title: String, artist: String, album: String = "", playing: Bool, key: String, colors: [NSColor]) {
+    func simulate(title: String, artist: String, album: String = "", playing: Bool, key: String, colors: [NSColor],
+                  position: TimeInterval = 0, duration: TimeInterval = 202) {
         let snapshot = PlaybackSnapshot(
             source: .appleMusic, state: playing ? .playing : .paused, title: title, album: album, artist: artist,
-            duration: 202, position: 0, trackKey: key, receivedAt: Date()
+            duration: duration, position: position, trackKey: key, receivedAt: Date()
         )
         simulatedUntil = Date().addingTimeInterval(120)
         states[.appleMusic] = snapshot
@@ -307,11 +308,4 @@ final class MediaController {
         reselect(now: Date())
         sources.values.forEach { $0.refresh() }
     }
-
-    #if DEBUG
-    func debugInject(playing: Bool) {
-        simulate(title: "歌曲名稱", artist: "歌手名稱", album: "專輯名稱",
-                 playing: playing, key: "debug", colors: [.systemPink, .systemOrange, .systemPurple])
-    }
-    #endif
 }
