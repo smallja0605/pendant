@@ -27,7 +27,7 @@ struct ModuleDescriptor: Identifiable, Equatable, Sendable {
     /// Default order from requirements 11.3: media → notes → reminders → calendar → timer → mirror → shelf →
     /// shortcuts; Quick Apps is a disabled placeholder.
     static let all: [ModuleDescriptor] = [
-        .init("media", "媒體播放器", "music.note", cells: 5, range: 3...10, implemented: true, defaultEnabled: true),
+        .init("media", "音樂", "music.note", cells: 5, range: 3...10, implemented: true, defaultEnabled: true),
         .init("notes", "筆記", "note.text", cells: 6, range: 3...10, implemented: true, defaultEnabled: true),
         .init("reminders", "待辦事項", "checklist", cells: 4, implemented: true, defaultEnabled: true),
         .init("calendar", "行事曆", "calendar", cells: 5, implemented: true, defaultEnabled: true),

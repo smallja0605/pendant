@@ -70,13 +70,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Media Player"
+            "value": "Music"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "媒體播放器"
+            "value": "音樂"
           }
         }
       }

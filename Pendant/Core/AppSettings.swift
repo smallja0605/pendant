@@ -99,6 +99,10 @@ final class AppSettings: @unchecked Sendable {
     var trackInfoSeconds: Double { didSet { save(trackInfoSeconds, "trackInfoSeconds") } }
     var showCoverInCompact: Bool { didSet { save(showCoverInCompact, "showCoverInCompact") } }
     var showWaveformInCompact: Bool { didSet { save(showWaveformInCompact, "showWaveformInCompact") } }
+    /// The compact capsule's bars follow the real sound (system audio tap + FFT) instead of a calm made-up motion.
+    var realWaveform: Bool { didSet { save(realWaveform, "realWaveform") } }
+    /// Number of bars in the waveform, 3…7.
+    var waveformBars: Int { didSet { save(waveformBars, "waveformBars") } }
 
     // MARK: Split islands (3.5)
     var islandLeftEnabled: Bool { didSet { save(islandLeftEnabled, "islandLeftEnabled") } }
@@ -288,6 +292,8 @@ final class AppSettings: @unchecked Sendable {
         showTrackInfoOnChange = bool("showTrackInfoOnChange", true)
         trackInfoSeconds = double("trackInfoSeconds", 2.5)
         showWaveformInCompact = bool("showWaveformInCompact", true)
+        realWaveform = bool("realWaveform", false)
+        waveformBars = min(max(int("waveformBars", 3), 3), 7)
         artworkGlow = bool("artworkGlow", true)
         onlineArtwork = bool("onlineArtwork", true)
         onlineLyrics = bool("onlineLyrics", true)

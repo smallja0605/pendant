@@ -14,7 +14,7 @@ struct SmallCapsuleSettingsView: View {
     }
 
     private static let info: [String: Info] = [
-        "media": Info(title: "媒體播放器", symbol: "music.note"),
+        "media": Info(title: "音樂", symbol: "music.note"),
         "timer": Info(title: "計時器", symbol: "timer"),
         "shelf": Info(title: "檔案中轉站", symbol: "tray.and.arrow.down"),
         "reminders": Info(title: "待辦事項", symbol: "checklist"),

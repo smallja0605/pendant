@@ -4,7 +4,7 @@ import SwiftUI
 @MainActor
 final class MediaModule: PendantModule {
     let id = "media"
-    let displayName = String(localized: "module.media", defaultValue: "媒體播放器")
+    let displayName = String(localized: "module.media", defaultValue: "音樂")
     let symbolName = "music.note"
     let cells = CellRange(default: 5, range: 3...10)
     let supportsCompact = true
@@ -42,9 +42,19 @@ private struct MediaModuleSettings: View {
     @State private var settings = AppSettings.shared
     @State private var cacheSize = 0
 
+    static var canTap: Bool { if #available(macOS 14.2, *) { true } else { false } }
+    private var barCount: Binding<Double> {
+        Binding(get: { Double(settings.waveformBars) }, set: { settings.waveformBars = min(max(Int($0.rounded()), 3), 7) })
+    }
+
     var body: some View {
         ModuleForm(moduleID: "media") {
             Toggle("專輯光暈", isOn: $settings.artworkGlow)
+            TipRow(title: "真實音波", tip: "依實際播放的聲音動，需要「系統音訊錄製」權限") {
+                Toggle("", isOn: $settings.realWaveform).labelsHidden().disabled(!Self.canTap)
+            }
+            if settings.realWaveform { WaveformStatusRow() }
+            SliderRow(title: "音波線條數量", value: barCount, range: 3...7, step: 1, unit: "條")
             TipRow(title: "線上封面", tip: "歌名與歌手會送到 Apple 搜尋服務") {
                 Toggle("", isOn: $settings.onlineArtwork).labelsHidden()
             }
@@ -67,6 +77,27 @@ private struct MediaModuleSettings: View {
             ])
         }
         .task { cacheSize = await ArtworkCache.shared.sizeInBytes() }
+    }
+}
+
+/// What the real waveform is doing: waiting, working, or why not (checked once a second while the page is open).
+private struct WaveformStatusRow: View {
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { _ in
+            TipRow(title: "音波狀態") {
+                Text(text).foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var text: String {
+        guard #available(macOS 14.2, *) else { return "需要 macOS 14.2 以上" }
+        switch AudioSpectrum.shared.status {
+        case .off: return "播放時才會啟動"
+        case .starting: return "啟動中⋯"
+        case let .failed(message): return message
+        case .running: return AudioSpectrum.shared.seemsSilent ? "沒有收到聲音（可能還沒授權）" : "運作中"
+        }
     }
 }
 

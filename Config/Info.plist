@@ -23,6 +23,8 @@
 	<string>鏡子模組僅在可見時使用前鏡頭顯示即時影像，不會錄影或儲存。</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>藍牙裝置連接時，在瀏海顯示裝置名稱與電量。只讀取已連接的裝置，資料只留在本機。</string>
+	<key>NSAudioCaptureUsageDescription</key>
+	<string>真實音波功能用系統播放的聲音畫出音波，只在膠囊上顯示，不會錄下或儲存聲音。</string>
 	<key>NSAppleEventsUsageDescription</key>
 	<string>媒體模組需要與 Music、Spotify 通訊以顯示與控制播放。</string>
 </dict>
