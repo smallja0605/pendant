@@ -8,8 +8,8 @@ struct LyricLine: Equatable, Identifiable, Sendable {
     let text: String
 }
 
-/// Lyrics of the current track from lrclib.net (a free, open lyrics service). Only the title, artist, album and length of the
-/// track are sent, and only while the detailed media page is open and "online lyrics" is on.
+/// Lyrics of the current track, asked from the user's list of sources in order (settings › 小工具 › 音樂). Only the title, artist, album
+/// and length of the track are sent, and only while the detailed media page is open and "online lyrics" is on.
 @MainActor
 @Observable
 final class LyricsStore {
@@ -28,7 +28,7 @@ final class LyricsStore {
     @ObservationIgnored private var cache: [String: State] = [:]
     @ObservationIgnored private var task: Task<Void, Never>?
 
-    /// Loads the lyrics for a track (once per track).
+    /// Loads the lyrics for a track (once per track and list of sources).
     func load(for snapshot: PlaybackSnapshot) {
         #if DEBUG
         // PENDANT_DEBUG_LYRICS=1: made-up synchronised lyrics (a line every 5 s) instead of the real lookup.
@@ -39,15 +39,13 @@ final class LyricsStore {
         }
         #endif
         let settings = AppSettings.shared
-        let source = settings.lyricsSource
-        let online = settings.onlineLyrics && source != .player
-        let player = source != .online && snapshot.source == .appleMusic
-        guard online || player else {
+        let sources = settings.activeLyricsSources(for: snapshot)
+        guard !sources.isEmpty else {
             state = .none
             loadedKey = ""
             return
         }
-        let key = "\(snapshot.trackKey)|\(online)|\(player)"
+        let key = "\(snapshot.trackKey)|\(sources.map(\.signature).joined(separator: ","))"
         guard key != loadedKey else { return }
         loadedKey = key
         if let cached = cache[key] {
@@ -57,90 +55,26 @@ final class LyricsStore {
         state = .loading
         task?.cancel()
         task = Task { [weak self] in
-            var result = State.none
-            if online {
-                result = await Self.fetch(
-                    title: snapshot.title, artist: snapshot.artist, album: snapshot.album, duration: snapshot.duration
-                )
-            }
-            if result == .none, player, let lines = await Self.playerLyrics() { result = .plain(lines) }
+            let result = await Self.lookup(sources, snapshot)
             guard !Task.isCancelled, let self, loadedKey == key else { return }
             cache[key] = result
             state = result
         }
     }
 
-    /// The lyrics Apple Music itself holds for the current track (plain text, no timing), if it is running and has some.
-    private static func playerLyrics() async -> [String]? {
-        let musicApps = NSRunningApplication.runningApplications(withBundleIdentifier: MediaSourceID.appleMusic.bundleIdentifier)
-        guard !musicApps.isEmpty else { return nil }
-        let result = await AppleScriptRunner.shared.run("tell application \"Music\" to return lyrics of current track")
-        guard case let .success(value) = result, let text = value.asString else { return nil }
-        let lines = text.split(whereSeparator: \.isNewline).map { $0.trimmingCharacters(in: .whitespaces) }
-        return lines.contains { !$0.isEmpty } ? lines : nil
-    }
-
-    // MARK: Network
-
-    private static func fetch(title: String, artist: String, album: String, duration: TimeInterval) async -> State {
-        guard !title.isEmpty else { return .none }
-        var components = URLComponents()
-        components.scheme = "https"
-        components.host = "lrclib.net"
-        components.path = "/api/get"
-        components.queryItems = [
-            URLQueryItem(name: "track_name", value: title), URLQueryItem(name: "artist_name", value: artist),
-            URLQueryItem(name: "album_name", value: album),
-        ]
-        if duration > 0 { components.queryItems?.append(URLQueryItem(name: "duration", value: String(Int(duration.rounded())))) }
-        // An exact match may hold only plain text: keep it, but look for a synchronised version of the same track first.
+    /// The first source with synchronised lyrics wins; with none, the first plain text found (in list order).
+    private static func lookup(_ sources: [LyricsSourceItem], _ snapshot: PlaybackSnapshot) async -> State {
         var plain: State?
-        if let found = await request(components.url), let state = parse(found) {
-            if case .synced = state { return state }
-            plain = state
-        }
-        var search = URLComponents()
-        search.scheme = "https"
-        search.host = "lrclib.net"
-        search.path = "/api/search"
-        search.queryItems = [URLQueryItem(name: "track_name", value: title), URLQueryItem(name: "artist_name", value: artist)]
-        if let data = await requestData(search.url),
-           let list = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
-            // The synchronised hit whose length is closest to the track's (a different cut of the song would drift).
-            let candidates = list.filter { ($0["syncedLyrics"] as? String)?.isEmpty == false }
-            let best = candidates.min { lhs, rhs in
-                abs((lhs["duration"] as? Double ?? 0) - duration) < abs((rhs["duration"] as? Double ?? 0) - duration)
+        for source in sources {
+            if Task.isCancelled { return .none }
+            let found = await LyricsFetcher.fetch(source, snapshot: snapshot)
+            switch found {
+            case .synced: return found
+            case .plain: if plain == nil { plain = found }
+            default: break
             }
-            if let best, duration <= 0 || abs((best["duration"] as? Double ?? 0) - duration) <= 5, let state = parse(best) { return state }
-            if plain == nil { for item in list { if let state = parse(item) { plain = state; break } } }
         }
         return plain ?? .none
-    }
-
-    private static func requestData(_ url: URL?) async -> Data? {
-        guard let url else { return nil }
-        var request = URLRequest(url: url, timeoutInterval: 8)
-        request.setValue("Pendant (https://github.com/smallja0605/pendant)", forHTTPHeaderField: "User-Agent")
-        guard let (data, response) = try? await URLSession.shared.data(for: request),
-              (response as? HTTPURLResponse)?.statusCode == 200 else { return nil }
-        return data
-    }
-
-    private static func request(_ url: URL?) async -> [String: Any]? {
-        guard let data = await requestData(url) else { return nil }
-        return try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-    }
-
-    private static func parse(_ item: [String: Any]) -> State? {
-        if let synced = item["syncedLyrics"] as? String {
-            let lines = parseLRC(synced)
-            if !lines.isEmpty { return .synced(lines) }
-        }
-        if let plain = item["plainLyrics"] as? String {
-            let lines = plain.split(whereSeparator: \.isNewline).map(String.init)
-            if !lines.isEmpty { return .plain(lines) }
-        }
-        return nil
     }
 
     /// "[01:23.45] words" lines; several time tags per line are allowed, empty lines are kept as pauses.

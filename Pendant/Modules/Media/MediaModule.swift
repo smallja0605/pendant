@@ -57,6 +57,7 @@ private struct MediaModuleSettings: View {
     var body: some View {
         ModuleForm(moduleID: "media") {
             Toggle("專輯光暈", isOn: $settings.artworkGlow)
+            Toggle("標題旁音波", isOn: $settings.showWaveformInTitle)
             TipRow(title: "真實音波", tip: "依實際播放的聲音動，需要「系統音訊錄製」權限") {
                 Toggle("", isOn: $settings.realWaveform).labelsHidden().disabled(!Self.canTap)
             }
@@ -80,12 +81,10 @@ private struct MediaModuleSettings: View {
                     Toggle("", isOn: $settings.artworkCache).labelsHidden().toggleStyle(.switch)
                 }
             }
-            TipRow(title: "線上歌詞", tip: "歌名、歌手與長度會送到 lrclib.net") {
+            TipRow(title: "線上歌詞", tip: "歌名、歌手與長度會送到已開啟的線上來源") {
                 Toggle("", isOn: $settings.onlineLyrics).labelsHidden()
             }
-            DropdownRow(title: "歌詞來源", selection: $settings.lyricsSource, options: [
-                (AppSettings.LyricsSource.auto, "自動"), (.player, "Apple Music"), (.online, "線上（lrclib.net）"),
-            ])
+            LyricsSourcesSection()
             DropdownRow(title: "音樂來源", selection: $settings.mediaSourcePreference, options: [
                 (MediaSourcePreference.auto, "自動"), (.appleMusic, "Apple Music"), (.spotify, "Spotify"),
             ])

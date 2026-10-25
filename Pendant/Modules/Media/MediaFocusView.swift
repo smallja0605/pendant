@@ -30,8 +30,8 @@ private struct LyricsPane: View {
     @State private var settings = AppSettings.shared
 
     var body: some View {
-        LyricsView(controller: controller, lyrics: lyrics, enabled: settings.lyricsSource != .online || settings.onlineLyrics)
-            .task(id: "\(controller.nowPlaying?.snapshot.trackKey ?? "")|\(settings.lyricsSource.rawValue)|\(settings.onlineLyrics)") {
+        LyricsView(controller: controller, lyrics: lyrics, enabled: settings.lyricsAvailable)
+            .task(id: "\(controller.nowPlaying?.snapshot.trackKey ?? "")|\(settings.lyricsSourcesSignature)") {
                 if let snapshot = controller.nowPlaying?.snapshot { lyrics.load(for: snapshot) }
             }
     }
@@ -47,7 +47,7 @@ struct LyricsView: View {
     var body: some View {
         Group {
             if !enabled {
-                note("線上歌詞已關閉")
+                note("歌詞來源已關閉")
             } else if controller.nowPlaying == nil {
                 EmptyView()
             } else {

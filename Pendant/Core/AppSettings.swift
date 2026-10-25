@@ -137,8 +137,12 @@ final class AppSettings: @unchecked Sendable {
     var artworkCache: Bool { didSet { save(artworkCache, "artworkCache") } }
     var onlineArtwork: Bool { didSet { save(onlineArtwork, "onlineArtwork") } }
     var onlineLyrics: Bool { didSet { save(onlineLyrics, "onlineLyrics") } }
-    /// Where the detailed music page takes lyrics from.
-    var lyricsSource: LyricsSource { didSet { save(lyricsSource.rawValue, "lyricsSource") } }
+    /// Where the detailed music page takes lyrics from, in the order they are asked (disabled ones are skipped).
+    var lyricsSources: [LyricsSourceItem] {
+        didSet { if let data = try? JSONEncoder().encode(lyricsSources) { save(data, "lyricsSources") } }
+    }
+    /// The title line of the music page shows a small waveform after the song's name.
+    var showWaveformInTitle: Bool { didSet { save(showWaveformInTitle, "showWaveformInTitle") } }
 
     // MARK: Timer (4.4)
     /// Quick presets in minutes (default 1, 5, 10, 25).
@@ -194,8 +198,6 @@ final class AppSettings: @unchecked Sendable {
     /// A file dragged over from another screen does not open the shelf (moving a file between screens is not a trip to the shelf).
     var dragIgnoresOtherScreens: Bool { didSet { save(dragIgnoresOtherScreens, "dragIgnoresOtherScreens") } }
 
-    /// `auto`: online first (it has timed lines), then what the player itself holds. `player`: only Apple Music's own lyrics.
-    enum LyricsSource: String, CaseIterable, Sendable { case auto, player, online }
     enum ScreenChoice: String, CaseIterable, Sendable { case main, underCursor, all }
     enum ShelfAutoClear: String, CaseIterable, Sendable { case never, onLogout, onReboot, afterDays }
 
@@ -305,7 +307,20 @@ final class AppSettings: @unchecked Sendable {
         artworkGlow = bool("artworkGlow", true)
         onlineArtwork = bool("onlineArtwork", true)
         onlineLyrics = bool("onlineLyrics", true)
-        lyricsSource = string("lyricsSource").flatMap(LyricsSource.init(rawValue:)) ?? .auto
+        showWaveformInTitle = bool("showWaveformInTitle", true)
+        if let data = defaults.data(forKey: Self.prefix + "lyricsSources"),
+           let stored = try? JSONDecoder().decode([LyricsSourceItem].self, from: data) {
+            lyricsSources = LyricsSourceItem.merged(stored)
+        } else {
+            // Before the list existed there was a choice: automatic (the default list), only Apple Music's own, or only online.
+            var list = LyricsSourceItem.defaults
+            switch string("lyricsSource") {
+            case "player": list[0].enabled = false
+            case "online": list[1].enabled = false
+            default: break
+            }
+            lyricsSources = list
+        }
         artworkCache = bool("artworkCache", true)
         mediaSourcePreference = string("mediaSourcePreference").flatMap(MediaSourcePreference.init(rawValue:)) ?? .auto
         timerPresets = (defaults.array(forKey: Self.prefix + "timerPresets") as? [Int]) ?? [1, 5, 10, 25]

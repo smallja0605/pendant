@@ -78,6 +78,9 @@ private struct PlayerPage: View {
                             Text(nowPlaying.snapshot.title)
                                 .font(.system(size: Tuning.shared.titleSize, weight: .bold))
                                 .foregroundStyle(.white)
+                            if AppSettings.shared.showWaveformInTitle {
+                                WaveformBars(isPlaying: nowPlaying.isPlaying, isVisible: isActive).padding(.leading, 4)
+                            }
                             FocusEnterButton()
                         }
                         Text(nowPlaying.snapshot.album)
