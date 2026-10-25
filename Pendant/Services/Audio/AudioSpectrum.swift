@@ -34,8 +34,8 @@ final class AudioSpectrum: @unchecked Sendable {
     private var ringCount = 0
     private var sampleRate = 48_000.0
     private var smoothed: [Float] = []
-    /// Each band's recent loudest level (slowly forgotten): a band is scaled against its own peak, so quiet treble moves like the bass.
-    private var peaks: [Float] = []
+    /// Each band's average level over about a second: bars show a band relative to it, so a drum hit stands out from the steady sound.
+    private var averages: [Float] = []
     private var outputListenerInstalled = false
 
     // MARK: Reading (any thread)
@@ -104,7 +104,7 @@ final class AudioSpectrum: @unchecked Sendable {
         let interleaved = format.mFormatFlags & kAudioFormatFlagIsNonInterleaved == 0
         ringCount = 0
         smoothed = []
-        peaks = []
+        averages = []
 
         var proc: AudioDeviceIOProcID?
         let created = AudioDeviceCreateIOProcIDWithBlock(&proc, aggregateID, queue) { [weak self] _, input, _, _, _ in
@@ -212,13 +212,13 @@ final class AudioSpectrum: @unchecked Sendable {
         }
         if smoothed.count != bands {
             smoothed = [Float](repeating: 0, count: bands)
-            peaks = [Float](repeating: 0, count: bands)
+            averages = [Float](repeating: 0, count: bands)
         }
         for index in 0..<bands {
-            // Real music keeps most of its energy low, so the left bar would do all the moving: each band is scaled by its own recent peak
-            // (kept above a floor so near-silence is not blown up into full-height noise).
-            peaks[index] = max(raw[index], peaks[index] * 0.997)
-            let scaled = min(raw[index] / max(peaks[index], 0.3), 1)
+            // Relative to the band's own average: steady sound sits at about half height and a beat (a kick, a snare) climbs from there,
+            // instead of every bar sitting at the top. Near-silence is not blown up (the floor).
+            averages[index] += (raw[index] - averages[index]) * 0.015
+            let scaled = min(0.5 * raw[index] / max(averages[index], 0.08), 1)
             // Rises quickly, falls slowly: bars follow a beat without flickering.
             let rate: Float = scaled > smoothed[index] ? 0.7 : 0.2
             smoothed[index] += (scaled - smoothed[index]) * rate

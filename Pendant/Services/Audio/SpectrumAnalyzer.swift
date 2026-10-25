@@ -11,7 +11,7 @@ final class SpectrumAnalyzer {
     static let highestHz = 9000.0
     /// Loudness range of a band (dB relative to full scale) mapped to 0…1.
     static let floorDB: Float = -78
-    static let ceilingDB: Float = -34
+    static let ceilingDB: Float = -26
 
     private let log2n: vDSP_Length
     private let setup: FFTSetup?
