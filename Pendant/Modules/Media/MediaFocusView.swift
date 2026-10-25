@@ -10,7 +10,7 @@ struct MediaFocusView: View {
     var body: some View {
         let left = focused ? min(CGFloat(5) * Tuning.shared.cellWidth, size.width * 0.56) : size.width
         HStack(spacing: 0) {
-            MediaView(controller: controller).frame(width: left, height: size.height)
+            MediaView(controller: controller, focused: focused).frame(width: left, height: size.height)
             if focused {
                 Rectangle().fill(.white.opacity(0.18)).frame(width: 2, height: size.height * Tuning.shared.dividerLengthRatio)
                     .frame(width: 20, height: size.height)

@@ -25,12 +25,14 @@ extension EnvironmentValues {
 /// Large-capsule media page (reference: capsule-media.png / capsule-media-ref2.png).
 struct MediaView: View {
     let controller: MediaController
+    /// In the music-only (detailed) capsule: the title line also shows the waveform.
+    var focused = false
     @Environment(\.capsuleExpanded) private var isExpanded
 
     var body: some View {
         ZStack {
             if let nowPlaying = controller.nowPlaying {
-                PlayerPage(controller: controller, nowPlaying: nowPlaying, isActive: isExpanded)
+                PlayerPage(controller: controller, nowPlaying: nowPlaying, isActive: isExpanded, focused: focused)
                     .transition(.opacity)
             } else {
                 EmptyMediaView()
@@ -60,6 +62,7 @@ private struct PlayerPage: View {
     let controller: MediaController
     let nowPlaying: NowPlaying
     let isActive: Bool
+    let focused: Bool
     @State private var outputs = AnchoredPopover()
 
     private var artSize: CGFloat { Tuning.shared.artSize }
@@ -78,8 +81,12 @@ private struct PlayerPage: View {
                             Text(nowPlaying.snapshot.title)
                                 .font(.system(size: Tuning.shared.titleSize, weight: .bold))
                                 .foregroundStyle(.white)
-                            if AppSettings.shared.showWaveformInTitle {
-                                WaveformBars(isPlaying: nowPlaying.isPlaying, isVisible: isActive).padding(.leading, 4)
+                            if focused && AppSettings.shared.showWaveformInTitle {
+                                // Fades away while paused (the bars keep their place, so the title does not jump).
+                                WaveformBars(isPlaying: nowPlaying.isPlaying, isVisible: isActive)
+                                    .padding(.leading, 4)
+                                    .opacity(nowPlaying.isPlaying ? 1 : 0)
+                                    .animation(.easeInOut(duration: 0.3), value: nowPlaying.isPlaying)
                             }
                             FocusEnterButton()
                         }
