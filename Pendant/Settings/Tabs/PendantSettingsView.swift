@@ -16,8 +16,12 @@ struct PendantSettingsView: View {
     #endif
 
     var body: some View {
-        ScrollView(.vertical) {
-            content.padding(.horizontal, 20).padding(.bottom, 20)
+        GeometryReader { proxy in
+            ScrollView(.vertical) {
+                content.padding(.horizontal, 20).padding(.bottom, 20)
+                    .environment(\.pageViewportHeight, proxy.size.height)
+                    .coordinateSpace(name: PageSpace.content)
+            }
         }
     }
 
@@ -35,6 +39,9 @@ struct PendantSettingsView: View {
         }
     }
 }
+
+/// The coordinate space of the 小工具 page's content (its top is the scroll content's top).
+enum PageSpace { static let content = "pendantPageContent" }
 
 /// 7.3 Capsule and notch.
 struct CapsuleSettingsView: View {

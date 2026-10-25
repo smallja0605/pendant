@@ -119,6 +119,18 @@ struct SettingsView: View {
     }
 }
 
+private struct PageViewportHeightKey: EnvironmentKey {
+    static let defaultValue: CGFloat = 0
+}
+
+extension EnvironmentValues {
+    /// Height of the area a settings page scrolls in (0 = unknown): a page can size a panel to the window.
+    var pageViewportHeight: CGFloat {
+        get { self[PageViewportHeightKey.self] }
+        set { self[PageViewportHeightKey.self] = newValue }
+    }
+}
+
 private struct SettingsTitleKey: EnvironmentKey {
     static let defaultValue = ""
 }
