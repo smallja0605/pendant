@@ -125,6 +125,12 @@ final class CapsuleInteractionController { // swiftlint:disable:this type_body_l
 
     private func setInteractive(_ on: Bool, for state: CapsuleState? = nil) {
         let state = state ?? model.state
+        // A capsule that stays open (a focused page that does not hide on leave, or a pop-up out of it) never lets clicks through:
+        // after the settings menu or window it could otherwise stay click-through with the pointer on it.
+        if !on, state == .expanded, model.keepsOpen?() == true {
+            if !interactive { interactive = true; onInteractivityChange?(true); syncMoveMonitor(for: state) }
+            return
+        }
         // While the panel takes clicks in the compact state something must always be watching the pointer.
         if on, state == .compact { startPointerWatch() }
         if on != interactive {
