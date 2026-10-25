@@ -477,3 +477,5 @@ Real waveform (user): `AudioSpectrum` (macOS 14.2+) = a Core Audio global proces
 Settings 小工具 page sizing (user): the page's `ScrollView` sits in a `GeometryReader` and publishes `pageViewportHeight` (environment) plus a `PageSpace.content` coordinate space; the module panel measures its own top (`panelTop`) and takes `max(400, viewportHeight - panelTop - 24)`, so it follows the window. `ModuleForm` pulls the grouped form's own top space (`.padding(.top, -20)`) so its first card lines up with the tool list.
 
 Waveform gain / sensitivity (user): `waveformGain` and `waveformSensitivity` (50–200 %, shown only with 真實音波 on) are applied in `WaveformBars.shaped` after the analyzer's 0…1 level: `min(1, level^(1/sensitivity) * gain)`. The analyzer and its dB scale are unchanged, so tests are unaffected.
+
+Waveform balance (user: only the leftmost bar moved): real music keeps most energy in the bass, so a fixed dB scale left the right bars low. `AudioSpectrum.analyze` now scales each band by its own slowly decaying peak (`peaks`, ×0.997 per hop, floor 0.3 so silence is not amplified) before the attack/release smoothing. The analyzer and its tests are unchanged.
