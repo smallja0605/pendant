@@ -146,6 +146,7 @@ enum LyricsFetcher {
     /// Musixmatch's official API: needs the user's own key (in the Keychain). The free plan returns only part of a song, as plain text.
     private static func musixmatch(_ snapshot: PlaybackSnapshot) async -> State {
         guard let key = LyricsKeychain.read(account: "musixmatch"), !key.isEmpty else { return .none }
+        if let timed = await musixmatchRichsync(snapshot, key: key) { return timed }
         var components = URLComponents(string: "https://api.musixmatch.com/ws/1.1/matcher.lyrics.get")
         components?.queryItems = [
             URLQueryItem(name: "q_track", value: snapshot.title), URLQueryItem(name: "q_artist", value: snapshot.artist),
@@ -157,6 +158,42 @@ enum LyricsFetcher {
         // The answer ends with a licence line after a row of stars.
         if let stars = text.range(of: "*******") { text = String(text[..<stars.lowerBound]) }
         return state(fromText: text)
+    }
+
+    /// Word-timed lyrics (Musixmatch "richsync"): only plans that include it answer; any other answer falls back to the plain lyrics.
+    private static func musixmatchRichsync(_ snapshot: PlaybackSnapshot, key: String) async -> State? {
+        var components = URLComponents(string: "https://api.musixmatch.com/ws/1.1/track.richsync.get")
+        var query = [
+            URLQueryItem(name: "q_track", value: snapshot.title), URLQueryItem(name: "q_artist", value: snapshot.artist),
+            URLQueryItem(name: "apikey", value: key),
+        ]
+        if snapshot.duration > 0 { query.append(URLQueryItem(name: "f_richsync_length", value: String(Int(snapshot.duration.rounded())))) }
+        components?.queryItems = query
+        guard let root = await requestJSON(components?.url) as? [String: Any],
+              let body = (root["message"] as? [String: Any])?["body"] as? [String: Any],
+              let richsync = (body["richsync"] as? [String: Any])?["richsync_body"] as? String,
+              let data = richsync.data(using: .utf8),
+              let items = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else { return nil }
+        let lines = parseRichsync(items)
+        return lines.count >= 2 ? .synced(lines) : nil
+    }
+
+    /// `[{ts, te, x: "line", l: [{c: "word", o: offset}]}]`, seconds.
+    static func parseRichsync(_ items: [[String: Any]]) -> [LyricLine] {
+        var lines: [LyricLine] = []
+        for item in items {
+            guard let start = item["ts"] as? Double, let end = item["te"] as? Double,
+                  let parts = item["l"] as? [[String: Any]] else { continue }
+            var words: [LyricWord] = []
+            for (index, part) in parts.enumerated() {
+                guard let text = part["c"] as? String, let offset = part["o"] as? Double else { continue }
+                let next = index + 1 < parts.count ? (parts[index + 1]["o"] as? Double).map { start + $0 } : nil
+                words.append(LyricWord(start: start + offset, end: next ?? end, text: text))
+            }
+            let line = (item["x"] as? String) ?? words.map(\.text).joined()
+            lines.append(LyricLine(id: lines.count, time: start, text: line.trimmingCharacters(in: .whitespaces), words: words))
+        }
+        return lines
     }
 
     // MARK: Custom
@@ -205,6 +242,11 @@ enum LyricsFetcher {
 
     /// Text that holds time tags is synchronised lyrics, anything else plain lines.
     static func state(fromText text: String) -> State {
+        if text.range(of: #"^\[\d+,\d+\]\("#, options: .regularExpression) != nil
+            || text.range(of: #"\n\[\d+,\d+\]\("#, options: .regularExpression) != nil {
+            let timed = LyricsStore.parseYRC(text)
+            if timed.count >= 2 { return .synced(timed) }
+        }
         let lines = LyricsStore.parseLRC(text)
         if lines.count >= 2 { return .synced(lines) }
         let plain = text.split(whereSeparator: \.isNewline).map { $0.trimmingCharacters(in: .whitespaces) }

@@ -155,16 +155,52 @@ private struct LyricRow: View {
     let line: LyricLine
     let controller: MediaController
     let lines: [LyricLine]
+    @State private var hovering = false
 
     var body: some View {
+        // Word-timed lines of the current line redraw every frame (the fill follows the song); the rest tick slowly.
         TimelineView(.periodic(from: .now, by: 0.3)) { context in
             let position = controller.nowPlaying?.position(at: context.date) ?? 0
             let current = (lines.lastIndex { $0.time <= position + 0.25 } ?? 0) == line.id
-            Text(line.text.isEmpty ? "♪" : line.text)
-                .font(.system(size: 17, weight: .bold))
-                .foregroundStyle(.white.opacity(current ? 1 : 0.32))
-                .scaleEffect(current ? 1 : 0.96, anchor: .leading)
-                .animation(.easeOut(duration: 0.3), value: current)
+            Group {
+                if current && !line.words.isEmpty {
+                    WordFillText(line: line, controller: controller)
+                } else {
+                    Text(line.text.isEmpty ? "♪" : line.text)
+                        .font(.system(size: 17, weight: .bold))
+                        .foregroundStyle(.white.opacity(current ? 1 : (hovering ? 0.6 : 0.32)))
+                }
+            }
+            .scaleEffect(current ? 1 : 0.96, anchor: .leading)
+            .animation(.easeOut(duration: 0.3), value: current)
         }
+        .contentShape(Rectangle())
+        .onHover { hovering = $0 }
+        // A tap jumps the song to this line.
+        .onTapGesture { controller.seek(to: line.time) }
+    }
+}
+
+/// The line being sung, filled word by word: sung words are white, the word being sung fills in as it is sung, the rest stay dim.
+private struct WordFillText: View {
+    let line: LyricLine
+    let controller: MediaController
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 30)) { context in
+            let position = controller.nowPlaying?.position(at: context.date) ?? 0
+            line.words.reduce(Text("")) { result, word in
+                result + Text(word.text).foregroundColor(.white.opacity(0.35 + 0.65 * LyricsLineProgress.value(of: word, at: position)))
+            }
+            .font(.system(size: 17, weight: .bold))
+        }
+    }
+}
+
+enum LyricsLineProgress {
+    /// 0 before the word is sung, 1 after, in between while it is.
+    static func value(of word: LyricWord, at position: TimeInterval) -> Double {
+        guard word.end > word.start else { return position >= word.start ? 1 : 0 }
+        return min(max((position - word.start) / (word.end - word.start), 0), 1)
     }
 }
