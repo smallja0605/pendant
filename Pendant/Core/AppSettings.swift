@@ -103,6 +103,9 @@ final class AppSettings: @unchecked Sendable {
     var realWaveform: Bool { didSet { save(realWaveform, "realWaveform") } }
     /// Number of bars in the waveform, 3…7.
     var waveformBars: Int { didSet { save(waveformBars, "waveformBars") } }
+    /// Real waveform, in percent: how tall the bars grow, and how easily quiet sound shows.
+    var waveformGain: Int { didSet { save(waveformGain, "waveformGain") } }
+    var waveformSensitivity: Int { didSet { save(waveformSensitivity, "waveformSensitivity") } }
 
     // MARK: Split islands (3.5)
     var islandLeftEnabled: Bool { didSet { save(islandLeftEnabled, "islandLeftEnabled") } }
@@ -294,6 +297,8 @@ final class AppSettings: @unchecked Sendable {
         showWaveformInCompact = bool("showWaveformInCompact", true)
         realWaveform = bool("realWaveform", false)
         waveformBars = min(max(int("waveformBars", 3), 3), 7)
+        waveformGain = min(max(int("waveformGain", 100), 50), 200)
+        waveformSensitivity = min(max(int("waveformSensitivity", 100), 50), 200)
         artworkGlow = bool("artworkGlow", true)
         onlineArtwork = bool("onlineArtwork", true)
         onlineLyrics = bool("onlineLyrics", true)

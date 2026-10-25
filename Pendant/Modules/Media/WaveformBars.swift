@@ -51,10 +51,17 @@ struct WaveformBars: View {
         guard isPlaying else { return 2.5 }
         if settings.realWaveform {
             // Waiting for sound: flat, not a made-up motion that would pretend to be the music.
-            let level = real.map { $0[index] } ?? 0
+            let level = real.map { shaped($0[index]) } ?? 0
             return 2.5 + 11.5 * CGFloat(level)
         }
         let wave = (sin(time * 2 * .pi * Self.frequencies[index] + Self.phases[index]) + 1) / 2
         return 3.5 + 4 * wave
+    }
+
+    /// Sensitivity lifts quiet sound (a curve: 200 % shows soft passages, 50 % only the loud ones); gain scales the height.
+    private func shaped(_ level: Double) -> Double {
+        let sensitivity = Double(settings.waveformSensitivity) / 100
+        let gain = Double(settings.waveformGain) / 100
+        return min(max(pow(level, 1 / sensitivity) * gain, 0), 1)
     }
 }

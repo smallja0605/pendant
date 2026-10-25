@@ -47,6 +47,13 @@ private struct MediaModuleSettings: View {
         Binding(get: { Double(settings.waveformBars) }, set: { settings.waveformBars = min(max(Int($0.rounded()), 3), 7) })
     }
 
+    private var gain: Binding<Double> {
+        Binding(get: { Double(settings.waveformGain) }, set: { settings.waveformGain = min(max(Int($0.rounded()), 50), 200) })
+    }
+    private var sensitivity: Binding<Double> {
+        Binding(get: { Double(settings.waveformSensitivity) }, set: { settings.waveformSensitivity = min(max(Int($0.rounded()), 50), 200) })
+    }
+
     var body: some View {
         ModuleForm(moduleID: "media") {
             Toggle("專輯光暈", isOn: $settings.artworkGlow)
@@ -55,6 +62,10 @@ private struct MediaModuleSettings: View {
             }
             if settings.realWaveform { WaveformStatusRow() }
             SliderRow(title: "音波線條數量", value: barCount, range: 3...7, step: 1, unit: "條")
+            if settings.realWaveform {
+                SliderRow(title: "音波漲幅", value: gain, range: 50...200, step: 5, unit: "%")
+                SliderRow(title: "音波靈敏度", value: sensitivity, range: 50...200, step: 5, unit: "%")
+            }
             TipRow(title: "線上封面", tip: "歌名與歌手會送到 Apple 搜尋服務") {
                 Toggle("", isOn: $settings.onlineArtwork).labelsHidden()
             }
