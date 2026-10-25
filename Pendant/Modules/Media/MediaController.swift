@@ -82,6 +82,10 @@ final class MediaController {
 
     func handle(_ incoming: PlaybackSnapshot) {
         let now = Date()
+        #if DEBUG
+        // PENDANT_DEBUG_NO_REAL_MEDIA=1: what the real players report is ignored (screenshots must not show the user's own music).
+        if ProcessInfo.processInfo.environment["PENDANT_DEBUG_NO_REAL_MEDIA"] != nil { return }
+        #endif
         guard now > simulatedUntil else { return }
         var snapshot = incoming
         if let pending = pendingToggle {
