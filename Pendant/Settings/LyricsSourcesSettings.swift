@@ -1,22 +1,30 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// The ordered list of lyrics sources (settings › 小工具 › 音樂): switch each on or off, move it up or down, set up the ones that need a
 /// key or an address, add your own.
 struct LyricsSourcesSection: View {
     @State private var settings = AppSettings.shared
     @State private var addPopover = AnchoredPopover()
+    @State private var hovering = false
+    @State private var dragging: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            TipLabel(title: "歌詞來源", tip: "由上往下查詢：找到同步歌詞就停，都沒有時用最先找到的純文字")
+            TipLabel(title: "歌詞來源", tip: "由上往下查詢：找到同步歌詞就停，沒有就用最先找到的純文字")
             VStack(spacing: 0) {
                 ForEach(Array(settings.lyricsSources.enumerated()), id: \.element.id) { index, item in
                     if index > 0 { Divider().opacity(0.4) }
-                    LyricsSourceRow(item: item, index: index, count: settings.lyricsSources.count)
+                    LyricsSourceRow(
+                        item: item, index: index, count: settings.lyricsSources.count, showsArrows: hovering, dragging: $dragging
+                    )
                 }
             }
             .padding(.horizontal, 10)
             .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            // A drag cancelled outside any row never reports back: the next hover clears its mark.
+            .onHover { hovering = $0; if $0 { dragging = nil } }
+            .animation(.easeInOut(duration: 0.18), value: hovering)
             Button("新增來源") {
                 addPopover.toggle(size: .zero, autoSize: true) { popover in
                     AnyView(LyricsSourceForm(draft: .newCustom, isNew: true, close: { popover.close() }))
@@ -31,11 +39,22 @@ private struct LyricsSourceRow: View {
     let item: LyricsSourceItem
     let index: Int
     let count: Int
+    let showsArrows: Bool
+    @Binding var dragging: String?
     @State private var settings = AppSettings.shared
     @State private var popover = AnchoredPopover()
 
     var body: some View {
         HStack(spacing: 8) {
+            // The handle: drag it to move the source anywhere in the list.
+            Image(systemName: "line.3.horizontal")
+                .foregroundStyle(.secondary)
+                .frame(width: 18, height: 28)
+                .contentShape(Rectangle())
+                .onDrag {
+                    dragging = item.id
+                    return NSItemProvider(object: item.id as NSString)
+                }
             Text(item.name).lineLimit(1)
             if item.needsSetup && !isReady {
                 Text("未設定").font(.caption).foregroundStyle(.secondary)
@@ -46,13 +65,19 @@ private struct LyricsSourceRow: View {
                     .buttonStyle(.borderless)
                     .background(PopoverAnchor(popover: popover))
             }
-            Button { move(-1) } label: { Image(systemName: "chevron.up") }
-                .buttonStyle(.borderless).disabled(index == 0)
-            Button { move(1) } label: { Image(systemName: "chevron.down") }
-                .buttonStyle(.borderless).disabled(index == count - 1)
+            Group {
+                Button { move(-1) } label: { Image(systemName: "chevron.up") }
+                    .buttonStyle(.borderless).disabled(index == 0)
+                Button { move(1) } label: { Image(systemName: "chevron.down") }
+                    .buttonStyle(.borderless).disabled(index == count - 1)
+            }
+            .opacity(showsArrows ? 1 : 0)
+            .allowsHitTesting(showsArrows)
             Toggle("", isOn: enabled).labelsHidden().toggleStyle(.switch)
         }
         .frame(minHeight: 34)
+        .opacity(dragging == item.id ? 0.4 : 1)
+        .onDrop(of: [.text], delegate: SourceDropDelegate(target: item.id, dragging: $dragging))
     }
 
     private var isReady: Bool {
@@ -82,6 +107,29 @@ private struct LyricsSourceRow: View {
         popover.toggle(size: .zero, autoSize: true) { popover in
             AnyView(LyricsSourceForm(draft: item, isNew: false, close: { popover.close() }))
         }
+    }
+}
+
+/// While a handle is dragged over a row the dragged source takes that row's place (the others slide), and the drop just ends it.
+private struct SourceDropDelegate: DropDelegate {
+    let target: String
+    @Binding var dragging: String?
+
+    func dropEntered(info: DropInfo) {
+        let settings = AppSettings.shared
+        guard let dragging, dragging != target,
+              let from = settings.lyricsSources.firstIndex(where: { $0.id == dragging }),
+              let to = settings.lyricsSources.firstIndex(where: { $0.id == target }) else { return }
+        withAnimation(.easeInOut(duration: 0.2)) {
+            settings.lyricsSources.move(fromOffsets: IndexSet(integer: from), toOffset: to > from ? to + 1 : to)
+        }
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? { DropProposal(operation: .move) }
+
+    func performDrop(info: DropInfo) -> Bool {
+        dragging = nil
+        return true
     }
 }
 
