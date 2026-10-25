@@ -15,6 +15,7 @@ final class AudioSpectrum: @unchecked Sendable {
     private struct Shared {
         var levels: [Float] = []
         var bands = 3
+        var focus = SpectrumAnalyzer.Focus.full
         var status = Status.off
         var lastSound = Date.distantPast
         var startedAt = Date.distantPast
@@ -34,8 +35,6 @@ final class AudioSpectrum: @unchecked Sendable {
     private var ringCount = 0
     private var sampleRate = 48_000.0
     private var smoothed: [Float] = []
-    /// Each band's average level over about a second: bars show a band relative to it, so a drum hit stands out from the steady sound.
-    private var averages: [Float] = []
     private var outputListenerInstalled = false
 
     // MARK: Reading (any thread)
@@ -51,9 +50,10 @@ final class AudioSpectrum: @unchecked Sendable {
     }
 
     /// `count` values in 0…1 (all 0 while nothing plays).
-    func levels(count: Int) -> [Float] {
+    func levels(count: Int, focus: SpectrumAnalyzer.Focus = .full) -> [Float] {
         lock.withLock { shared in
             shared.bands = count
+            shared.focus = focus
             return shared.levels.count == count ? shared.levels : [Float](repeating: 0, count: count)
         }
     }
@@ -104,7 +104,6 @@ final class AudioSpectrum: @unchecked Sendable {
         let interleaved = format.mFormatFlags & kAudioFormatFlagIsNonInterleaved == 0
         ringCount = 0
         smoothed = []
-        averages = []
 
         var proc: AudioDeviceIOProcID?
         let created = AudioDeviceCreateIOProcIDWithBlock(&proc, aggregateID, queue) { [weak self] _, input, _, _, _ in
@@ -205,20 +204,16 @@ final class AudioSpectrum: @unchecked Sendable {
     }
 
     private func analyze() {
-        let bands = lock.withLock { $0.bands }
+        let (bands, focus) = lock.withLock { ($0.bands, $0.focus) }
         let raw = ring.withUnsafeBufferPointer { buffer -> [Float] in
             guard let base = buffer.baseAddress else { return [Float](repeating: 0, count: bands) }
-            return analyzer.levels(samples: base, sampleRate: sampleRate, bands: bands)
+            return analyzer.levels(samples: base, sampleRate: sampleRate, bands: bands, focus: focus)
         }
         if smoothed.count != bands {
             smoothed = [Float](repeating: 0, count: bands)
-            averages = [Float](repeating: 0, count: bands)
         }
         for index in 0..<bands {
-            // Relative to the band's own average: steady sound sits at about half height and a beat (a kick, a snare) climbs from there,
-            // instead of every bar sitting at the top. Near-silence is not blown up (the floor).
-            averages[index] += (raw[index] - averages[index]) * 0.015
-            let scaled = min(0.5 * raw[index] / max(averages[index], 0.08), 1)
+            let scaled = raw[index]
             // Rises quickly, falls slowly: bars follow a beat without flickering.
             let rate: Float = scaled > smoothed[index] ? 0.7 : 0.2
             smoothed[index] += (scaled - smoothed[index]) * rate

@@ -63,6 +63,9 @@ private struct MediaModuleSettings: View {
             if settings.realWaveform { WaveformStatusRow() }
             SliderRow(title: "音波線條數量", value: barCount, range: 3...7, step: 1, unit: "條")
             if settings.realWaveform {
+                DropdownRow(title: "音波平衡器", selection: $settings.waveformFocus, options: [
+                    (0, "全頻"), (1, "低音（鼓點）"), (2, "人聲"), (3, "高音"),
+                ])
                 SliderRow(title: "音波漲幅", value: gain, range: 50...200, step: 5, unit: "%")
                 SliderRow(title: "音波靈敏度", value: sensitivity, range: 50...200, step: 5, unit: "%")
             }

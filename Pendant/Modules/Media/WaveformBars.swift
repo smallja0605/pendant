@@ -18,7 +18,8 @@ struct WaveformBars: View {
 
     private func realLevels(_ count: Int) -> [Double]? {
         guard wantsSound, #available(macOS 14.2, *) else { return nil }
-        return AudioSpectrum.shared.levels(count: count).map(Double.init)
+        let focus = SpectrumAnalyzer.Focus(rawValue: settings.waveformFocus) ?? .full
+        return AudioSpectrum.shared.levels(count: count, focus: focus).map(Double.init)
     }
 
     var body: some View {
@@ -35,7 +36,9 @@ struct WaveformBars: View {
                         .frame(width: width, height: height(index, time: time, real: real))
                 }
             }
-            .animation(.easeInOut(duration: 0.25), value: isPlaying)
+            .transaction(value: isPlaying) { $0.animation = .easeInOut(duration: 0.25) }
+            // Heights are drawn every frame: an animation from outside (the capsule's hover morph) must not slide them.
+            .transaction { $0.animation = nil }
         }
         .frame(height: 14)
         .onChange(of: wantsSound, initial: true) { _, wanted in

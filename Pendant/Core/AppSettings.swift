@@ -104,6 +104,8 @@ final class AppSettings: @unchecked Sendable {
     /// Number of bars in the waveform, 3…7.
     var waveformBars: Int { didSet { save(waveformBars, "waveformBars") } }
     /// Real waveform, in percent: how tall the bars grow, and how easily quiet sound shows.
+    /// 平衡器: which part of the sound the real waveform spreads over (`SpectrumAnalyzer.Focus` raw value).
+    var waveformFocus: Int { didSet { save(waveformFocus, "waveformFocus") } }
     var waveformGain: Int { didSet { save(waveformGain, "waveformGain") } }
     var waveformSensitivity: Int { didSet { save(waveformSensitivity, "waveformSensitivity") } }
 
@@ -297,6 +299,7 @@ final class AppSettings: @unchecked Sendable {
         showWaveformInCompact = bool("showWaveformInCompact", true)
         realWaveform = bool("realWaveform", false)
         waveformBars = min(max(int("waveformBars", 3), 3), 7)
+        waveformFocus = min(max(int("waveformFocus", 0), 0), SpectrumAnalyzer.Focus.allCases.count - 1)
         waveformGain = min(max(int("waveformGain", 100), 50), 200)
         waveformSensitivity = min(max(int("waveformSensitivity", 100), 50), 200)
         artworkGlow = bool("artworkGlow", true)

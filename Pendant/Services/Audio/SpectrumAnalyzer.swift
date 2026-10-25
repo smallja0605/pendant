@@ -7,11 +7,25 @@ import Foundation
 final class SpectrumAnalyzer {
     static let size = 2048
     /// Band range, Hz: below this there is mostly rumble, above it the top of what a small bar can show.
-    static let lowestHz = 70.0
-    static let highestHz = 9000.0
+    static let lowestHz = Focus.full.range.lowerBound
+    static let highestHz = Focus.full.range.upperBound
+
+    /// Which part of the sound the bars spread over (the 平衡器 setting): raw values are `AppSettings.waveformFocus`.
+    enum Focus: Int, CaseIterable {
+        case full, bass, voice, treble
+
+        var range: ClosedRange<Double> {
+            switch self {
+            case .full: 70...9000
+            case .bass: 35...320
+            case .voice: 200...4000
+            case .treble: 2000...12000
+            }
+        }
+    }
     /// Loudness range of a band (dB relative to full scale) mapped to 0…1.
     static let floorDB: Float = -78
-    static let ceilingDB: Float = -26
+    static let ceilingDB: Float = -22
 
     private let log2n: vDSP_Length
     private let setup: FFTSetup?
@@ -37,7 +51,8 @@ final class SpectrumAnalyzer {
     deinit { if let setup { vDSP_destroy_fftsetup(setup) } }
 
     /// First and last FFT bin (inclusive) of each band.
-    static func bandBins(count: Int, sampleRate: Double) -> [ClosedRange<Int>] {
+    static func bandBins(count: Int, sampleRate: Double, focus: Focus = .full) -> [ClosedRange<Int>] {
+        let lowestHz = focus.range.lowerBound, highestHz = focus.range.upperBound
         let binWidth = sampleRate / Double(size)
         let top = Double(size / 2 - 1)
         let ratio = pow(highestHz / lowestHz, 1 / Double(count))
@@ -54,7 +69,7 @@ final class SpectrumAnalyzer {
     }
 
     /// `samples` holds `Self.size` mono samples (-1…1). Returns `bands` values in 0…1.
-    func levels(samples: UnsafePointer<Float>, sampleRate: Double, bands: Int) -> [Float] {
+    func levels(samples: UnsafePointer<Float>, sampleRate: Double, bands: Int, focus: Focus = .full) -> [Float] {
         let length = Self.size
         guard let setup else { return [Float](repeating: 0, count: bands) }
         vDSP_vmul(samples, 1, window, 1, &windowed, 1, vDSP_Length(length))
@@ -70,7 +85,7 @@ final class SpectrumAnalyzer {
         // vDSP's real FFT is scaled by 2, the window by its energy: this brings a full-scale sine to about 0 dB.
         let scale: Float = 1 / Float(length * length) * 4
         var result = [Float](repeating: 0, count: bands)
-        for (index, range) in Self.bandBins(count: bands, sampleRate: sampleRate).enumerated() {
+        for (index, range) in Self.bandBins(count: bands, sampleRate: sampleRate, focus: focus).enumerated() {
             var sum: Float = 0
             for bin in range { sum += power[bin] * scale }
             let mean = sum / Float(range.count)
