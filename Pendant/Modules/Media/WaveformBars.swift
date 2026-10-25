@@ -25,7 +25,7 @@ struct WaveformBars: View {
         let count = settings.waveformBars
         let width: CGFloat = count <= 3 ? 2.5 : (count <= 5 ? 2.3 : 2.0)
         let gap: CGFloat = count <= 3 ? 2.5 : 2.0
-        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: !(isPlaying && isVisible))) { context in
+        TimelineView(.animation(minimumInterval: 1.0 / 60, paused: !(isPlaying && isVisible))) { context in
             let time = context.date.timeIntervalSinceReferenceDate
             let real = realLevels(count)
             HStack(spacing: gap) {

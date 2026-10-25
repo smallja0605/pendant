@@ -220,7 +220,7 @@ final class AudioSpectrum: @unchecked Sendable {
             peaks[index] = max(raw[index], peaks[index] * 0.997)
             let scaled = min(raw[index] / max(peaks[index], 0.3), 1)
             // Rises quickly, falls slowly: bars follow a beat without flickering.
-            let rate: Float = scaled > smoothed[index] ? 0.55 : 0.12
+            let rate: Float = scaled > smoothed[index] ? 0.7 : 0.2
             smoothed[index] += (scaled - smoothed[index]) * rate
         }
         let sound = raw.contains { $0 > 0.02 }

@@ -479,3 +479,5 @@ Settings 小工具 page sizing (user): the page's `ScrollView` sits in a `Geomet
 Waveform gain / sensitivity (user): `waveformGain` and `waveformSensitivity` (50–200 %, shown only with 真實音波 on) are applied in `WaveformBars.shaped` after the analyzer's 0…1 level: `min(1, level^(1/sensitivity) * gain)`. The analyzer and its dB scale are unchanged, so tests are unaffected.
 
 Waveform balance (user: only the leftmost bar moved): real music keeps most energy in the bass, so a fixed dB scale left the right bars low. `AudioSpectrum.analyze` now scales each band by its own slowly decaying peak (`peaks`, ×0.997 per hop, floor 0.3 so silence is not amplified) before the attack/release smoothing. The analyzer and its tests are unchanged.
+
+Waveform latency (user: about half a second late): our own path is ~21 ms analysis window centre + hop + smoothing + frame interval, so it was tightened: attack 0.7 / release 0.2 (were 0.55 / 0.12) and the bars redraw at 60 fps (were 30). Anything beyond ~100 ms comes from outside the app (the tap reads the audio before the output device, so Bluetooth / AirPlay output plays later than the bars, and the music app's own buffering).
