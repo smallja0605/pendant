@@ -353,19 +353,21 @@ final class CapsuleInteractionController { // swiftlint:disable:this type_body_l
     /// pointer has been over the new shape again.
     func disarmCollapse() {
         resizeGraceUntil = Date().addingTimeInterval(1.2)
+        // The pointer is read directly instead of waiting for tracking events: a pointer resting on the page's button (e.g. 返回)
+        // never "enters" the new shape, and one that leaves during the resize is never reported either.
+        let wasInside = model.layout.map { $0.triggerRect(for: .expanded).containsPointer(NSEvent.mouseLocation) } ?? false
         expandedArmed = false
         holdUntilHover = true
         cancelCollapse()
         rearmTask?.cancel()
-        // A pointer that is still over the new shape never "enters" it (no tracking event), so without this the capsule would
-        // not close when the pointer leaves later: after 返回 from a single-tool page the pointer rests on the back button.
         rearmTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(1.25))
             guard !Task.isCancelled, let self, model.state == .expanded, let layout = model.layout else { return }
-            if layout.triggerRect(for: .expanded).containsPointer(NSEvent.mouseLocation) {
-                expandedArmed = true
-                holdUntilHover = false
-            }
+            let inside = layout.triggerRect(for: .expanded).containsPointer(NSEvent.mouseLocation)
+            guard inside || wasInside else { return } // it was never over the capsule: wait for it, as before
+            expandedArmed = true
+            holdUntilHover = false
+            if !inside { scheduleCollapse() }
         }
     }
 

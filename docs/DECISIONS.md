@@ -554,3 +554,5 @@ English UI (user): the app's words stay Traditional Chinese in the source and ar
 Installer image background: English caption only (an image can't follow the language).
 
 Back from a single-tool page left the capsule open (user): going back changes the capsule's width, `disarmCollapse()` then waits for the pointer to enter the new shape, but a pointer resting on the back button never enters it again (no tracking event). `disarmCollapse` now schedules a check after the 1.2 s resize grace: if the pointer is over the new shape it re-arms the collapse. Not verified with a real pointer (this session could not synthesize mouse events: no Accessibility permission for the shell).
+
+Follow-up (user: they may have left too fast): `disarmCollapse` now records whether the pointer was over the capsule when the width changed and, after the resize grace, reads the pointer directly: inside → armed again; outside but it was inside before → armed and the collapse is scheduled.
