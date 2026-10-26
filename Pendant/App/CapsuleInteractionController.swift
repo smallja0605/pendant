@@ -58,6 +58,7 @@ final class CapsuleInteractionController { // swiftlint:disable:this type_body_l
     /// While the capsule is still resizing, tracking-area enter / exit events (the edge sweeping past a resting pointer)
     /// are noise: they neither arm nor schedule a collapse.
     private var resizeGraceUntil = Date.distantPast
+    private var rearmTask: Task<Void, Never>?
     private var inResizeGrace: Bool { Date() < resizeGraceUntil }
     fileprivate var watchTask: Task<Void, Never>?
     /// Extra horizontal room before the swollen compact capsule counts as left (stops edge flicker).
@@ -355,6 +356,17 @@ final class CapsuleInteractionController { // swiftlint:disable:this type_body_l
         expandedArmed = false
         holdUntilHover = true
         cancelCollapse()
+        rearmTask?.cancel()
+        // A pointer that is still over the new shape never "enters" it (no tracking event), so without this the capsule would
+        // not close when the pointer leaves later: after 返回 from a single-tool page the pointer rests on the back button.
+        rearmTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(1.25))
+            guard !Task.isCancelled, let self, model.state == .expanded, let layout = model.layout else { return }
+            if layout.triggerRect(for: .expanded).containsPointer(NSEvent.mouseLocation) {
+                expandedArmed = true
+                holdUntilHover = false
+            }
+        }
     }
 
     /// Global shortcut: open when closed, close when open.
