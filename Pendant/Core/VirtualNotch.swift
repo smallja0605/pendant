@@ -7,6 +7,10 @@ enum VirtualMiddle: String, CaseIterable, Sendable { case clock, lyrics, none }
 /// What a side part of a virtual notch shows while no activity (music, timer, shelf…) takes it over.
 enum VirtualSide: String, CaseIterable, Sendable { case battery, none }
 
+/// What the virtual notch does while nothing is live (no song, timer, HUD…): `off` stays as it is, `sliver` shrinks to a thin bar that
+/// swells into the small capsule under the pointer, `hidden` draws nothing at all (the pointer at the top centre can still bring it).
+enum VirtualIdleHide: String, CaseIterable, Sendable { case off, sliver, hidden }
+
 /// How the battery is drawn: the battery icon on the left with the percentage on the right, or a ring on the left (a bolt in it
 /// while charging) with the percentage on the right.
 enum VirtualBatteryStyle: String, CaseIterable, Sendable { case icon, ring }

@@ -12,15 +12,21 @@ struct CapsuleView: View {
     var body: some View {
         // The physical notch never changes size, so the capsule must never get smaller than it:
         // spring undershoot is clamped here (otherwise only the capsule would visibly shrink).
-        let notchSize = model.layout?.notch.size ?? .zero
+        let concealed = model.idleConcealment != .off
+        let notchSize = concealed ? .zero : (model.layout?.notch.size ?? .zero)
         let raw = model.bodySize
         let size = CGSize(width: max(raw.width, notchSize.width), height: max(raw.height, notchSize.height))
-        let ear = NotchGeometry.earRadius
+        // A virtual notch that is thin or hidden keeps laying its content out at the full size: the growing shape reveals it.
+        let restSize = model.layout?.bodySize(for: .idle) ?? size
+        let virtualContentSize = model.state == .idle
+            ? CGSize(width: max(size.width, restSize.width), height: max(size.height, restSize.height)) : size
+        // The thin bar's reverse corners are small (it is only a few points tall).
+        let ear = concealed ? 3 : NotchGeometry.earRadius
         let notchHeight = model.layout?.notch.size.height ?? 0
         let isExpanded = model.state == .expanded
         let virtualStrip = model.layout?.virtualContent == true && AppSettings.shared.virtualBigStrip
 
-        let shape = NotchShape(bottomRadius: model.bottomRadius)
+        let shape = NotchShape(bottomRadius: model.bottomRadius, ear: ear)
         let expandedSize = model.layout?.bodySize(for: .expanded) ?? size
         let contentSize = CGSize(
             width: expandedSize.width, height: max(expandedSize.height - notchHeight - Tuning.shared.expandedBottomInset, 0)
@@ -51,6 +57,7 @@ struct CapsuleView: View {
                 .fill(Color.black)
                 .frame(width: size.width + 2 * ear + main + other, height: size.height)
                 .overlay(shape.stroke(Color.white.opacity(model.isFlashing ? 0.9 : 0), lineWidth: 2.5))
+                .opacity(model.idleConcealment == .hidden ? 0 : 1)
                 .shadow(color: .black.opacity(model.isSwelled && !model.hudShowing ? 0.55 : 0), radius: 9, x: 0, y: 5)
                 .offset(x: model.stepSide * (main - other) / 2)
 
@@ -62,8 +69,8 @@ struct CapsuleView: View {
                 // size and place instead of flying in from the edges; it only fades in.
                 // A virtual notch (no physical one) fills its three parts: battery · clock · (free), see VirtualNotchContent.
                 if model.layout?.virtualContent == true {
-                    VirtualNotchContent(model: model, size: size)
-                        .frame(width: size.width, height: size.height, alignment: .top)
+                    VirtualNotchContent(model: model, size: virtualContentSize)
+                        .frame(width: virtualContentSize.width, height: virtualContentSize.height, alignment: .top)
                         .opacity(isExpanded ? 0 : 1)
                         .animation(.easeOut(duration: 0.18), value: isExpanded)
                         .modifier(RevealEffect(isVisible: !model.hudShowing, delay: 0.02, blurOnExit: true))
@@ -142,21 +149,6 @@ struct CapsuleView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .contentShape(Rectangle())
         .onTapGesture(perform: onTap) // the interaction controller ignores taps outside the visible body
-    }
-}
-
-extension CapsuleView {
-    /// Which half of the compact capsule the pointer is over, from its position over the whole body (one tracking area
-    /// instead of one per icon: those could miss the pointer crossing from one to the other).
-    @MainActor fileprivate func updateCompactHover(at location: CGPoint?, bodyWidth: CGFloat) {
-        guard model.state == .compact else { return }
-        guard let location else {
-            model.setCompactHover(nil)
-            return
-        }
-        let notch = model.layout?.notch.size ?? .zero
-        let wing = max((bodyWidth - notch.width) / 2, notch.height)
-        model.setCompactHover(location.x < wing ? .artwork : (location.x > bodyWidth - wing ? .controls : nil))
     }
 }
 

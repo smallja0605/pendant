@@ -17,6 +17,7 @@ struct VirtualNotchSettingsView: View {
                 }
                 .dimmed(when: !settings.virtualNotchEnabled)
             }
+            idleSection
             Group {
                 middleSection
                 leftSection
@@ -29,6 +30,22 @@ struct VirtualNotchSettingsView: View {
         }
         .formStyle(.grouped)
         .animation(.spring(response: 0.35, dampingFraction: 0.85), value: settings.virtualLeft)
+    }
+
+    private var idleSection: some View {
+        Section("閒置") {
+            DropdownRow(title: "沒有動態時", tip: "沒有音樂、計時器等需要顯示的內容時", selection: $settings.virtualIdleHide, options: [
+                (VirtualIdleHide.off, "照常顯示"), (.sliver, "縮成細條"), (.hidden, "完全隱藏"),
+            ])
+            if settings.virtualIdleHide == .hidden {
+                TipRow(title: "游標移到頂端中央時顯示", tip: "關閉後，只有需要顯示的內容才會出現（仍可用快捷鍵展開）") {
+                    Toggle("", isOn: $settings.virtualIdleHover).labelsHidden()
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .dimmed(when: !settings.virtualNotchEnabled)
+        .animation(.spring(response: 0.35, dampingFraction: 0.85), value: settings.virtualIdleHide)
     }
 
     private var middleSection: some View {

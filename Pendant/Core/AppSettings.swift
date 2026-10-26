@@ -19,6 +19,8 @@ final class AppSettings: @unchecked Sendable {
     var virtualNotchEnabled: Bool { didSet { save(virtualNotchEnabled, "virtualNotchEnabled") } }
     /// Hide the virtual notch while an app is full screen (its own Space, the green button) on its screen.
     var virtualHideInFullscreen: Bool { didSet { save(virtualHideInFullscreen, "virtualHideInFullscreen") } }
+    var virtualIdleHide: VirtualIdleHide { didSet { save(virtualIdleHide.rawValue, "virtualIdleHide") } }
+    var virtualIdleHover: Bool { didSet { save(virtualIdleHover, "virtualIdleHover") } }
     var virtualMiddle: VirtualMiddle { didSet { save(virtualMiddle.rawValue, "virtualMiddle") } }
     var virtualClock24h: Bool { didSet { save(virtualClock24h, "virtualClock24h") } }
     var virtualClockSeconds: Bool { didSet { save(virtualClockSeconds, "virtualClockSeconds") } }
@@ -198,9 +200,6 @@ final class AppSettings: @unchecked Sendable {
     /// A file dragged over from another screen does not open the shelf (moving a file between screens is not a trip to the shelf).
     var dragIgnoresOtherScreens: Bool { didSet { save(dragIgnoresOtherScreens, "dragIgnoresOtherScreens") } }
 
-    enum ScreenChoice: String, CaseIterable, Sendable { case main, underCursor, all }
-    enum ShelfAutoClear: String, CaseIterable, Sendable { case never, onLogout, onReboot, afterDays }
-
     /// Default activity order (requirements 3.5.2): media > timer > reminders > shelf.
     static let defaultActivityPriority = ["media", "timer", "stopwatch", "reminders", "shelf"]
     /// Orders that were the default before 3.5 (kept only if the user never changed them): replaced by the new default.
@@ -221,6 +220,8 @@ final class AppSettings: @unchecked Sendable {
         hoverDelay = double("hoverDelay", 0.3)
         virtualNotchEnabled = bool("virtualNotchEnabled", true)
         virtualHideInFullscreen = bool("virtualHideInFullscreen", true)
+        virtualIdleHide = string("virtualIdleHide").flatMap(VirtualIdleHide.init(rawValue:)) ?? .off
+        virtualIdleHover = bool("virtualIdleHover", true)
         virtualMiddle = string("virtualMiddle").flatMap(VirtualMiddle.init(rawValue:)) ?? .clock
         virtualClock24h = bool("virtualClock24h", true)
         virtualClockSeconds = bool("virtualClockSeconds", false)

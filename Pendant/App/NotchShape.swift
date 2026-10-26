@@ -6,9 +6,9 @@ struct NotchShape: Shape {
     var bottomRadius: CGFloat = 10
     var ear: CGFloat = NotchGeometry.earRadius
 
-    var animatableData: CGFloat {
-        get { bottomRadius }
-        set { bottomRadius = newValue }
+    var animatableData: AnimatablePair<CGFloat, CGFloat> {
+        get { AnimatablePair(bottomRadius, ear) }
+        set { bottomRadius = newValue.first; ear = newValue.second }
     }
 
     func path(in rect: CGRect) -> Path {

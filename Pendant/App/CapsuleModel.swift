@@ -122,6 +122,7 @@ final class CapsuleModel {
             let info = isAlerting ? CapsuleLayout.compactInfoHeight : Tuning.shared.songInfoExtra
             return CGSize(width: swollen.width, height: swollen.height + info)
         }
+        if idleConcealment != .off { return idleConcealment == .sliver ? CapsuleLayout.virtualSliver : .zero }
         return isSwelled ? layout.swelledSize(size, reduceMotion: reduceMotion) : size
     }
 
@@ -220,7 +221,7 @@ final class CapsuleModel {
         if toastVisible, state != .expanded { return 28 }
         if levelHUDVisible, state != .expanded { return levelHUDSwelled ? 14 : 12 }
         switch state {
-        case .idle: return isSwelled ? 12 : 10
+        case .idle: return isSwelled ? 12 : (idleConcealment == .sliver ? 2.5 : 10)
         case .compact: return showsPeek ? 22 : (isSwelled ? 14 : 12)
         case .expanded: return 26
         }

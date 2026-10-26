@@ -214,7 +214,7 @@ final class CapsuleInteractionController { // swiftlint:disable:this type_body_l
         switch model.state {
         case .idle:
             // Clicks on the notch itself reach us only through the global monitor.
-            if layout.triggerRect(for: .idle).containsPointer(point) { expand(feelsClick: true) }
+            if layout.triggerRect(for: .idle).containsPointer(point), !model.idleTriggerBlocked { expand(feelsClick: true) }
         case .compact:
             // Normally the panel receives these clicks itself (see `handleCapsuleTap`). A click that arrives here
             // came while the panel was still click-through (pointer just entered): it must not be lost.
@@ -278,6 +278,7 @@ final class CapsuleInteractionController { // swiftlint:disable:this type_body_l
     // MARK: Hover
 
     private func enterZone() {
+        if model.idleTriggerBlocked { return }
         Log.trace("enterZone state=\(model.state) cooldownBlocked=\(Date().timeIntervalSince(lastLeave) < 0.18)")
         if model.state == .compact, Date().timeIntervalSince(lastLeave) < 0.18 { return }
         isHovering = true

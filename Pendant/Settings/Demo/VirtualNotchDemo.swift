@@ -24,9 +24,9 @@ struct VirtualNotchDemoView: View {
     private var notch: some View {
         let middle = NotchGeometry.virtualContentWidth
         return ZStack(alignment: .top) {
-            UnevenRoundedRectangle(bottomLeadingRadius: 15, bottomTrailingRadius: 15)
+            UnevenRoundedRectangle(bottomLeadingRadius: concealed ? 3 : 15, bottomTrailingRadius: concealed ? 3 : 15)
                 .fill(Color.black)
-                .frame(width: width, height: bar)
+                .frame(width: shownWidth, height: shownHeight)
                 .overlay {
                     ZStack {
                         if settings.virtualMiddle == .clock { VirtualClockView(settings: settings).frame(width: middle) }
@@ -58,13 +58,25 @@ struct VirtualNotchDemoView: View {
                     }
                     .frame(width: width, height: bar)
                 }
+                .clipped()
+                .frame(width: width, height: bar, alignment: .top)
                 .contentShape(Rectangle())
                 .onContinuousHover { phase in
                     if case .active = phase { hovering = true } else { hovering = false }
                 }
                 .frame(width: screenWidth, alignment: .top)
                 .animation(.spring(response: 0.35, dampingFraction: 0.8), value: wing)
+                .animation(.spring(response: 0.35, dampingFraction: 0.8), value: concealed)
         }
+    }
+
+    /// The idle look chosen in 閒置: a thin bar or nothing until the pointer is on it.
+    private var concealed: Bool { !hovering && settings.virtualIdleHide != .off }
+    private var shownWidth: CGFloat {
+        concealed ? (settings.virtualIdleHide == .sliver ? CapsuleLayout.virtualSliver.width : 0) : width
+    }
+    private var shownHeight: CGFloat {
+        concealed ? (settings.virtualIdleHide == .sliver ? CapsuleLayout.virtualSliver.height : 0) : bar
     }
 
     /// The top of the open capsule: mode switcher on the left, the strip in the middle, the status on the right.

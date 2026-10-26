@@ -21,6 +21,8 @@ struct CapsuleLayout: Equatable, Sendable {
     /// A virtual notch carries content in its three parts (battery / clock / …): its wings are wide enough for that.
     var virtualContent = false
     static let virtualWing: CGFloat = 50
+    /// The virtual notch's idle bar (設定 虛擬瀏海 › 閒置時 › 縮成細條).
+    static let virtualSliver = CGSize(width: 56, height: 5)
     var compactWing: CGFloat {
         let base = notch.size.height + Tuning.shared.wingExtra + compactActivityExtra
         return virtualContent ? max(base, Self.virtualWing + Tuning.shared.wingExtra) : base
