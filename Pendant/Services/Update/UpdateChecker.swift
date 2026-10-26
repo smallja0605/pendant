@@ -76,7 +76,7 @@ final class UpdateChecker {
 
     private func fetchNewest() async throws -> ReleaseInfo? {
         let channel = UpdateRules.Channel(rawValue: settings.updateChannel) ?? .stable
-        if UpdateConfig.source == .github, ProcessInfo.processInfo.environment["PENDANT_DEBUG_UPDATE_FEED"] == nil {
+        if UpdateConfig.source == .github, !usesDebugFeed {
             var request = URLRequest(url: UpdateConfig.releasesURL, timeoutInterval: 20)
             request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
             request.setValue("Pendant/\(currentVersion)", forHTTPHeaderField: "User-Agent")
@@ -92,6 +92,15 @@ final class UpdateChecker {
         // No feed yet simply means there is nothing newer.
         guard let data = FileManager.default.contents(atPath: feed.path) else { return nil }
         return UpdateRules.newest(in: ReleaseInfo.decodeList(data), channel: channel)
+    }
+
+    /// PENDANT_DEBUG_UPDATE_FEED (debug builds only) points the check at another feed file.
+    private var usesDebugFeed: Bool {
+        #if DEBUG
+        ProcessInfo.processInfo.environment["PENDANT_DEBUG_UPDATE_FEED"] != nil
+        #else
+        false
+        #endif
     }
 
     // MARK: Install

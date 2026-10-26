@@ -251,4 +251,9 @@ struct FullscreenDetectorTests {
         #expect(FullscreenDetector.topWindowIsFullscreen(frames: [palette, screen], screen: screen)) // a small one in front is ignored
         #expect(!FullscreenDetector.topWindowIsFullscreen(frames: [], screen: screen))
     }
+
+    @Test func downloadNamesMustBePlainFileNames() {
+        #expect(UpdateInstaller.safeFileName("Pendant-0.4.16.zip") == "Pendant-0.4.16.zip")
+        for bad in ["", ".", "..", "a/b.zip", "..\\evil.zip"] { #expect(UpdateInstaller.safeFileName(bad) == nil, "\(bad)") }
+    }
 }

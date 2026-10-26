@@ -253,12 +253,26 @@ enum LyricsFetcher {
         return plain.contains { !$0.isEmpty } ? .plain(plain) : .none
     }
 
+    /// The most a lyrics answer may weigh: a source that sends more (by mistake or to exhaust memory) counts as nothing.
+    static let maxAnswerBytes = 2 * 1024 * 1024
+
     private static func requestData(_ url: URL?) async -> Data? {
         guard let url else { return nil }
         var request = URLRequest(url: url, timeoutInterval: 8)
         request.setValue("Pendant (https://github.com/smallja0605/pendant)", forHTTPHeaderField: "User-Agent")
-        guard let (data, response) = try? await URLSession.shared.data(for: request),
-              (response as? HTTPURLResponse)?.statusCode == 200 else { return nil }
+        guard let (bytes, response) = try? await URLSession.shared.bytes(for: request),
+              (response as? HTTPURLResponse)?.statusCode == 200,
+              response.expectedContentLength <= Int64(maxAnswerBytes) else { return nil }
+        // The declared length can be missing or wrong: the body is read with the same cap.
+        var data = Data()
+        do {
+            for try await byte in bytes {
+                data.append(byte)
+                if data.count > maxAnswerBytes { return nil }
+            }
+        } catch {
+            return nil
+        }
         return data
     }
 

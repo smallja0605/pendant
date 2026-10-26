@@ -27,7 +27,8 @@ enum UpdateInstaller {
 
     /// Downloads `url` into `folder`; `progress` gets 0…1 (file:// URLs are copied, for the debug feed).
     static func download(_ url: URL, into folder: URL, progress: @escaping @Sendable (Double) -> Void) async throws -> URL {
-        let target = folder.appendingPathComponent(url.lastPathComponent)
+        guard let name = safeFileName(url.lastPathComponent) else { throw UpdateError.download("檔名不安全") }
+        let target = folder.appendingPathComponent(name)
         if url.isFileURL {
             try FileManager.default.copyItem(at: url, to: target)
             progress(1)
@@ -39,6 +40,12 @@ enum UpdateInstaller {
         guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw UpdateError.download("伺服器回應異常") }
         try FileManager.default.moveItem(at: temp, to: target)
         return target
+    }
+
+    /// A download is saved under the last part of its address: that must be a plain file name (not empty, not `.` / `..`, no separators).
+    static func safeFileName(_ name: String) -> String? {
+        guard !name.isEmpty, name != ".", name != "..", !name.contains("/"), !name.contains("\\") else { return nil }
+        return name
     }
 
     private final class ProgressDelegate: NSObject, URLSessionDownloadDelegate {
