@@ -33,11 +33,12 @@ struct VirtualNotchSettingsView: View {
 
     private var middleSection: some View {
         Section("中間") {
-            DropdownRow(title: "內容", selection: $settings.virtualMiddle, options: [(VirtualMiddle.clock, "時間"), (.none, "無")])
+            DropdownRow(title: "內容", tip: settings.virtualMiddle == .lyrics ? "播放中顯示同步歌詞，沒有歌詞時顯示時間" : nil,
+                        selection: $settings.virtualMiddle, options: [(VirtualMiddle.clock, "時間"), (.lyrics, "歌詞"), (.none, "無")])
             DropdownRow(title: "時間格式", selection: $settings.virtualClock24h, options: [(true, "24 小時"), (false, "12 小時")])
-                .dimmed(when: settings.virtualMiddle != .clock)
-            Toggle("秒數", isOn: $settings.virtualClockSeconds).dimmed(when: settings.virtualMiddle != .clock)
-            Toggle("日期", isOn: $settings.virtualClockDate).dimmed(when: settings.virtualMiddle != .clock)
+                .dimmed(when: settings.virtualMiddle == .none)
+            Toggle("秒數", isOn: $settings.virtualClockSeconds).dimmed(when: settings.virtualMiddle == .none)
+            Toggle("日期", isOn: $settings.virtualClockDate).dimmed(when: settings.virtualMiddle == .none)
             DropdownRow(title: "日期格式", selection: $settings.virtualDateFormat,
                         options: VirtualDateFormat.allCases.map { ($0, $0.title) })
         }

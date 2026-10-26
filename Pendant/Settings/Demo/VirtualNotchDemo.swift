@@ -30,6 +30,9 @@ struct VirtualNotchDemoView: View {
                 .overlay {
                     ZStack {
                         if settings.virtualMiddle == .clock { VirtualClockView(settings: settings).frame(width: middle) }
+                        if settings.virtualMiddle == .lyrics {
+                            Text("歌詞").font(.system(size: 13, weight: .semibold)).foregroundStyle(.white).frame(width: middle)
+                        }
                         HStack(spacing: 0) {
                             VirtualBatteryGlyph(style: settings.virtualBatteryStyle, size: 15)
                                 .opacity(settings.virtualLeft == .battery ? 1 : 0)

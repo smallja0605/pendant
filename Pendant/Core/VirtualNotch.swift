@@ -1,7 +1,8 @@
 import Foundation
 
 /// What the middle part of a virtual notch (a screen without a physical one) shows.
-enum VirtualMiddle: String, CaseIterable, Sendable { case clock, none }
+/// `lyrics`: the current line of the playing song's synchronised lyrics, the clock while there is none.
+enum VirtualMiddle: String, CaseIterable, Sendable { case clock, lyrics, none }
 
 /// What a side part of a virtual notch shows while no activity (music, timer, shelf…) takes it over.
 enum VirtualSide: String, CaseIterable, Sendable { case battery, none }

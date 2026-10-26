@@ -21,6 +21,8 @@ struct VirtualNotchContent: View {
         ZStack(alignment: .top) {
             if settings.virtualMiddle == .clock {
                 VirtualClockView(settings: settings).frame(width: notch.width, height: row)
+            } else if settings.virtualMiddle == .lyrics {
+                VirtualLyricsView(model: model, settings: settings).frame(width: notch.width, height: row)
             }
             HStack(spacing: 0) {
                 VirtualBatteryGlyph(style: settings.virtualBatteryStyle, size: 15)
@@ -38,6 +40,48 @@ struct VirtualNotchContent: View {
         }
         .frame(width: size.width, height: size.height, alignment: .top)
         .accessibilityHidden(true)
+    }
+}
+
+/// The middle part showing the playing song's current lyric line (synchronised lyrics only), the clock while there is none.
+/// The lyrics are looked up here (the sources of 設定 › 小工具 › 音樂) while this is the chosen content and a song is playing.
+struct VirtualLyricsView: View {
+    let model: CapsuleModel
+    let settings: AppSettings
+    private let lyrics = LyricsStore.shared
+
+    var body: some View {
+        let playing = model.media?.nowPlaying
+        ZStack {
+            TimelineView(.periodic(from: .now, by: 0.3)) { context in
+                let line = currentLine(at: context.date)
+                ZStack {
+                    if let line {
+                        Text(line.text.isEmpty ? "♪" : line.text)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.6)
+                            .padding(.horizontal, 6)
+                            .id(line.id)
+                            .transition(.blurReplace)
+                    } else {
+                        VirtualClockView(settings: settings).transition(.blurReplace)
+                    }
+                }
+                .animation(.easeInOut(duration: 0.3), value: line?.id)
+            }
+        }
+        .task(id: "\(playing?.snapshot.trackKey ?? "")|\(settings.lyricsSourcesSignature)") {
+            if let snapshot = playing?.snapshot { lyrics.load(for: snapshot) }
+        }
+    }
+
+    private func currentLine(at date: Date) -> LyricLine? {
+        guard let playing = model.media?.nowPlaying, playing.isPlaying, case let .synced(lines) = lyrics.state else { return nil }
+        let position = playing.position(at: date)
+        guard let index = lines.lastIndex(where: { $0.time <= position + 0.25 }) else { return nil }
+        return lines[index]
     }
 }
 
