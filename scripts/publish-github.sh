@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 
 version="${1:?usage: scripts/publish-github.sh X.Y.Z [--force-with-lease]}"
 out=build.noindex/release
-for file in "$out/Pendant-$version.zip" "$out/Pendant-$version.zip.sha256" "$out/notes-$version.md"; do
+for file in "$out/Pendant-$version.zip" "$out/Pendant-$version.zip.sha256" "$out/Pendant-$version.zip.sig" "$out/notes-$version.md"; do
   [ -f "$file" ] || { echo "missing $file: run scripts/prepare-daily-release.sh first" >&2; exit 1; }
 done
 grep -q "MARKETING_VERSION = $version;" Pendant.xcodeproj/project.pbxproj || { echo "project version is not $version" >&2; exit 1; }
@@ -25,6 +25,6 @@ else
   git push origin main
 fi
 git push origin "v$version"
-gh release create "v$version" "$out/Pendant-$version.zip" "$out/Pendant-$version.zip.sha256" \
+gh release create "v$version" "$out/Pendant-$version.zip" "$out/Pendant-$version.zip.sha256" "$out/Pendant-$version.zip.sig" \
   --repo smallja0605/pendant --title "Pendant $version" --notes-file "$out/notes-$version.md"
 echo "Published v$version"

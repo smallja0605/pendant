@@ -6,6 +6,7 @@ import CryptoKit
 enum UpdateInstaller {
     enum UpdateError: Error, Equatable {
         case noChecksum, checksumMismatch, extractFailed, noAppInPackage, wrongBundle, wrongVersion, badSignature, replaceFailed
+        case noSignature, signatureMismatch
         case download(String)
 
         var message: String {
@@ -18,6 +19,8 @@ enum UpdateInstaller {
             case .wrongVersion: "更新包的版本號與發佈版本不符"
             case .badSignature: "更新包的程式碼簽章驗證失敗"
             case .replaceFailed: "無法取代目前的 App(請確認有寫入權限)"
+            case .noSignature: "更新包缺少開發者簽章,已拒絕安裝"
+            case .signatureMismatch: "更新包的開發者簽章不符,已拒絕安裝"
             case let .download(text): "下載失敗:\(text)"
             }
         }

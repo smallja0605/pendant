@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import Testing
 @testable import Pendant
@@ -255,5 +256,43 @@ struct FullscreenDetectorTests {
     @Test func downloadNamesMustBePlainFileNames() {
         #expect(UpdateInstaller.safeFileName("Pendant-0.4.16.zip") == "Pendant-0.4.16.zip")
         for bad in ["", ".", "..", "a/b.zip", "..\\evil.zip"] { #expect(UpdateInstaller.safeFileName(bad) == nil, "\(bad)") }
+    }
+}
+
+struct UpdateSignatureTests {
+    private func signed(version: String, sha: String, key: Curve25519.Signing.PrivateKey) throws -> String {
+        try key.signature(for: UpdateSignature.message(version: version, sha256: sha)).base64EncodedString()
+    }
+
+    @Test func aSignatureOfTheRightKeyVersionAndDigestPasses() throws {
+        let key = Curve25519.Signing.PrivateKey()
+        let publicKey = key.publicKey.rawRepresentation.base64EncodedString()
+        let signature = try signed(version: "0.4.16", sha: String(repeating: "ab", count: 32), key: key)
+        #expect(UpdateSignature.verify(signatureBase64: signature, version: "0.4.16", sha256: String(repeating: "AB", count: 32), publicKeyBase64: publicKey))
+        #expect(UpdateSignature.verify(signatureBase64: signature + "\n", version: "0.4.16", sha256: String(repeating: "ab", count: 32), publicKeyBase64: publicKey))
+    }
+
+    @Test func anythingElseFails() throws {
+        let key = Curve25519.Signing.PrivateKey()
+        let publicKey = key.publicKey.rawRepresentation.base64EncodedString()
+        let sha = String(repeating: "ab", count: 32)
+        let signature = try signed(version: "0.4.16", sha: sha, key: key)
+        #expect(!UpdateSignature.verify(signatureBase64: signature, version: "0.4.17", sha256: sha, publicKeyBase64: publicKey)) // another version
+        #expect(!UpdateSignature.verify(signatureBase64: signature, version: "0.4.16", sha256: String(repeating: "cd", count: 32), publicKeyBase64: publicKey))
+        let other = Curve25519.Signing.PrivateKey().publicKey.rawRepresentation.base64EncodedString()
+        #expect(!UpdateSignature.verify(signatureBase64: signature, version: "0.4.16", sha256: sha, publicKeyBase64: other)) // another key
+        #expect(!UpdateSignature.verify(signatureBase64: "not base64!", version: "0.4.16", sha256: sha, publicKeyBase64: publicKey))
+        #expect(!UpdateSignature.verify(signatureBase64: "", version: "0.4.16", sha256: sha, publicKeyBase64: publicKey))
+    }
+
+    @Test func theBuiltInPublicKeyIsAValidKey() {
+        let raw = Data(base64Encoded: UpdateSignature.publicKeyBase64)
+        #expect(raw?.count == 32)
+        #expect((raw.flatMap { try? Curve25519.Signing.PublicKey(rawRepresentation: $0) }) != nil)
+    }
+
+    @Test func aReleaseFindsItsSignatureAsset() {
+        let info = ReleaseInfo.decode(Data(#"{"tag_name":"v1.0.0","prerelease":false,"draft":false,"assets":[{"name":"Pendant-1.0.0.zip","browser_download_url":"https://github.com/a/b/releases/download/v1.0.0/Pendant-1.0.0.zip","size":1},{"name":"Pendant-1.0.0.zip.sig","browser_download_url":"https://github.com/a/b/releases/download/v1.0.0/Pendant-1.0.0.zip.sig","size":1}]}"#.utf8))
+        #expect(info?.signature?.name == "Pendant-1.0.0.zip.sig")
     }
 }

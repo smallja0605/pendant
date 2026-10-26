@@ -38,9 +38,10 @@ print((m.group(1) if m else "").strip())
 PY
 )
   scripts/build-release.sh "$current" >/dev/null
-  rm -f "$out"/Pendant-*.zip "$out"/Pendant-*.zip.sha256 "$out"/notes-*.md
+  rm -f "$out"/Pendant-*.zip "$out"/Pendant-*.zip.sha256 "$out"/Pendant-*.zip.sig "$out"/notes-*.md
   ditto -c -k --keepParent build.noindex/Build/Products/Release/Pendant.app "$out/Pendant-$current.zip"
   (cd "$out" && shasum -a 256 "Pendant-$current.zip" > "Pendant-$current.zip.sha256")
+  swift scripts/update-signing.swift sign "$current" "$out/Pendant-$current.zip" >/dev/null
   printf '%s\n' "$notes" > "$out/notes-$current.md"
   echo "READY $current (rebuilt)"
   echo "notes: $out/notes-$current.md"
@@ -100,9 +101,10 @@ PY
 sed -i '' "s/MARKETING_VERSION = [0-9.]*;/MARKETING_VERSION = $version;/" Pendant.xcodeproj/project.pbxproj
 
 scripts/build-release.sh "$version" >/dev/null
-rm -f "$out"/Pendant-*.zip "$out"/Pendant-*.zip.sha256 "$out"/notes-*.md
+rm -f "$out"/Pendant-*.zip "$out"/Pendant-*.zip.sha256 "$out"/Pendant-*.zip.sig "$out"/notes-*.md
 ditto -c -k --keepParent build.noindex/Build/Products/Release/Pendant.app "$out/Pendant-$version.zip"
 (cd "$out" && shasum -a 256 "Pendant-$version.zip" > "Pendant-$version.zip.sha256")
+swift scripts/update-signing.swift sign "$version" "$out/Pendant-$version.zip" >/dev/null
 printf '%s\n' "$notes" > "$out/notes-$version.md"
 echo "READY $version"
 echo "notes: $out/notes-$version.md"

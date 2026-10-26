@@ -43,6 +43,12 @@ struct ReleaseInfo: Decodable, Equatable, Sendable {
         return checksums.count == 1 ? checksums.first : nil
     }
 
+    /// The `.sig` file of the package (`<package name>.sig`): the developer's signature.
+    var signature: Asset? {
+        guard let archive else { return nil }
+        return assets.first { $0.name == archive.name + ".sig" }
+    }
+
     static func decode(_ data: Data) -> ReleaseInfo? { try? JSONDecoder().decode(ReleaseInfo.self, from: data) }
     static func decodeList(_ data: Data) -> [ReleaseInfo] { (try? JSONDecoder().decode([ReleaseInfo].self, from: data)) ?? [] }
 }

@@ -16,6 +16,7 @@ mkdir -p "$folder"
 zip="Pendant-$version.zip"
 ditto -c -k --keepParent build.noindex/Build/Products/Release/Pendant.app "$folder/$zip"
 (cd "$folder" && shasum -a 256 "$zip" > "$zip.sha256")
+swift scripts/update-signing.swift sign "$version" "$folder/$zip" >/dev/null
 
 python3 - "$folder" <<'PY'
 import json, os, re, sys
@@ -26,8 +27,10 @@ for name in sorted(os.listdir(folder)):
     if not m:
         continue
     assets = []
-    for asset in (name, name + ".sha256"):
+    for asset in (name, name + ".sha256", name + ".sig"):
         path = os.path.join(folder, asset)
+        if not os.path.exists(path):
+            continue
         assets.append({"name": asset, "browser_download_url": "file://" + path, "size": os.path.getsize(path)})
     releases.append({"tag_name": "v" + m.group(1), "name": "Pendant " + m.group(1),
                      "prerelease": "-" in m.group(1), "draft": False, "body": "", "assets": assets})

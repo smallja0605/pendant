@@ -110,7 +110,14 @@ final class UpdateChecker {
             if case .available = state { state = .failed(UpdateInstaller.UpdateError.noChecksum.message) }
             return
         }
-        if UpdateConfig.source == .github, !(UpdateConfig.isTrustedDownload(archive.url) && UpdateConfig.isTrustedDownload(checksum.url)) {
+        // A package from GitHub must carry the developer's signature; the developer's own local feed may be unsigned.
+        let needsSignature = UpdateConfig.source == .github
+        if needsSignature, release.signature == nil {
+            state = .failed(UpdateInstaller.UpdateError.noSignature.message)
+            return
+        }
+        let downloads = [archive.url, checksum.url] + (release.signature.map { [$0.url] } ?? [])
+        if UpdateConfig.source == .github, !downloads.allSatisfy(UpdateConfig.isTrustedDownload) {
             state = .failed("更新包不是來自 Pendant 的官方發佈,已拒絕安裝")
             return
         }
@@ -126,6 +133,15 @@ final class UpdateChecker {
             guard let expected = UpdateRules.parseChecksum(sumText) else { throw UpdateInstaller.UpdateError.noChecksum }
             state = .installing
             try UpdateInstaller.verifyChecksum(of: package, expected: expected)
+            if let signatureAsset = release.signature {
+                let signatureFile = try await UpdateInstaller.download(signatureAsset.url, into: work) { _ in }
+                let signatureText = String(bytes: (try? Data(contentsOf: signatureFile)) ?? Data(), encoding: .utf8) ?? ""
+                // The digest that is signed is the one of the file that was really downloaded, not the one in the checksum file.
+                let digest = try UpdateInstaller.sha256(of: package)
+                guard UpdateSignature.verify(signatureBase64: signatureText, version: "\(release.version ?? .zero)", sha256: digest) else {
+                    throw UpdateInstaller.UpdateError.signatureMismatch
+                }
+            }
             let app = try UpdateInstaller.unpack(package, into: work)
             try UpdateInstaller.validate(app: app, bundleID: Bundle.main.bundleIdentifier ?? "", expected: release.version)
             try UpdateInstaller.replace(installed: Bundle.main.bundleURL, with: app)
