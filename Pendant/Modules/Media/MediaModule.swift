@@ -58,50 +58,59 @@ private struct MediaModuleSettings: View {
         ModuleForm(moduleID: "media") {
             Toggle("專輯光暈", isOn: $settings.artworkGlow)
             Toggle("標題旁音波", isOn: $settings.showWaveformInTitle)
-            TipRow(title: "真實音波", tip: "依實際播放的聲音動，需要「系統音訊錄製」權限") {
-                Toggle("", isOn: $settings.realWaveform).labelsHidden().disabled(!Self.canTap)
-            }
-            if settings.realWaveform { WaveformStatusRow() }
-            SliderRow(title: "音波線條數量", value: barCount, range: 3...7, step: 1, unit: "條")
-            if settings.realWaveform {
-                DropdownRow(title: "音波平衡器", selection: $settings.waveformFocus, options: [
-                    (0, "全頻"), (1, "低音（鼓點）"), (2, "人聲"), (3, "高音"),
-                ])
-                SliderRow(title: "音波漲幅", value: gain, range: 50...200, step: 5, unit: "%")
-                SliderRow(title: "音波靈敏度", value: sensitivity, range: 50...200, step: 5, unit: "%")
-            }
-            TipRow(title: "線上封面", tip: "歌名與歌手會送到 Apple 搜尋服務") {
-                Toggle("", isOn: $settings.onlineArtwork).labelsHidden()
-            }
-            TipRow(title: "封面快取") {
-                HStack(spacing: 10) {
-                    Text(cacheSize == 0 ? "無" : ByteCountFormatter.string(fromByteCount: Int64(cacheSize), countStyle: .file))
-                        .foregroundStyle(.secondary)
-                    Button("清除") { Task { await ArtworkCache.shared.clear(); cacheSize = 0 } }
-                    Toggle("", isOn: $settings.artworkCache).labelsHidden().toggleStyle(.switch)
-                }
-            }
-            TipRow(title: "線上歌詞", tip: "歌名、歌手與長度會送到已開啟的線上來源") {
-                Toggle("", isOn: $settings.onlineLyrics).labelsHidden()
-            }
-            LyricsSourcesSection()
-            TipRow(title: "歌詞轉繁體", tip: "簡體中文歌詞轉成繁體（日文、韓文歌不轉）") {
-                Toggle("", isOn: $settings.lyricsTraditional).labelsHidden()
-            }
-            TipRow(title: "間奏顯示三點", tip: "間奏與「na na na」這類擬聲詞，改顯示倒數的三個點") {
-                Toggle("", isOn: $settings.lyricsFillerDots).labelsHidden()
-            }
-            SliderRow(title: "歌詞時間調整", tip: "歌詞比聲音慢就調大（提早出現），比聲音快就調小", value: $settings.lyricsOffset,
-                      range: -3...3, step: 0.1, unit: "秒", fractionDigits: 1)
-            TipRow(title: "隱藏拼音歌詞", tip: "日文羅馬拼音、中文拼音這類只標發音的歌詞不顯示") {
-                Toggle("", isOn: $settings.lyricsHideRomanization).labelsHidden()
-            }
-            TipRow(title: "長句自動斷行", tip: "中文歌詞依空格、英文長句在逗號或括號處分成兩段") {
-                Toggle("", isOn: $settings.lyricsSplitLines).labelsHidden()
-            }
             DropdownRow(title: "音樂來源", selection: $settings.mediaSourcePreference, options: [
                 (MediaSourcePreference.auto, "自動"), (.appleMusic, "Apple Music"), (.spotify, "Spotify"),
             ])
+        } content: {
+            Section("音波") {
+                TipRow(title: "真實音波", tip: "依實際播放的聲音動，需要「系統音訊錄製」權限") {
+                    Toggle("", isOn: $settings.realWaveform).labelsHidden().disabled(!Self.canTap)
+                }
+                if settings.realWaveform { WaveformStatusRow() }
+                SliderRow(title: "音波線條數量", value: barCount, range: 3...7, step: 1, unit: "條")
+                if settings.realWaveform {
+                    DropdownRow(title: "音波平衡器", selection: $settings.waveformFocus, options: [
+                        (0, "全頻"), (1, "低音（鼓點）"), (2, "人聲"), (3, "高音"),
+                    ])
+                    SliderRow(title: "音波漲幅", value: gain, range: 50...200, step: 5, unit: "%")
+                    SliderRow(title: "音波靈敏度", value: sensitivity, range: 50...200, step: 5, unit: "%")
+                }
+            }
+            Section("封面") {
+                TipRow(title: "線上封面", tip: "歌名與歌手會送到 Apple 搜尋服務") {
+                    Toggle("", isOn: $settings.onlineArtwork).labelsHidden()
+                }
+                TipRow(title: "封面快取") {
+                    HStack(spacing: 10) {
+                        Text(cacheSize == 0 ? "無" : ByteCountFormatter.string(fromByteCount: Int64(cacheSize), countStyle: .file))
+                            .foregroundStyle(.secondary)
+                        Button("清除") { Task { await ArtworkCache.shared.clear(); cacheSize = 0 } }
+                        Toggle("", isOn: $settings.artworkCache).labelsHidden().toggleStyle(.switch)
+                    }
+                }
+            }
+            Section("歌詞") {
+                LyricsSourcesSection()
+                TipRow(title: "線上歌詞", tip: "歌名、歌手與長度會送到已開啟的線上來源") {
+                    Toggle("", isOn: $settings.onlineLyrics).labelsHidden()
+                }
+                SliderRow(title: "歌詞時間調整", tip: "歌詞比聲音慢就調大（提早出現），比聲音快就調小", value: $settings.lyricsOffset,
+                          range: -3...3, step: 0.1, unit: "秒", fractionDigits: 1)
+            }
+            Section("歌詞整理") {
+                TipRow(title: "歌詞轉繁體", tip: "簡體中文歌詞轉成繁體（日文、韓文歌不轉）") {
+                    Toggle("", isOn: $settings.lyricsTraditional).labelsHidden()
+                }
+                TipRow(title: "隱藏拼音歌詞", tip: "日文羅馬拼音、中文拼音這類只標發音的歌詞不顯示") {
+                    Toggle("", isOn: $settings.lyricsHideRomanization).labelsHidden()
+                }
+                TipRow(title: "間奏顯示三點", tip: "間奏與「na na na」這類擬聲詞，改顯示倒數的三個點") {
+                    Toggle("", isOn: $settings.lyricsFillerDots).labelsHidden()
+                }
+                TipRow(title: "長句自動斷行", tip: "中文歌詞依空格、英文長句在逗號或括號處分成兩段") {
+                    Toggle("", isOn: $settings.lyricsSplitLines).labelsHidden()
+                }
+            }
         }
         .task { cacheSize = await ArtworkCache.shared.sizeInBytes() }
     }

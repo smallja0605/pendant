@@ -28,10 +28,12 @@ private struct MirrorModuleSettings: View {
 
     var body: some View {
         ModuleForm(moduleID: "mirror") {
-            Toggle("水平鏡像", isOn: $settings.mirrorFlip)
-            DropdownRow(title: "鏡頭", selection: $settings.mirrorCameraID,
-                        options: [("", "自動 (前鏡頭)")] + camera.devices.map { ($0.id, $0.name) })
-            .onChange(of: settings.mirrorCameraID) { _, _ in camera.restart() }
+            Section("影像") {
+                Toggle("水平鏡像", isOn: $settings.mirrorFlip)
+                DropdownRow(title: "鏡頭", selection: $settings.mirrorCameraID,
+                            options: [("", "自動 (前鏡頭)")] + camera.devices.map { ($0.id, $0.name) })
+                .onChange(of: settings.mirrorCameraID) { _, _ in camera.restart() }
+            }
         }
         .onAppear { camera.reloadDevices() }
     }

@@ -8,20 +8,26 @@ struct CalendarModuleSettings: View {
 
     var body: some View {
         ModuleForm(moduleID: "calendar") {
-            TipRow(title: "日曆") {
-                HStack {
-                    Button("全選") { store.selectAll() }
-                    Button("清除") { store.clearSelection() }
+            Section("顯示內容") {
+                TipRow(title: "日曆") {
+                    HStack {
+                        Button("全選") { store.selectAll() }
+                        Button("清除") { store.clearSelection() }
+                    }
                 }
+                calendarRows
+                Toggle("已結束行程", isOn: $settings.calendarShowPast)
+                Toggle("全天行程", isOn: $settings.calendarShowAllDay)
+                Toggle("跨日行程", isOn: $settings.calendarShowMultiDay)
             }
-            calendarRows
-            Toggle("已結束行程", isOn: $settings.calendarShowPast)
-            Toggle("全天行程", isOn: $settings.calendarShowAllDay)
-            Toggle("跨日行程", isOn: $settings.calendarShowMultiDay)
-            Toggle("整月", isOn: $settings.calendarWholeMonth)
-            daysRow("往前天數", value: $settings.calendarDaysBehind).dimmed(when: settings.calendarWholeMonth)
-            daysRow("往後天數", value: $settings.calendarDaysAhead).dimmed(when: settings.calendarWholeMonth)
-            TipRow(title: "") { Button("開啟行事曆") { store.openCalendarApp() } }
+            Section("日期範圍") {
+                Toggle("整月", isOn: $settings.calendarWholeMonth)
+                daysRow("往前天數", value: $settings.calendarDaysBehind).dimmed(when: settings.calendarWholeMonth)
+                daysRow("往後天數", value: $settings.calendarDaysAhead).dimmed(when: settings.calendarWholeMonth)
+            }
+            Section("其他") {
+                TipRow(title: "") { Button("開啟行事曆") { store.openCalendarApp() } }
+            }
         }
         .task { await store.ensureAccess() }
     }

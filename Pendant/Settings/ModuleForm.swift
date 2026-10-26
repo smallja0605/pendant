@@ -1,16 +1,25 @@
 import SwiftUI
 
-/// The settings of one big-capsule tool as a grouped form: the rows every tool has (page, width) first, then its own.
-struct ModuleForm<Content: View>: View {
+/// The settings of one big-capsule tool as a grouped form: 基本 first (the rows every tool has — page and width — and the tool's own basic
+/// ones), then one card per group (`Section("音波") { … }`), each with a small title.
+struct ModuleForm<Basic: View, Content: View>: View {
     let moduleID: String
+    @ViewBuilder let basic: Basic
     @ViewBuilder let content: Content
+
+    init(moduleID: String, @ViewBuilder basic: () -> Basic = { EmptyView() }, @ViewBuilder content: () -> Content) {
+        self.moduleID = moduleID
+        self.basic = basic()
+        self.content = content()
+    }
 
     var body: some View {
         Form {
-            Section {
+            Section("基本") {
                 ModuleLayoutRows(moduleID: moduleID)
-                content
+                basic
             }
+            content
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)

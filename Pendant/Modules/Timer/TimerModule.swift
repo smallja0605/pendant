@@ -34,15 +34,19 @@ private struct TimerModuleSettings: View {
 
     var body: some View {
         ModuleForm(moduleID: "timer") {
-            TipRow(title: "快速計時") {
-                HStack {
-                    TextField("1, 5, 10, 25", text: $presetsText)
-                        .textFieldStyle(.roundedBorder).frame(width: 150).onSubmit(commitPresets)
-                    Text("分鐘").foregroundStyle(.secondary)
+            Section("快速計時") {
+                TipRow(title: "快速計時") {
+                    HStack {
+                        TextField("1, 5, 10, 25", text: $presetsText)
+                            .textFieldStyle(.roundedBorder).frame(width: 150).onSubmit(commitPresets)
+                        Text("分鐘").foregroundStyle(.secondary)
+                    }
                 }
             }
-            Toggle("提示音", isOn: $settings.timerSound)
-            Toggle("系統通知", isOn: $settings.timerNotification)
+            Section("通知") {
+                Toggle("提示音", isOn: $settings.timerSound)
+                Toggle("系統通知", isOn: $settings.timerNotification)
+            }
         }
         .onAppear { presetsText = settings.timerPresets.map(String.init).joined(separator: ", ") }
         .onDisappear(perform: commitPresets)

@@ -32,21 +32,27 @@ private struct RemindersModuleSettings: View {
 
     var body: some View {
         ModuleForm(moduleID: "reminders") {
-            TipRow(title: "清單") {
-                HStack {
-                    Button("全選") { store.selectAll() }
-                    Button("清除") { store.clearSelection() }
+            Section("清單") {
+                TipRow(title: "清單") {
+                    HStack {
+                        Button("全選") { store.selectAll() }
+                        Button("清除") { store.clearSelection() }
+                    }
                 }
+                listRows
+                Toggle("已完成", isOn: $settings.remindersShowCompleted)
             }
-            listRows
-            Toggle("已完成", isOn: $settings.remindersShowCompleted)
-            DropdownRow(title: "排序", selection: $settings.remindersSort, options: [
-                (ReminderSort.dueDate, "到期日"), (.priority, "優先度"), (.title, "名稱"),
-            ])
-            SliderRow(title: "顯示筆數", value: Binding(get: { Double(settings.remindersLimit) },
-                                                      set: { settings.remindersLimit = Int($0.rounded()) }),
-                      range: 3...100, unit: "筆")
-            TipRow(title: "") { Button("開啟提醒事項") { store.openRemindersApp() } }
+            Section("排列") {
+                DropdownRow(title: "排序", selection: $settings.remindersSort, options: [
+                    (ReminderSort.dueDate, "到期日"), (.priority, "優先度"), (.title, "名稱"),
+                ])
+                SliderRow(title: "顯示筆數", value: Binding(get: { Double(settings.remindersLimit) },
+                                                          set: { settings.remindersLimit = Int($0.rounded()) }),
+                          range: 3...100, unit: "筆")
+            }
+            Section("其他") {
+                TipRow(title: "") { Button("開啟提醒事項") { store.openRemindersApp() } }
+            }
         }
         .task { await store.ensureAccess() }
     }
