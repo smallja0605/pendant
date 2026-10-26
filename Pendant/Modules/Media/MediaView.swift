@@ -83,7 +83,9 @@ private struct PlayerPage: View {
                                 .foregroundStyle(.white)
                             if focused && AppSettings.shared.showWaveformInTitle {
                                 // Fades away while paused (the bars keep their place, so the title does not jump).
-                                WaveformBars(isPlaying: nowPlaying.isPlaying, isVisible: isActive)
+                                WaveformBars(
+                                    isPlaying: nowPlaying.isPlaying, isVisible: isActive, style: .title, palette: controller.artworkPalette
+                                )
                                     .padding(.leading, 4)
                                     .opacity(nowPlaying.isPlaying ? 1 : 0)
                                     .animation(.easeInOut(duration: 0.3), value: nowPlaying.isPlaying)

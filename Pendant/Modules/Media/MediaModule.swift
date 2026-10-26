@@ -57,12 +57,11 @@ private struct MediaModuleSettings: View {
     var body: some View {
         ModuleForm(moduleID: "media") {
             Toggle("專輯光暈", isOn: $settings.artworkGlow)
-            Toggle("標題旁音波", isOn: $settings.showWaveformInTitle)
             DropdownRow(title: "音樂來源", selection: $settings.mediaSourcePreference, options: [
                 (MediaSourcePreference.auto, "自動"), (.appleMusic, "Apple Music"), (.spotify, "Spotify"),
             ])
         } content: {
-            moduleGroup("音波") {
+            moduleGroup("小膠囊音波") {
                 TipRow(title: "真實音波", tip: "依實際播放的聲音動，需要「系統音訊錄製」權限") {
                     Toggle("", isOn: $settings.realWaveform).labelsHidden().disabled(!Self.canTap)
                 }
@@ -74,6 +73,9 @@ private struct MediaModuleSettings: View {
                     ])
                     SliderRow(title: "音波漲幅", value: gain, range: 50...200, step: 5, unit: "%")
                     SliderRow(title: "音波靈敏度", value: sensitivity, range: 50...200, step: 5, unit: "%")
+                }
+                TipRow(title: "依專輯顏色", tip: "小膠囊的音波圖用專輯封面的顏色（漸層），換歌時顏色漸變") {
+                    Toggle("", isOn: $settings.waveformArtworkColor).labelsHidden()
                 }
             }
             moduleGroup("封面") {
@@ -89,35 +91,13 @@ private struct MediaModuleSettings: View {
                     }
                 }
             }
-            moduleGroup("歌詞") {
-                LyricsSourcesSection()
-                TipRow(title: "線上歌詞", tip: "歌名、歌手與長度會送到已開啟的線上來源") {
-                    Toggle("", isOn: $settings.onlineLyrics).labelsHidden()
-                }
-                SliderRow(title: "歌詞時間調整", tip: "歌詞比聲音慢就調大（提早出現），比聲音快就調小", value: $settings.lyricsOffset,
-                          range: -3...3, step: 0.1, unit: "秒", fractionDigits: 1)
-            }
-            moduleGroup("歌詞整理") {
-                TipRow(title: "歌詞轉繁體", tip: "簡體中文歌詞轉成繁體（日文、韓文歌不轉）") {
-                    Toggle("", isOn: $settings.lyricsTraditional).labelsHidden()
-                }
-                TipRow(title: "隱藏拼音歌詞", tip: "日文羅馬拼音、中文拼音這類只標發音的歌詞不顯示") {
-                    Toggle("", isOn: $settings.lyricsHideRomanization).labelsHidden()
-                }
-                TipRow(title: "間奏顯示三點", tip: "間奏與「na na na」這類擬聲詞，改顯示倒數的三個點") {
-                    Toggle("", isOn: $settings.lyricsFillerDots).labelsHidden()
-                }
-                TipRow(title: "長句自動斷行", tip: "中文歌詞依空格、英文長句在逗號或括號處分成兩段") {
-                    Toggle("", isOn: $settings.lyricsSplitLines).labelsHidden()
-                }
-            }
         }
         .task { cacheSize = await ArtworkCache.shared.sizeInBytes() }
     }
 }
 
 /// What the real waveform is doing: waiting, working, or why not (checked once a second while the page is open).
-private struct WaveformStatusRow: View {
+struct WaveformStatusRow: View {
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { _ in
             TipRow(title: "音波狀態") {
@@ -152,7 +132,7 @@ private struct MediaIslandContent: View {
                 Image(systemName: "music.note").font(.system(size: 12, weight: .semibold)).foregroundStyle(.white)
             }
             if AppSettings.shared.showWaveformInCompact {
-                WaveformBars(isPlaying: controller.nowPlaying?.isPlaying ?? false, isVisible: true)
+                WaveformBars(isPlaying: controller.nowPlaying?.isPlaying ?? false, isVisible: true, palette: controller.artworkPalette)
             }
         }
     }

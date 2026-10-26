@@ -269,7 +269,7 @@ private struct CompactContent: View {
             Button { media?.togglePlayPause() } label: {
                 ZStack {
                     // Plain crossfade (no blur layers): the blur version could leave both states invisible.
-                    WaveformBars(isPlaying: nowPlaying.isPlaying, isVisible: isVisible && !hovering)
+                    WaveformBars(isPlaying: nowPlaying.isPlaying, isVisible: isVisible && !hovering, palette: media?.artworkPalette)
                         .opacity(hovering ? 0 : 1)
                     Image(systemName: nowPlaying.isPlaying ? "pause.fill" : "play.fill")
                         .font(.system(size: 13, weight: .bold))

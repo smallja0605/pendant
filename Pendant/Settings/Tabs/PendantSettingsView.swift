@@ -1,18 +1,30 @@
 import SwiftUI
 
-/// 小工具: the big capsule's tools (大膠囊) and the small capsule's (小膠囊).
+/// 小工具: the big capsule's tools (大膠囊), the small capsule's (小膠囊) and the single-tool capsule's (獨立膠囊).
 struct PendantSettingsView: View {
     private enum Page: String, CaseIterable, Identifiable {
         case big = "大膠囊"
         case small = "小膠囊"
+        case focus = "獨立膠囊"
         var id: String { rawValue }
     }
 
     @Environment(\.settingsTitle) private var title
     #if DEBUG
-    @State private var page = ProcessInfo.processInfo.environment["PENDANT_DEBUG_WIDGETS_PAGE"] == "small" ? Page.small : Page.big
+    @State private var page = Self.debugPage
     #else
     @State private var page = Page.big
+    #endif
+
+    #if DEBUG
+    /// PENDANT_DEBUG_WIDGETS_PAGE=small|focus opens that page.
+    private static var debugPage: Page {
+        switch ProcessInfo.processInfo.environment["PENDANT_DEBUG_WIDGETS_PAGE"] {
+        case "small": .small
+        case "focus": .focus
+        default: .big
+        }
+    }
     #endif
 
     var body: some View {
@@ -35,6 +47,7 @@ struct PendantSettingsView: View {
             switch page {
             case .big: WidgetsSettingsView()
             case .small: SmallCapsuleSettingsView()
+            case .focus: FocusCapsuleSettingsView()
             }
         }
     }

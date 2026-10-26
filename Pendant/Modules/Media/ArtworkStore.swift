@@ -25,6 +25,62 @@ enum ArtworkDecoder {
         return NSColor(hue: hue, saturation: min(1, saturation * 1.25 + 0.05), brightness: max(brightness, 0.62), alpha: 1)
     }
 
+    /// Two colours of the cover for a gradient (the lighter one first): the two most colourful hues, each lifted to be seen on black.
+    /// A cover with no real colour gives a soft white-to-grey pair.
+    static func palette(of image: NSImage) -> [NSColor] {
+        let side = 24
+        guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return fallbackPalette }
+        var pixels = [UInt8](repeating: 0, count: side * side * 4)
+        guard let context = CGContext(
+            data: &pixels, width: side, height: side, bitsPerComponent: 8, bytesPerRow: side * 4,
+            space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else { return fallbackPalette }
+        context.interpolationQuality = .medium
+        context.draw(cgImage, in: CGRect(x: 0, y: 0, width: side, height: side))
+        // Twelve hue buckets, each weighing its pixels by how colourful and how bright they are.
+        var weight = [Double](repeating: 0, count: 12)
+        var sums = [[Double]](repeating: [0, 0, 0], count: 12)
+        for index in 0..<side * side {
+            let color = NSColor(red: Double(pixels[index * 4]) / 255, green: Double(pixels[index * 4 + 1]) / 255,
+                                blue: Double(pixels[index * 4 + 2]) / 255, alpha: 1)
+            var hue: CGFloat = 0, saturation: CGFloat = 0, brightness: CGFloat = 0, alpha: CGFloat = 0
+            color.getHue(&hue, saturation: &saturation, brightness: &brightness, alpha: &alpha)
+            guard saturation > 0.2, brightness > 0.2 else { continue }
+            let bucket = min(Int(hue * 12), 11)
+            let share = Double(saturation * brightness)
+            weight[bucket] += share
+            sums[bucket][0] += Double(hue) * share
+            sums[bucket][1] += Double(saturation) * share
+            sums[bucket][2] += Double(brightness) * share
+        }
+        let ranked = weight.indices.filter { weight[$0] > 0 }.sorted { weight[$0] > weight[$1] }
+        guard let first = ranked.first, weight[first] > 1.5 else { return fallbackPalette }
+        func color(_ bucket: Int) -> NSColor {
+            let total = weight[bucket]
+            return lifted(hue: sums[bucket][0] / total, saturation: sums[bucket][1] / total, brightness: sums[bucket][2] / total)
+        }
+        let main = color(first)
+        // The second hue: the next bucket that is not a neighbour of the first, else the same hue turned a little.
+        let other = ranked.dropFirst().first { bucket in
+            let distance = abs(bucket - first)
+            return min(distance, 12 - distance) >= 2 && weight[bucket] > weight[first] * 0.15
+        }
+        let second = other.map(color) ?? lifted(hue: (sums[first][0] / weight[first] + 0.07).truncatingRemainder(dividingBy: 1),
+                                                saturation: sums[first][1] / weight[first] * 0.8, brightness: 1)
+        return brightnessOf(main) > brightnessOf(second) ? [main, second] : [second, main]
+    }
+
+    private static var fallbackPalette: [NSColor] { [NSColor(white: 0.95, alpha: 1), NSColor(white: 0.62, alpha: 1)] }
+
+    private static func lifted(hue: Double, saturation: Double, brightness: Double) -> NSColor {
+        NSColor(hue: hue, saturation: min(1, max(saturation, 0.45)), brightness: max(brightness, 0.82), alpha: 1)
+    }
+
+    private static func brightnessOf(_ color: NSColor) -> CGFloat {
+        let rgb = color.usingColorSpace(.deviceRGB) ?? color
+        return 0.299 * rgb.redComponent + 0.587 * rgb.greenComponent + 0.114 * rgb.blueComponent
+    }
+
     /// Average colour, for the faint glow behind the media page.
     static func averageColor(of image: NSImage) -> NSColor? {
         guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
@@ -155,10 +211,13 @@ actor CatalogArtworkFetcher {
 struct DecodedArtwork: @unchecked Sendable {
     let image: NSImage
     let color: Color?
+    /// Two colours of the cover (lighter first) for the waveform's gradient.
+    let palette: [Color]
 
     init(image: NSImage) {
         self.image = image
         color = ArtworkDecoder.averageColor(of: image).map { Color(nsColor: ArtworkDecoder.vivid($0)) }
+        palette = ArtworkDecoder.palette(of: image).map { Color(nsColor: $0) }
     }
 
     init?(_ data: Data) {

@@ -11,6 +11,8 @@ final class MediaController {
     /// Counts track changes (not the first track after nothing played): the compact capsule shows the song line for each.
     private(set) var trackChangeToken = 0
     private(set) var artworkColor: Color?
+    /// The cover's two colours (lighter first), for the waveform's gradient.
+    private(set) var artworkPalette: [Color]?
     /// True when Automation permission was refused for the player currently shown.
     private(set) var automationDenied = false
     /// Number of popovers currently shown; the capsule stays open while any is.
@@ -145,6 +147,7 @@ final class MediaController {
         nowPlaying = nil
         artwork = nil
         artworkColor = nil
+        artworkPalette = nil
         automationDenied = false
     }
 
@@ -177,6 +180,7 @@ final class MediaController {
                 if attempt == 0, self?.nowPlaying?.snapshot.trackKey == snapshot.trackKey {
                     self?.artwork = nil
                     self?.artworkColor = nil
+                    self?.artworkPalette = nil
                 }
             }
         }
@@ -186,6 +190,7 @@ final class MediaController {
         guard nowPlaying?.snapshot.trackKey == trackKey else { return }
         artwork = decoded.image
         artworkColor = decoded.color
+        artworkPalette = decoded.palette
     }
 
     /// Brings the player app forward (click on the cover in the expanded capsule).

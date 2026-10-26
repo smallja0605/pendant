@@ -17,7 +17,6 @@ final class AppSettings: @unchecked Sendable {
     var hoverDelay: Double { didSet { save(hoverDelay, "hoverDelay") } }
     // MARK: Virtual notch (screens without a physical notch)
     var virtualNotchEnabled: Bool { didSet { save(virtualNotchEnabled, "virtualNotchEnabled") } }
-    /// Hide the virtual notch while an app is full screen (its own Space, the green button) on its screen.
     var virtualHideInFullscreen: Bool { didSet { save(virtualHideInFullscreen, "virtualHideInFullscreen") } }
     /// 懸浮膠囊態: the virtual notch floats below the top edge as a rounded capsule (gap in points) instead of hanging from it.
     var virtualFloating: Bool { didSet { save(virtualFloating, "virtualFloating") } }
@@ -141,8 +140,9 @@ final class AppSettings: @unchecked Sendable {
     var lyricsFillerDots: Bool { didSet { save(lyricsFillerDots, "lyricsFillerDots") } }
     var lyricsSplitLines: Bool { didSet { save(lyricsSplitLines, "lyricsSplitLines") } }
     var lyricsHideRomanization: Bool { didSet { save(lyricsHideRomanization, "lyricsHideRomanization") } }
-    /// Mouse wheel: how many steps (days, minutes…) one notch moves, 0.25…3 (a trackpad is not affected).
     var wheelSensitivity: Double { didSet { save(wheelSensitivity, "wheelSensitivity") } }
+    /// The small capsule's bars take the album cover's colours (a gradient) instead of white.
+    var waveformArtworkColor: Bool { didSet { save(waveformArtworkColor, "waveformArtworkColor") } }
     var lyricsOffset: Double { didSet { save(lyricsOffset, "lyricsOffset") } } // seconds; + = lines appear sooner
     var virtualLyricsScroll: Bool { didSet { save(virtualLyricsScroll, "virtualLyricsScroll") } } // new line scrolls up
     var showWaveformInTitle: Bool { didSet { save(showWaveformInTitle, "showWaveformInTitle") } }
@@ -315,6 +315,7 @@ final class AppSettings: @unchecked Sendable {
         lyricsSplitLines = bool("lyricsSplitLines", true)
         lyricsHideRomanization = bool("lyricsHideRomanization", true)
         lyricsOffset = min(max(double("lyricsOffset", 0), -3), 3)
+        waveformArtworkColor = bool("waveformArtworkColor", false)
         wheelSensitivity = min(max(double("wheelSensitivity", 1), 0.25), 3)
         virtualLyricsScroll = bool("virtualLyricsScroll", false)
         if let data = defaults.data(forKey: Self.prefix + "lyricsSources"),
