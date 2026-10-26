@@ -10,7 +10,8 @@ extension CapsuleView {
             return
         }
         let notch = model.layout?.notch.size ?? .zero
-        let wing = max((bodyWidth - notch.width) / 2, notch.height)
+        let middle = notch.width + (model.layout?.virtualMiddleExtra ?? 0) // a long lyric line widens the middle, not the wings
+        let wing = max((bodyWidth - middle) / 2, notch.height)
         model.setCompactHover(location.x < wing ? .artwork : (location.x > bodyWidth - wing ? .controls : nil))
     }
 }

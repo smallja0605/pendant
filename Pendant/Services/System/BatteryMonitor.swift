@@ -13,6 +13,8 @@ final class BatteryMonitor {
         var percent: Int
         var charging: Bool
         var pluggedIn: Bool
+        /// On the charger (charging or held at a level): the bolt shows; a battery held at 95 % on the charger is not "charging".
+        var onCharger: Bool { charging || pluggedIn }
     }
 
     private(set) var reading: Reading?

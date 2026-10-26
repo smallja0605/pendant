@@ -182,13 +182,13 @@ struct VirtualBatteryGlyph: View {
         if let reading = battery.reading {
             switch style {
             case .icon:
-                Image(systemName: reading.charging ? "battery.100percent.bolt" : BatteryMonitor.symbol(percent: reading.percent))
+                Image(systemName: reading.onCharger ? "battery.100percent.bolt" : BatteryMonitor.symbol(percent: reading.percent))
                     .font(.system(size: size))
                     .foregroundStyle(.white)
             case .ring:
-                let low = !reading.charging && Double(reading.percent) <= AppSettings.shared.lowBatteryThreshold
+                let low = !reading.onCharger && Double(reading.percent) <= AppSettings.shared.lowBatteryThreshold
                 ToastRing(progress: Double(reading.percent) / 100, tint: low ? .red : .green,
-                          symbol: reading.charging ? "bolt.fill" : nil, lineWidth: 2.6, symbolSize: size * 0.5)
+                          symbol: reading.onCharger ? "bolt.fill" : nil, lineWidth: 2.6, symbolSize: size * 0.5)
                     .frame(width: size + 3, height: size + 3)
             }
         }

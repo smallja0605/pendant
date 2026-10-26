@@ -30,7 +30,7 @@ struct StatusStrip: View {
             }
             if settings.statusBattery, !hidesBattery, let reading = battery.reading {
                 HStack(spacing: 4) {
-                    Image(systemName: reading.charging ? "battery.100percent.bolt" : BatteryMonitor.symbol(percent: reading.percent))
+                    Image(systemName: reading.onCharger ? "battery.100percent.bolt" : BatteryMonitor.symbol(percent: reading.percent))
                         .font(.system(size: 15, weight: .regular))
                         .symbolRenderingMode(.hierarchical)
                         .foregroundStyle(reading.percent <= 20 && !reading.pluggedIn ? Color.red : .white)
@@ -41,7 +41,7 @@ struct StatusStrip: View {
                     }
                 }
                 .accessibilityElement(children: .ignore)
-                .accessibilityLabel("電量 \(reading.percent)%\(reading.charging ? "，充電中" : "")")
+                .accessibilityLabel("電量 \(reading.percent)%\(reading.onCharger ? "，充電中" : "")")
             }
         }
     }

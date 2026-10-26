@@ -177,7 +177,7 @@ private struct CompactContent: View {
         let compact = model.layout?.bodySize(for: .compact) ?? .zero
         let target = model.showsSwell ? (model.layout?.swelledSize(compact, reduceMotion: model.reduceMotion) ?? compact) : compact
         let rowHeight = target.height
-        let wing = max((target.width - notch.width) / 2, notch.height)
+        let wing = max((target.width - notch.width - (model.layout?.virtualMiddleExtra ?? 0)) / 2, notch.height)
         let icon = min(wing, rowHeight) - 2 * Tuning.shared.iconMargin
         // On a virtual notch the icons sit against the outer edges (the wings are wider than an icon: battery and percent fit).
         let virtual = model.layout?.virtualContent == true
@@ -193,7 +193,8 @@ private struct CompactContent: View {
                     .padding(.leading, virtual ? Tuning.shared.iconMargin : 0)
                     .contentShape(Rectangle())
                     .frame(maxWidth: .infinity, alignment: .leading)
-                trailing
+                trailing(width: wing - (virtual ? Tuning.shared.iconMargin + 3 : 0), height: rowHeight,
+                         alignment: virtual ? .trailing : .center)
                     .opacity(model.stepActive && model.stepSide > 0 ? 0 : 1)
                     .animation(.easeInOut(duration: 0.18), value: [model.stepActive ? model.stepSide : 0])
                     .frame(width: wing, height: rowHeight, alignment: virtual ? .trailing : .center)
@@ -258,7 +259,7 @@ private struct CompactContent: View {
     }
 
     /// Waveform at rest; while hovered it blur-morphs into play / pause, which is also a button.
-    @ViewBuilder private var trailing: some View {
+    @ViewBuilder private func trailing(width: CGFloat, height: CGFloat, alignment: Alignment) -> some View {
         if model.activity?.kind == .shelf {
             if AppSettings.shared.shelfShowsCount {
                 Text("\(ShelfStore.shared.items.count)")
@@ -278,9 +279,11 @@ private struct CompactContent: View {
                         .scaleEffect(hovering ? 1 : 0.85)
                 }
                 .frame(width: 30, height: 30)
+                // The whole right wing is the button (it shows play / pause while the pointer is anywhere on it), not only the 30 pt icon.
+                .frame(width: max(width, 30), height: max(height, 30), alignment: alignment)
                 .contentShape(Rectangle())
             }
-            .buttonStyle(CompactPressStyle())
+            .buttonStyle(CompactPressStyle(anchor: alignment == .trailing ? .trailing : .center))
         } else {
             Text("⋯")
                 .font(.system(size: 13, weight: .bold))
@@ -290,9 +293,11 @@ private struct CompactContent: View {
 }
 
 private struct CompactPressStyle: ButtonStyle {
+    var anchor = UnitPoint.center
+
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .scaleEffect(configuration.isPressed ? 0.8 : 1)
+            .scaleEffect(configuration.isPressed ? 0.8 : 1, anchor: anchor)
             .animation(.spring(response: 0.25, dampingFraction: 0.55), value: configuration.isPressed)
     }
 }
