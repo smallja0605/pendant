@@ -63,15 +63,14 @@ struct PageTitleOverlay: View {
         let scale = 1 - (1 - Self.pinnedSize / Self.bigSize) * pinning
         let top = max(rest.minY - offset, Self.pinnedTop)
         ZStack(alignment: .topLeading) {
-            // The frosted band under the pinned title: content passing beneath it dissolves instead of being cut off.
+            // The band under the pinned title, the same material as the sidebar: content passing beneath it dissolves.
             ZStack {
-                VisualEffectBackground(material: .menu, blending: .withinWindow)
+                VisualEffectBackground(material: .sidebar, blending: .behindWindow)
                     .mask(LinearGradient(stops: [
                         .init(color: .black, location: 0),
                         .init(color: .black, location: Self.solidHeight / (Self.solidHeight + Self.fadeHeight)),
                         .init(color: .clear, location: 1),
                     ], startPoint: .top, endPoint: .bottom))
-                LinearGradient(colors: [.black.opacity(0.28), .clear], startPoint: .top, endPoint: .bottom)
             }
             .frame(height: Self.solidHeight + Self.fadeHeight)
             .opacity(min(max((pinning - 0.5) * 2, 0), 1))
