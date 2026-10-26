@@ -116,6 +116,9 @@ struct SettingsView: View {
             }
             .overlay(alignment: .bottom) { EdgeBlur(edge: .bottom, height: 22) }
             .id(selection.tab)
+            // No cross-fade between pages: the pages are see-through, so two of them fading over each other looked like the window
+            // going transparent for a moment.
+            .transition(.identity)
             .onChange(of: selection.tab) { _, _ in
                 scrollOffset = 0
                 titleRest = nil
