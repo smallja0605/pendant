@@ -16,17 +16,21 @@ struct ScrollPastTitleObserver: NSViewRepresentable {
     final class Probe: NSView {
         var onChange: ((CGFloat) -> Void)?
         private var observer: NSObjectProtocol? // removed with the view: the notification block holds both weakly
+        private weak var observed: NSScrollView?
+        #if DEBUG
+        nonisolated(unsafe) private static var debugScrolled = false // the debug scroll happens once, for the first page
+        #endif
 
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
             guard window != nil else { return }
             // The page is built a moment after this view appears.
             for delay in [0.05, 0.3, 0.9] {
-                DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in self?.attach() }
+                DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in self?.attach(resetsScroll: delay < 0.5) }
             }
         }
 
-        private func attach() {
+        private func attach(resetsScroll: Bool) {
             #if DEBUG
             if ProcessInfo.processInfo.environment["PENDANT_DEBUG_SCROLLDUMP"] != nil, let root = window?.contentView {
                 func dump(_ view: NSView, _ depth: Int) {
@@ -38,11 +42,23 @@ struct ScrollPastTitleObserver: NSViewRepresentable {
                 dump(root, 0)
             }
             #endif
-            guard observer == nil, let root = window?.contentView, let scroll = Self.firstScrollView(in: root) else { return }
+            guard let root = window?.contentView, let scroll = Self.firstScrollView(in: root) else { return }
+            // A page opens at its top: the page's scroll view can be reused by the next page, which would then start where the
+            // last one was left (its title is then neither at rest nor pinned).
+            if resetsScroll, scroll.contentView.bounds.origin.y != -scroll.contentInsets.top {
+                scroll.contentView.scroll(to: NSPoint(x: 0, y: -scroll.contentInsets.top))
+                scroll.reflectScrolledClipView(scroll.contentView)
+            }
+            onChange?(scroll.contentView.bounds.origin.y + scroll.contentInsets.top)
+            guard observed !== scroll else { return }
+            if let observer { NotificationCenter.default.removeObserver(observer) }
+            observed = scroll
             scroll.contentView.postsBoundsChangedNotifications = true
             #if DEBUG
             // PENDANT_DEBUG_SETTINGS_SCROLL=<points>: scrolls the page by that much (for screenshots of the pinned title).
-            if let raw = ProcessInfo.processInfo.environment["PENDANT_DEBUG_SETTINGS_SCROLL"], let points = Double(raw) {
+            let scrollEnv = ProcessInfo.processInfo.environment["PENDANT_DEBUG_SETTINGS_SCROLL"]
+            if let raw = scrollEnv, let points = Double(raw), !Self.debugScrolled {
+                Self.debugScrolled = true
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak scroll] in
                     guard let scroll else { return }
                     scroll.contentView.scroll(to: NSPoint(x: 0, y: points))

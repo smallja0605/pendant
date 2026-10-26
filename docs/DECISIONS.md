@@ -561,3 +561,5 @@ Settings page title (user): the heading inside each page (`SettingsTitleText`) o
 Pinned title size 22 pt (was 17, too small): scale 1 → 22/30, pinned top 12, band 72.
 Pinned title row: solid band 64 pt (title and buttons centred in it, pinned top 19) + 24 pt fade.
 Pinned title band uses the sidebar's material (.sidebar, behind window) with no extra darkening.
+
+Tab switch left the page scrolled (user): the settings page's scroll view can be reused by the next tab, which then opened where the last one was left while the title overlay assumed offset 0 (title at rest over scrolled content, no band). `ScrollPastTitleObserver` now scrolls a new page to its top in its first two attach attempts (0.05 s, 0.3 s), reports the current offset right away and re-registers when the scroll view changes. Debug: PENDANT_DEBUG_SETTINGS_THEN=<tab> switches tab after 4 s; PENDANT_DEBUG_SETTINGS_SCROLL scrolls only the first page.

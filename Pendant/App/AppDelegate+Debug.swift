@@ -11,6 +11,13 @@ extension AppDelegate {
         if let raw = ProcessInfo.processInfo.environment["PENDANT_DEBUG_SETTINGS"] {
             SettingsWindowController.shared.show(tab: SettingsTab(rawValue: raw) ?? .general)
         }
+        // PENDANT_DEBUG_SETTINGS_THEN=<tab>: switches the open settings window to that tab four seconds later (after a scroll).
+        if let raw = ProcessInfo.processInfo.environment["PENDANT_DEBUG_SETTINGS_THEN"] {
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(4))
+                SettingsWindowController.shared.show(tab: SettingsTab(rawValue: raw))
+            }
+        }
         // A/B diagnostics for menu-bar glitches: hide the notch panel entirely (combine with PENDANT_DEBUG_NO_MONITORS).
         if ProcessInfo.processInfo.environment["PENDANT_DEBUG_NO_PANEL"] != nil { notch.isPaused = true }
         let calendarMode = ProcessInfo.processInfo.environment["PENDANT_DEBUG_CALENDAR"]
