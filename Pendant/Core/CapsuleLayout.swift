@@ -23,11 +23,13 @@ struct CapsuleLayout: Equatable, Sendable {
     /// The capsule floats below the top edge (a virtual notch with 懸浮膠囊態 on): rounded all round, no reverse corners.
     var isFloating: Bool { notch.floatGap > 0 }
     static let virtualWing: CGFloat = 50
+    /// Extra width of a virtual notch's middle part (a long lyric line); the capsule grows by it, half on each side.
+    var virtualMiddleExtra: CGFloat = 0
     /// The virtual notch's idle bar (設定 虛擬瀏海 › 閒置時 › 縮成細條).
     static let virtualSliver = CGSize(width: 56, height: 5)
     var compactWing: CGFloat {
         let base = notch.size.height + Tuning.shared.wingExtra + compactActivityExtra
-        return virtualContent ? max(base, Self.virtualWing + Tuning.shared.wingExtra) : base
+        return virtualContent ? max(base, Self.virtualWing + Tuning.shared.wingExtra) + virtualMiddleExtra / 2 : base
     }
     var cellWidth: CGFloat = Tuning.shared.cellWidth
     /// Cells of each module on the current page (empty: nothing enabled → a small placeholder width).

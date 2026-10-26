@@ -101,6 +101,12 @@ final class NotchWindowController { // swiftlint:disable:this type_body_length
             if self?.collapsedFromExpanded == true { self?.collapsedFromExpanded = false } else { HapticService.shared.play(.stateSettled) }
         }
 
+        // A longer / shorter lyric line in the virtual notch's middle part widens / narrows the capsule.
+        observers.append(NotificationCenter.default.addObserver(
+            forName: VirtualLyricWidth.changed, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.reposition(animated: true, delayedShrink: true) }
+        })
         observers.append(NotificationCenter.default.addObserver(
             forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main
         ) { [weak self] _ in
@@ -522,6 +528,7 @@ final class NotchWindowController { // swiftlint:disable:this type_body_length
         self.geometry = geometry
         var layout = CapsuleLayout(notch: geometry)
         layout.virtualContent = virtualContent
+        if virtualContent, settings.virtualMiddle == .lyrics { layout.virtualMiddleExtra = VirtualLyricWidth.shared.extra }
         let activities = center.ordered
         layout.reservesModeSwitcher = registry.availableTabs.count > 1
         layout.compactActivityExtra = 0

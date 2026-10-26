@@ -42,7 +42,9 @@ final class LyricsStore {
         #if DEBUG
         // PENDANT_DEBUG_LYRICS=1: made-up synchronised lyrics (a line every 5 s) instead of the real lookup.
         if let mode = ProcessInfo.processInfo.environment["PENDANT_DEBUG_LYRICS"] {
-            let lines = (0..<60).map { LyricLine(id: $0, time: Double($0) * 5, text: "第 \($0) 句歌詞") }
+            let lines = (0..<60).map {
+                LyricLine(id: $0, time: Double($0) * 5, text: mode == "long" ? "這是一句比較長的歌詞，用來測試膠囊會不會跟著變寬 \($0)" : "第 \($0) 句歌詞")
+            }
             if mode == "words" {
                 // Word-timed: each line is five words, one every second.
                 state = .synced((0..<30).map { index in

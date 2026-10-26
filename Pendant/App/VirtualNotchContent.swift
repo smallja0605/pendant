@@ -22,7 +22,8 @@ struct VirtualNotchContent: View {
             if settings.virtualMiddle == .clock {
                 VirtualClockView(settings: settings).frame(width: notch.width, height: row)
             } else if settings.virtualMiddle == .lyrics {
-                VirtualLyricsView(model: model, settings: settings).frame(width: notch.width, height: row)
+                VirtualLyricsView(model: model, settings: settings)
+                    .frame(width: notch.width + (model.layout?.virtualMiddleExtra ?? 0), height: row)
             }
             HStack(spacing: 0) {
                 VirtualBatteryGlyph(style: settings.virtualBatteryStyle, size: 15)
@@ -40,6 +41,31 @@ struct VirtualNotchContent: View {
         }
         .frame(width: size.width, height: size.height, alignment: .top)
         .accessibilityHidden(true)
+    }
+}
+
+/// How much wider than its resting width the virtual notch's middle part has to be for the lyric line it shows (the capsule widens
+/// with it). Set by `VirtualLyricsView`; the notch controllers re-plan when it changes.
+@MainActor
+final class VirtualLyricWidth {
+    static let shared = VirtualLyricWidth()
+    static let changed = Notification.Name("PendantVirtualLyricWidthChanged")
+    private(set) var extra: CGFloat = 0
+    private static let font = NSFont.systemFont(ofSize: 13, weight: .semibold)
+    private static let maxExtra: CGFloat = 220
+
+    /// The extra width for a line of text: its width plus the middle's padding, beyond the resting middle, in steps of 8 pt.
+    static func extra(for text: String?) -> CGFloat {
+        guard let text, !text.isEmpty else { return 0 }
+        let wanted = (text as NSString).size(withAttributes: [.font: font]).width + 16
+        let over = max(wanted - NotchGeometry.virtualContentWidth, 0)
+        return min((over / 8).rounded(.up) * 8, maxExtra)
+    }
+
+    func set(_ value: CGFloat) {
+        guard value != extra else { return }
+        extra = value
+        NotificationCenter.default.post(name: Self.changed, object: nil)
     }
 }
 
@@ -70,8 +96,10 @@ struct VirtualLyricsView: View {
                     }
                 }
                 .animation(.easeInOut(duration: 0.3), value: line?.id)
+                .onChange(of: line?.id, initial: true) { _, _ in VirtualLyricWidth.shared.set(VirtualLyricWidth.extra(for: line?.text)) }
             }
         }
+        .onDisappear { VirtualLyricWidth.shared.set(0) }
         .task(id: "\(playing?.snapshot.trackKey ?? "")|\(settings.lyricsSourcesSignature)") {
             if let snapshot = playing?.snapshot { lyrics.load(for: snapshot) }
         }
