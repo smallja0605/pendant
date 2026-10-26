@@ -112,7 +112,7 @@ struct FocusHeader: View {
                 Image(systemName: "chevron.left").font(.system(size: 11, weight: .bold))
                 Text("返回")
                 Text("|")
-                Text(title).foregroundStyle(.white)
+                Text(loc(title)).foregroundStyle(.white)
             }
             .font(.system(size: 13, weight: .semibold))
             .foregroundStyle(.white.opacity(0.45))
@@ -157,7 +157,7 @@ struct ModeSwitcher: View {
 
     private func pill(_ title: String, symbol: String, selected: Bool, titles: Bool, action: @escaping () -> Void) -> some View {
         Group {
-            if titles { Text(title) } else { Image(systemName: symbol) }
+            if titles { Text(loc(title)) } else { Image(systemName: symbol) }
         }
         .font(.system(size: 11, weight: .semibold))
         .foregroundStyle(selected ? Color.black : .white.opacity(0.75))

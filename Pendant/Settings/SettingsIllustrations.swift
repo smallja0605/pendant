@@ -87,7 +87,7 @@ private struct HandNote: View {
             .rotationEffect(.degrees(mirrored ? 26 : -26))
             .overlay(alignment: .bottom) {
                 // Handwritten (Hannotate TC), set under the stroke's lower end.
-                Text(text).font(.custom("HannotateTC-W7", size: 22)).foregroundStyle(.white).fixedSize()
+                Text(loc(text)).font(.custom("HannotateTC-W7", size: 22)).foregroundStyle(.white).fixedSize()
                     .offset(x: mirrored ? 4 : -4, y: 34)
             }
     }

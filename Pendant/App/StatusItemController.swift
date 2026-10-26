@@ -97,7 +97,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     /// Shows or hides the update notice in the menu.
     func setAvailableUpdate(_ version: String?) {
         updateItem.isHidden = version == nil
-        if let version { updateItem.title = "有新版本 \(version)⋯" }
+        if let version { updateItem.title = tr("有新版本 \(version)⋯") }
     }
 
     func menuWillOpen(_ menu: NSMenu) {

@@ -163,7 +163,7 @@ final class DeveloperWindowController: NSObject, NSWindowDelegate {
         if window == nil {
             let window = FreeWindow.hosting(SimulationPanel())
             window.setContentSize(NSSize(width: 340, height: 300))
-            window.title = "開發者視窗"
+            window.title = tr("開發者視窗")
             window.styleMask = [.titled, .closable, .miniaturizable]
             window.appearance = NSAppearance(named: .darkAqua)
             window.isReleasedWhenClosed = false

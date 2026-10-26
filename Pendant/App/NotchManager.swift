@@ -176,7 +176,7 @@ final class NotchManager {
     private func bluetoothConnected(_ device: BluetoothConnection) {
         let settings = AppSettings.shared
         guard settings.bluetoothToast else { return }
-        let subtitle = device.battery.map { "已連接 · \($0)%" } ?? "已連接"
+        let subtitle = device.battery.map { tr("已連接 · \($0)%") } ?? tr("已連接")
         let toast = SystemToast(title: device.name, subtitle: subtitle, progress: Double(device.battery ?? 100) / 100, tint: .blue,
                                 ringSymbol: "bluetooth", trailing: .symbol(device.symbol))
         controllers.forEach { $0.showToast(toast, seconds: settings.bluetoothToastSeconds) }

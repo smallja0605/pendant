@@ -14,12 +14,12 @@ struct DropdownMenu<Value: Hashable>: View {
                 Button {
                     selection = option.value
                 } label: {
-                    if option.value == selection { Label(option.title, systemImage: "checkmark") } else { Text(option.title) }
+                    if option.value == selection { Label(loc(option.title), systemImage: "checkmark") } else { Text(loc(option.title)) }
                 }
             }
         } label: {
             HStack(spacing: 4) {
-                Text(options.first { $0.value == selection }?.title ?? "")
+                Text(loc(options.first { $0.value == selection }?.title ?? ""))
                 Image(systemName: "chevron.up.chevron.down").font(.system(size: 9, weight: .bold)).foregroundStyle(.secondary)
             }
             .padding(.horizontal, 8).padding(.vertical, 4)

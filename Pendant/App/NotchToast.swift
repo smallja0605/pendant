@@ -84,8 +84,8 @@ struct ToastContent: View {
         let slot = CapsuleLayout.toastContentHeight
         ZStack {
             VStack(spacing: 1) {
-                Text(toast.title).font(.system(size: 17, weight: .semibold)).foregroundStyle(.white).lineLimit(1)
-                Text(toast.subtitle).font(.system(size: 12.5, weight: .medium)).foregroundStyle(.white.opacity(0.5)).lineLimit(1)
+                Text(loc(toast.title)).font(.system(size: 17, weight: .semibold)).foregroundStyle(.white).lineLimit(1)
+                Text(loc(toast.subtitle)).font(.system(size: 12.5, weight: .medium)).foregroundStyle(.white.opacity(0.5)).lineLimit(1)
             }
             .multilineTextAlignment(.center)
             HStack(spacing: 0) {
@@ -121,8 +121,8 @@ struct ToastNotchContent: View {
                 .frame(width: side * 0.7, height: side * 0.7)
                 .frame(width: side, height: side)
             HStack(spacing: 6) {
-                Text(toast.title).font(.system(size: 16, weight: .semibold)).foregroundStyle(.white)
-                Text(toast.subtitle).font(.system(size: 12.5, weight: .medium)).foregroundStyle(.white.opacity(0.5))
+                Text(loc(toast.title)).font(.system(size: 16, weight: .semibold)).foregroundStyle(.white)
+                Text(loc(toast.subtitle)).font(.system(size: 12.5, weight: .medium)).foregroundStyle(.white.opacity(0.5))
             }
             .lineLimit(1)
             .frame(maxWidth: .infinity)

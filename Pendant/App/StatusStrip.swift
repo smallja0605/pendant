@@ -41,7 +41,7 @@ struct StatusStrip: View {
                     }
                 }
                 .accessibilityElement(children: .ignore)
-                .accessibilityLabel("電量 \(reading.percent)%\(reading.onCharger ? "，充電中" : "")")
+                .accessibilityLabel(tr("電量 \(reading.percent)%") + (reading.onCharger ? tr("，充電中") : ""))
             }
         }
     }

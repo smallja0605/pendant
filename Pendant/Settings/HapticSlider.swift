@@ -51,9 +51,9 @@ struct HapticSlider: View {
     @ViewBuilder private var slider: some View {
         if let ends {
             Slider(value: $value, in: range) { EmptyView() } minimumValueLabel: {
-                Text(ends.min).font(.caption).foregroundStyle(.secondary)
+                Text(loc(ends.min)).font(.caption).foregroundStyle(.secondary)
             } maximumValueLabel: {
-                Text(ends.max).font(.caption).foregroundStyle(.secondary)
+                Text(loc(ends.max)).font(.caption).foregroundStyle(.secondary)
             }
             .labelsHidden()
         } else if let tickStep {

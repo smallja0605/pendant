@@ -22,7 +22,7 @@ final class PlaceholderModule: PendantModule {
                 Image(systemName: symbolName)
                     .font(.system(size: 26, weight: .semibold))
                     .foregroundStyle(.white.opacity(0.5))
-                Text(displayName)
+                Text(loc(displayName))
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(.white.opacity(0.8))
                 Text("即將推出…")

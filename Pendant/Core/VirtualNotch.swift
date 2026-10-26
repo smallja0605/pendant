@@ -15,14 +15,14 @@ enum VirtualIdleHide: String, CaseIterable, Sendable { case off, sliver, hidden 
 /// while charging) with the percentage on the right.
 enum VirtualBatteryStyle: String, CaseIterable, Sendable { case icon, ring }
 
-/// How the date is written (always Chinese).
+/// How the date is written (in the app's language).
 enum VirtualDateFormat: String, CaseIterable, Sendable {
     case monthDay, fullDate, slash, short
 
     var pattern: String {
         switch self {
-        case .monthDay: "M月d日 EEE"
-        case .fullDate: "yyyy年M月d日 EEE"
+        case .monthDay: isEnglishUI ? "MMM d, EEE" : "M月d日 EEE"
+        case .fullDate: isEnglishUI ? "MMM d, yyyy EEE" : "yyyy年M月d日 EEE"
         case .slash: "yyyy/M/d EEE"
         case .short: "M/d EEE"
         }
@@ -37,13 +37,13 @@ enum VirtualDateFormat: String, CaseIterable, Sendable {
 enum VirtualClockFormat {
     static func date(_ date: Date, format: VirtualDateFormat) -> String {
         let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "zh_TW")
+        formatter.locale = .appDisplay
         formatter.calendar = Calendar(identifier: .gregorian)
         formatter.dateFormat = format.pattern
         return formatter.string(from: date)
     }
 
-    static func time(_ date: Date, use24Hour: Bool, seconds: Bool, locale: Locale = Locale(identifier: "zh_TW")) -> String {
+    static func time(_ date: Date, use24Hour: Bool, seconds: Bool, locale: Locale = .appDisplay) -> String {
         let formatter = DateFormatter()
         formatter.locale = locale
         formatter.calendar = Calendar(identifier: .gregorian)
@@ -58,7 +58,7 @@ enum VirtualClockFormat {
 
     static func string(
         for date: Date, use24Hour: Bool, seconds: Bool, showsDate: Bool,
-        dateFormat: VirtualDateFormat = .monthDay, locale: Locale = Locale(identifier: "zh_TW")
+        dateFormat: VirtualDateFormat = .monthDay, locale: Locale = .appDisplay
     ) -> String {
         let timeText = time(date, use24Hour: use24Hour, seconds: seconds, locale: locale)
         return showsDate ? Self.date(date, format: dateFormat) + " " + timeText : timeText

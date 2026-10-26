@@ -211,7 +211,7 @@ private struct DemoIsland: View {
     private let infoHeight: CGFloat = 28
 
     var body: some View {
-        let tracks = [("歌名", "歌手"), ("歌名", "歌手")]
+        let tracks = [(tr("歌名"), tr("歌手")), (tr("歌名"), tr("歌手"))]
         let track = tracks[swipe.track]
         // Song line: shown for about 2 s after a change (shorter than the real 2.5 s, to keep the loop brisk).
         let sinceChange = swipe.changedAt.map { time - $0 } ?? 99

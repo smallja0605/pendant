@@ -72,7 +72,7 @@ struct WaveformStatusRow: View {
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { _ in
             TipRow(title: "音波狀態") {
-                Text(text).foregroundStyle(.secondary)
+                Text(loc(text)).foregroundStyle(.secondary)
             }
         }
     }

@@ -39,9 +39,9 @@ struct PendantSettingsView: View {
 
     private var content: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(title).font(.system(size: 30, weight: .bold)).padding(.top, 44)
+            Text(loc(title)).font(.system(size: 30, weight: .bold)).padding(.top, 44)
             Picker("", selection: $page) {
-                ForEach(Page.allCases) { Text($0.rawValue).tag($0) }
+                ForEach(Page.allCases) { Text(loc($0.rawValue)).tag($0) }
             }
             .pickerStyle(.segmented).labelsHidden().fixedSize()
             switch page {

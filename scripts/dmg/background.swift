@@ -84,10 +84,11 @@ func render(scale: Double, to url: URL) {
     cg.scaleBy(x: 1, y: -1)
     let style = NSMutableParagraphStyle()
     style.alignment = .center
-    let caption = NSAttributedString(string: "將 Pendant 拖曳到「應用程式」", attributes: [
+    // The image cannot follow the viewer's language, so the caption is English only; the app itself follows the system language.
+    let caption = NSAttributedString(string: "Drag Pendant to Applications", attributes: [
         .font: NSFont.systemFont(ofSize: 15, weight: .medium), .foregroundColor: NSColor(white: 1, alpha: 0.85), .paragraphStyle: style,
     ])
-    caption.draw(in: CGRect(x: 0, y: 40, width: width, height: 24))
+    caption.draw(in: CGRect(x: 0, y: 36, width: width, height: 22))
     cg.restoreGState()
 
     NSGraphicsContext.current = nil

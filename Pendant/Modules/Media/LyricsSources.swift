@@ -28,7 +28,7 @@ struct LyricsSourceItem: Codable, Identifiable, Equatable, Sendable {
     static let defaults: [LyricsSourceItem] = [
         .init(id: "lrclib", kind: .lrclib, name: "lrclib.net", enabled: true),
         .init(id: "player", kind: .player, name: "Apple Music", enabled: true),
-        .init(id: "netease", kind: .netease, name: "網易雲音樂", enabled: false),
+        .init(id: "netease", kind: .netease, name: tr("網易雲音樂"), enabled: false),
         .init(id: "musixmatch", kind: .musixmatch, name: "Musixmatch", enabled: false),
     ]
 

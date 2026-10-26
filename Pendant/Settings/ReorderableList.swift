@@ -77,7 +77,7 @@ struct ToolRow: View {
                 .foregroundStyle(.white)
                 .frame(width: 26, height: 26)
                 .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(comingSoon ? Color.gray : Color.blue))
-            Text(title).fontWeight(.medium).lineLimit(1)
+            Text(loc(title)).fontWeight(.medium).lineLimit(1)
             if comingSoon { Text("(即將推出)").font(.caption).foregroundStyle(isSelected ? .white.opacity(0.8) : .secondary) }
             Spacer(minLength: 0)
             if let isOn, !comingSoon { Toggle("", isOn: isOn).labelsHidden().toggleStyle(.switch).controlSize(.small) }

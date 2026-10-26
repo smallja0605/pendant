@@ -119,7 +119,7 @@ struct TimerView: View {
                                 .contentShape(Capsule())
                                 .onTapGesture { controller.setDuration(Double(minutes * 60)); HapticService.shared.play(.dragStep) }
                                 .hapticOnHover()
-                                .accessibilityButton("\(minutes) 分鐘")
+                                .accessibilityButton(tr("\(minutes) 分鐘"))
                         }
                     }
                     .padding(.horizontal, 8)

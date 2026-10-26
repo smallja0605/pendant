@@ -20,7 +20,10 @@ struct GeneralSettingsView: View {
                         loginError = LoginItem.set(enabled)
                         launchAtLogin = LoginItem.isEnabled
                     }
-                    .settingNote(loginError.map { "無法變更：\($0)" } ?? (LoginItem.needsApproval ? "請在「系統設定 › 一般 › 登入項目」允許 Pendant" : nil))
+                    .settingNote(
+                        loginError.map { tr("無法變更：\($0)") }
+                            ?? (LoginItem.needsApproval ? tr("請在「系統設定 › 一般 › 登入項目」允許 Pendant") : nil)
+                    )
             }
             Section("顯示") {
                 TipRow(title: "在選單列顯示圖示", tip: "隱藏後可在瀏海按右鍵開啟設定") {

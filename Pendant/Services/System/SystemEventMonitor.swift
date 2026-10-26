@@ -56,12 +56,12 @@ final class SystemEventMonitor {
     // MARK: Cards
 
     static func chargingToast(_ reading: BatteryMonitor.Reading) -> SystemToast {
-        SystemToast(title: "充電中", subtitle: "已連接電源", progress: Double(reading.percent) / 100, tint: .green,
+        SystemToast(title: tr("充電中"), subtitle: tr("已連接電源"), progress: Double(reading.percent) / 100, tint: .green,
                     ringSymbol: "bolt.fill", trailing: .value("\(reading.percent)%"))
     }
 
     static func lowBatteryToast(_ reading: BatteryMonitor.Reading) -> SystemToast {
-        SystemToast(title: "低電量", subtitle: "請盡快充電", progress: Double(reading.percent) / 100, tint: .red,
+        SystemToast(title: tr("低電量"), subtitle: tr("請盡快充電"), progress: Double(reading.percent) / 100, tint: .red,
                     ringSymbol: nil, trailing: .value("\(reading.percent)%"), persistent: true)
     }
 

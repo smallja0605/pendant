@@ -77,9 +77,9 @@ enum SettingsTransfer {
         case notASettingsFile, newerVersion(Int), unreadable
         var message: String {
             switch self {
-            case .notASettingsFile: "這不是 Pendant 的設定檔"
-            case .newerVersion: "這份設定檔來自較新的版本，請先更新 Pendant"
-            case .unreadable: "無法讀取這個檔案"
+            case .notASettingsFile: tr("這不是 Pendant 的設定檔")
+            case .newerVersion: tr("這份設定檔來自較新的版本，請先更新 Pendant")
+            case .unreadable: tr("無法讀取這個檔案")
             }
         }
     }

@@ -28,8 +28,8 @@ struct PermissionsSettingsView: View {
                     HStack(spacing: 12) {
                         Image(systemName: row.symbol).frame(width: 24)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(row.title)
-                            Text(row.detail).font(.caption).foregroundStyle(.secondary)
+                            Text(loc(row.title))
+                            Text(loc(row.detail)).font(.caption).foregroundStyle(.secondary)
                         }
                         Spacer()
                         // Buttons share one column, the state text another, so the rows line up.
@@ -83,6 +83,6 @@ private struct StateText: View {
         case .denied: ("已拒絕", .red)
         case .unknown: ("—", .secondary)
         }
-        Text(text).font(.callout).foregroundStyle(color)
+        Text(loc(text)).font(.callout).foregroundStyle(color)
     }
 }

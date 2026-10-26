@@ -17,7 +17,7 @@ struct ShelfSettingsView: View {
                 // The last option names the number of days chosen below.
                 DropdownRow(title: "清除時機", selection: $settings.shelfAutoClear, options: [
                     (AppSettings.ShelfAutoClear.never, "不自動清除"), (.onLogout, "登出時"), (.onReboot, "重新開機時"),
-                    (.afterDays, "\(settings.shelfAutoClearDays) 天後"),
+                    (.afterDays, tr("\(settings.shelfAutoClearDays) 天後")),
                 ])
                 if settings.shelfAutoClear == .afterDays {
                     SliderRow(title: "天數", value: dayCount, range: 1...365, unit: "天")

@@ -86,19 +86,19 @@ struct ReminderOptionsView: View {
     private var divider: some View { Divider().overlay(.white.opacity(0.12)) }
 
     private func header(_ text: String) -> some View {
-        Text(text).font(.system(size: 11, weight: .bold)).foregroundStyle(.white.opacity(0.55)).padding(.leading, 4)
+        Text(loc(text)).font(.system(size: 11, weight: .bold)).foregroundStyle(.white.opacity(0.55)).padding(.leading, 4)
     }
 
     private func note(_ text: String) -> some View {
-        Text(text).font(.system(size: 10.5)).foregroundStyle(.white.opacity(0.5)).padding(.horizontal, 4)
+        Text(loc(text)).font(.system(size: 10.5)).foregroundStyle(.white.opacity(0.5)).padding(.horizontal, 4)
     }
 
     private func toggleRow(_ symbol: String, _ title: String, subtitle: String?, isOn: Binding<Bool>) -> some View {
         HStack(spacing: 10) {
             Image(systemName: symbol).frame(width: 20).foregroundStyle(.white.opacity(0.7))
             VStack(alignment: .leading, spacing: 1) {
-                Text(title)
-                if let subtitle { Text(subtitle).font(.system(size: 11)).foregroundStyle(.white.opacity(0.6)) }
+                Text(loc(title))
+                if let subtitle { Text(loc(subtitle)).font(.system(size: 11)).foregroundStyle(.white.opacity(0.6)) }
             }
             Spacer()
             Toggle("", isOn: isOn).labelsHidden().toggleStyle(.switch).controlSize(.small)

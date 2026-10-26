@@ -55,7 +55,7 @@ private struct LyricsSourceRow: View {
                     dragging = item.id
                     return NSItemProvider(object: item.id as NSString)
                 }
-            Text(item.name).lineLimit(1)
+            Text(loc(item.name)).lineLimit(1)
             if item.needsSetup && !isReady {
                 Text("未設定").font(.caption).foregroundStyle(.secondary)
             }

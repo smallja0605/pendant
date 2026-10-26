@@ -148,7 +148,7 @@ struct SettingsTitleHeader: View {
 
     var body: some View {
         Section {} header: {
-            Text(title)
+            Text(loc(title))
                 .font(.system(size: 30, weight: .bold))
                 .foregroundStyle(.primary)
                 .textCase(nil)
@@ -219,7 +219,7 @@ private struct SettingsSidebar: View {
         } label: {
             HStack(spacing: 10) {
                 Image(systemName: tab.symbolName).frame(width: 22).font(.system(size: 15, weight: .medium))
-                Text(tab.title).font(.system(size: 14, weight: .semibold))
+                Text(loc(tab.title)).font(.system(size: 14, weight: .semibold))
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 10).padding(.vertical, 8)
@@ -323,7 +323,7 @@ extension View {
     func settingNote(_ text: String?) -> some View {
         VStack(alignment: .leading, spacing: 5) {
             frame(maxWidth: .infinity, alignment: .leading)
-            if let text { Text(text).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
+            if let text { Text(loc(text)).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
         }
     }
 }

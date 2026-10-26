@@ -127,7 +127,7 @@ private struct DrawerZone: View {
             }
             .padding(.leading, 12).padding(.trailing, 6).padding(.top, 6)
             if let message = store.limitMessage {
-                Text(message).font(.system(size: 10.5, weight: .semibold)).foregroundStyle(.orange)
+                Text(loc(message)).font(.system(size: 10.5, weight: .semibold)).foregroundStyle(.orange)
             }
             ScrollView(.vertical, showsIndicators: false) {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 58), spacing: 4)], spacing: 4) {
@@ -255,7 +255,7 @@ private struct DropHint: View {
         VStack(spacing: 8) {
             Image(systemName: symbol).font(.system(size: 24, weight: .semibold)).foregroundStyle(tint)
                 .symbolEffect(.pulse, isActive: active)
-            Text(text).font(.system(size: 13, weight: .bold)).foregroundStyle(.white.opacity(active ? 0.95 : 0.7))
+            Text(loc(text)).font(.system(size: 13, weight: .bold)).foregroundStyle(.white.opacity(active ? 0.95 : 0.7))
         }
         .scaleEffect(active ? 1.06 : 1)
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: active)

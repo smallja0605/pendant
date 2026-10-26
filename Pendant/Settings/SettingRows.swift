@@ -21,8 +21,8 @@ struct TipLabel: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text(title).fixedSize().frame(minHeight: rowLine, alignment: .leading)
-            if let tip { Text(tip).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
+            Text(loc(title)).lineLimit(1).minimumScaleFactor(0.75).frame(minHeight: rowLine, alignment: .leading)
+            if let tip { Text(loc(tip)).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
         }
     }
 }
@@ -47,7 +47,7 @@ struct SliderRow: View {
             HStack(spacing: 10) {
                 HapticSlider(value: $value, in: range, step: step, length: sliderLength)
                 NumberField(value: $value, range: range, step: step, fractionDigits: fractionDigits)
-                Text(unit).foregroundStyle(.secondary).frame(width: 22, alignment: .leading)
+                Text(loc(unit)).foregroundStyle(.secondary).fixedSize().frame(minWidth: 22, alignment: .leading)
                 if let accessory { accessory.fixedSize() }
             }
             .frame(minHeight: rowLine)
@@ -82,7 +82,7 @@ struct DisclosureRow: View {
             HStack(spacing: 8) {
                 Image(systemName: "chevron.right").font(.system(size: 11, weight: .bold)).foregroundStyle(.secondary)
                     .rotationEffect(.degrees(isExpanded ? 90 : 0))
-                Text(title)
+                Text(loc(title))
                 Spacer()
             }
             .contentShape(Rectangle())

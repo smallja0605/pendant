@@ -27,15 +27,15 @@ struct ModuleDescriptor: Identifiable, Equatable, Sendable {
     /// Default order from requirements 11.3: media → notes → reminders → calendar → timer → mirror → shelf →
     /// shortcuts; Quick Apps is a disabled placeholder.
     static let all: [ModuleDescriptor] = [
-        .init("media", "音樂", "music.note", cells: 5, range: 3...10, implemented: true, defaultEnabled: true),
-        .init("notes", "筆記", "note.text", cells: 6, range: 3...10, implemented: true, defaultEnabled: true),
-        .init("reminders", "待辦事項", "checklist", cells: 4, implemented: true, defaultEnabled: true),
-        .init("calendar", "行事曆", "calendar", cells: 5, implemented: true, defaultEnabled: true),
-        .init("timer", "計時器", "timer", cells: 4, range: 3...6, implemented: true, defaultEnabled: true),
-        .init("mirror", "鏡子", "web.camera", cells: 2, range: 2...6, implemented: true, defaultEnabled: true),
-        .init("shelf", "檔案中轉站", "tray.and.arrow.down", cells: 6, range: 3...10, implemented: true, defaultEnabled: true),
-        .init("shortcuts", "捷徑", "sparkles", cells: 4, implemented: true),
-        .init("quickApps", "快速應用", "square.grid.2x2", cells: 2, selectable: false),
+        .init("media", tr("音樂"), "music.note", cells: 5, range: 3...10, implemented: true, defaultEnabled: true),
+        .init("notes", tr("筆記"), "note.text", cells: 6, range: 3...10, implemented: true, defaultEnabled: true),
+        .init("reminders", tr("待辦事項"), "checklist", cells: 4, implemented: true, defaultEnabled: true),
+        .init("calendar", tr("行事曆"), "calendar", cells: 5, implemented: true, defaultEnabled: true),
+        .init("timer", tr("計時器"), "timer", cells: 4, range: 3...6, implemented: true, defaultEnabled: true),
+        .init("mirror", tr("鏡子"), "web.camera", cells: 2, range: 2...6, implemented: true, defaultEnabled: true),
+        .init("shelf", tr("檔案中轉站"), "tray.and.arrow.down", cells: 6, range: 3...10, implemented: true, defaultEnabled: true),
+        .init("shortcuts", tr("捷徑"), "sparkles", cells: 4, implemented: true),
+        .init("quickApps", tr("快速應用"), "square.grid.2x2", cells: 2, selectable: false),
     ]
 
     static func descriptor(for id: String) -> ModuleDescriptor? {
@@ -53,9 +53,9 @@ struct TabConfig: Codable, Equatable, Identifiable, Sendable {
 
     /// 功能, 筆記, 檔案中轉站: what the capsule starts with.
     static let defaults: [TabConfig] = [
-        TabConfig(id: mainID, title: "小工具", moduleIDs: ["media", "reminders", "calendar", "timer", "mirror", "shortcuts"]),
-        TabConfig(id: "notes", title: "筆記", moduleIDs: ["notes"]),
-        TabConfig(id: "shelf", title: "檔案中轉站", moduleIDs: ["shelf"]),
+        TabConfig(id: mainID, title: tr("小工具"), moduleIDs: ["media", "reminders", "calendar", "timer", "mirror", "shortcuts"]),
+        TabConfig(id: "notes", title: tr("筆記"), moduleIDs: ["notes"]),
+        TabConfig(id: "shelf", title: tr("檔案中轉站"), moduleIDs: ["shelf"]),
     ]
 }
 
@@ -103,7 +103,7 @@ struct ModuleLayoutState: Equatable, Sendable {
             var copy = tab
             copy.moduleIDs = tab.moduleIDs.filter { known.contains($0) }
             // The first tab was called 功能 (and may still be saved under that name).
-            if copy.id == TabConfig.mainID, copy.title == "功能" { copy.title = "小工具" }
+            if copy.id == TabConfig.mainID, copy.title == tr("功能") { copy.title = tr("小工具") }
             return copy
         }
         if newTabs.isEmpty { newTabs = TabConfig.defaults }

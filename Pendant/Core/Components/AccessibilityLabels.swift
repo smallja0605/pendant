@@ -4,13 +4,13 @@ import SwiftUI
 enum SymbolLabel {
     static func text(for symbol: String) -> String {
         switch symbol {
-        case "play.fill": "播放"
-        case "pause.fill": "暫停"
-        case "backward.fill": "上一首"
-        case "forward.fill": "下一首"
-        case "airplayaudio": "AirPlay 輸出裝置"
-        case "arrow.counterclockwise": "重設"
-        case _ where symbol.hasPrefix("speaker"): "音量"
+        case "play.fill": tr("播放")
+        case "pause.fill": tr("暫停")
+        case "backward.fill": tr("上一首")
+        case "forward.fill": tr("下一首")
+        case "airplayaudio": tr("AirPlay 輸出裝置")
+        case "arrow.counterclockwise": tr("重設")
+        case _ where symbol.hasPrefix("speaker"): tr("音量")
         default: ""
         }
     }

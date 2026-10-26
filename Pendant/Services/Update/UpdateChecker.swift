@@ -70,7 +70,7 @@ final class UpdateChecker {
                 state = userInitiated ? .upToDate : .idle
             }
         } catch {
-            state = userInitiated ? .failed("無法讀取更新來源") : .idle
+            state = userInitiated ? .failed(tr("無法讀取更新來源")) : .idle
         }
     }
 
@@ -118,7 +118,7 @@ final class UpdateChecker {
         }
         let downloads = [archive.url, checksum.url] + (release.signature.map { [$0.url] } ?? [])
         if UpdateConfig.source == .github, !downloads.allSatisfy(UpdateConfig.isTrustedDownload) {
-            state = .failed("更新包不是來自 Pendant 的官方發佈,已拒絕安裝")
+            state = .failed(tr("更新包不是來自 Pendant 的官方發佈,已拒絕安裝"))
             return
         }
         let work = FileManager.default.temporaryDirectory.appendingPathComponent("pendant-update-\(UUID().uuidString)", isDirectory: true)
@@ -152,7 +152,7 @@ final class UpdateChecker {
             state = .failed(error.message)
             try? FileManager.default.removeItem(at: work)
         } catch {
-            state = .failed(UpdateInstaller.UpdateError.download("請稍後再試").message)
+            state = .failed(UpdateInstaller.UpdateError.download(tr("請稍後再試")).message)
             try? FileManager.default.removeItem(at: work)
         }
     }

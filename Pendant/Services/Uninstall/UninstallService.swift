@@ -11,17 +11,17 @@ enum UninstallService {
     /// Asks for confirmation (with the "keep my notes" choice) and, if confirmed, uninstalls and quits.
     static func confirmAndRun() {
         let alert = NSAlert()
-        alert.messageText = "解除安裝 Pendant?"
+        alert.messageText = tr("解除安裝 Pendant?")
         alert.informativeText = """
         將移除:登入時啟動的設定、Application Support 裡的資料(筆記、檔案抽屜暫存)、偏好設定與快取,\
         最後把 App 移到垃圾桶並結束。
         """
         alert.alertStyle = .warning
-        let keep = NSButton(checkboxWithTitle: "同時保留我的筆記", target: nil, action: nil)
+        let keep = NSButton(checkboxWithTitle: tr("同時保留我的筆記"), target: nil, action: nil)
         keep.state = .on
         alert.accessoryView = keep
-        alert.addButton(withTitle: "解除安裝")
-        alert.addButton(withTitle: "取消")
+        alert.addButton(withTitle: tr("解除安裝"))
+        alert.addButton(withTitle: tr("取消"))
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         run(keepNotes: keep.state == .on)
     }

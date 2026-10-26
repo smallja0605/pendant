@@ -219,7 +219,7 @@ struct AccessGuide: View {
     var body: some View {
         VStack(spacing: 8) {
             Image(systemName: symbol).font(.system(size: 22)).foregroundStyle(.white.opacity(0.4))
-            Text(text).font(.system(size: 11.5, weight: .medium)).foregroundStyle(.white.opacity(0.65)).multilineTextAlignment(.center)
+            Text(loc(text)).font(.system(size: 11.5, weight: .medium)).foregroundStyle(.white.opacity(0.65)).multilineTextAlignment(.center)
             Button("開啟系統設定") {
                 if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?\(pane)") { NSWorkspace.shared.open(url) }
             }
@@ -243,7 +243,7 @@ struct AccessRequest: View {
     var body: some View {
         VStack(spacing: 8) {
             Image(systemName: symbol).font(.system(size: 22)).foregroundStyle(.white.opacity(0.4))
-            Text(text).font(.system(size: 11.5, weight: .medium)).foregroundStyle(.white.opacity(0.65)).multilineTextAlignment(.center)
+            Text(loc(text)).font(.system(size: 11.5, weight: .medium)).foregroundStyle(.white.opacity(0.65)).multilineTextAlignment(.center)
             Button("允許存取", action: action)
                 .buttonStyle(.plain)
                 .font(.system(size: 11, weight: .semibold))

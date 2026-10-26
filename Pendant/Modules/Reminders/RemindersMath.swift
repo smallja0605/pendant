@@ -112,12 +112,12 @@ enum ReminderRepeat: String, CaseIterable, Sendable {
 
     var title: String {
         switch self {
-        case .never: "永不"
-        case .daily: "每天"
-        case .weekly: "每週"
-        case .biweekly: "每兩週"
-        case .monthly: "每月"
-        case .yearly: "每年"
+        case .never: tr("永不")
+        case .daily: tr("每天")
+        case .weekly: tr("每週")
+        case .biweekly: tr("每兩週")
+        case .monthly: tr("每月")
+        case .yearly: tr("每年")
         }
     }
 }
@@ -129,14 +129,14 @@ enum ReminderEarlyAlert: Int, CaseIterable, Sendable {
 
     var title: String {
         switch self {
-        case .none: "無"
-        case .fiveMinutes: "5 分鐘前"
-        case .fifteenMinutes: "15 分鐘前"
-        case .thirtyMinutes: "30 分鐘前"
-        case .oneHour: "1 小時前"
-        case .twoHours: "2 小時前"
-        case .oneDay: "1 天前"
-        case .twoDays: "2 天前"
+        case .none: tr("無")
+        case .fiveMinutes: tr("5 分鐘前")
+        case .fifteenMinutes: tr("15 分鐘前")
+        case .thirtyMinutes: tr("30 分鐘前")
+        case .oneHour: tr("1 小時前")
+        case .twoHours: tr("2 小時前")
+        case .oneDay: tr("1 天前")
+        case .twoDays: tr("2 天前")
         }
     }
 }
@@ -147,10 +147,10 @@ enum ReminderPriorityChoice: Int, CaseIterable, Sendable {
 
     var title: String {
         switch self {
-        case .none: "無"
-        case .low: "低"
-        case .medium: "中"
-        case .high: "高"
+        case .none: tr("無")
+        case .low: tr("低")
+        case .medium: tr("中")
+        case .high: tr("高")
         }
     }
 }

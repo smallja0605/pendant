@@ -89,7 +89,7 @@ struct TitleBand: View {
                 .mask(LinearGradient(stops: [.init(color: .black, location: 0), .init(color: .black, location: 0.62),
                                              .init(color: .clear, location: 1)], startPoint: .top, endPoint: .bottom))
             LinearGradient(colors: [.black.opacity(0.28), .clear], startPoint: .top, endPoint: .bottom)
-            Text(title).font(.system(size: 17, weight: .semibold)).padding(.leading, 28).padding(.top, 15)
+            Text(loc(title)).font(.system(size: 17, weight: .semibold)).padding(.leading, 28).padding(.top, 15)
         }
         .frame(height: 64)
         .opacity(visible ? 1 : 0)

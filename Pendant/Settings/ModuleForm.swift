@@ -64,6 +64,6 @@ func moduleGroup<Content: View>(_ title: String, first: Bool = false, @ViewBuild
         content()
     } header: {
         // The negative top padding closes the wide gap above the title; the offset puts the title back next to its card.
-        Text(title).padding(.top, first ? 0 : -20).padding(.bottom, -7).offset(y: first ? 0 : 7)
+        Text(loc(title)).padding(.top, first ? 0 : -20).padding(.bottom, -7).offset(y: first ? 0 : 7)
     }
 }

@@ -41,7 +41,7 @@ struct ShortcutsView: View {
     }
 
     private func message(_ text: String) -> some View {
-        Text(text).font(.system(size: 12, weight: .semibold)).foregroundStyle(.white.opacity(0.5))
+        Text(loc(text)).font(.system(size: 12, weight: .semibold)).foregroundStyle(.white.opacity(0.5))
             .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

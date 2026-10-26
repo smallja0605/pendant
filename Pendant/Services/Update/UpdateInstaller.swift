@@ -11,17 +11,17 @@ enum UpdateInstaller {
 
         var message: String {
             switch self {
-            case .noChecksum: "更新包缺少 SHA-256 校驗檔,已拒絕安裝"
-            case .checksumMismatch: "更新包校驗碼不符,已拒絕安裝"
-            case .extractFailed: "無法解開更新包"
-            case .noAppInPackage: "更新包內找不到 App"
-            case .wrongBundle: "更新包不是 Pendant"
-            case .wrongVersion: "更新包的版本號與發佈版本不符"
-            case .badSignature: "更新包的程式碼簽章驗證失敗"
-            case .replaceFailed: "無法取代目前的 App(請確認有寫入權限)"
-            case .noSignature: "更新包缺少開發者簽章,已拒絕安裝"
-            case .signatureMismatch: "更新包的開發者簽章不符,已拒絕安裝"
-            case let .download(text): "下載失敗:\(text)"
+            case .noChecksum: tr("更新包缺少 SHA-256 校驗檔,已拒絕安裝")
+            case .checksumMismatch: tr("更新包校驗碼不符,已拒絕安裝")
+            case .extractFailed: tr("無法解開更新包")
+            case .noAppInPackage: tr("更新包內找不到 App")
+            case .wrongBundle: tr("更新包不是 Pendant")
+            case .wrongVersion: tr("更新包的版本號與發佈版本不符")
+            case .badSignature: tr("更新包的程式碼簽章驗證失敗")
+            case .replaceFailed: tr("無法取代目前的 App(請確認有寫入權限)")
+            case .noSignature: tr("更新包缺少開發者簽章,已拒絕安裝")
+            case .signatureMismatch: tr("更新包的開發者簽章不符,已拒絕安裝")
+            case let .download(text): tr("下載失敗:\(text)")
             }
         }
     }
@@ -30,17 +30,17 @@ enum UpdateInstaller {
 
     /// Downloads `url` into `folder`; `progress` gets 0…1 (file:// URLs are copied, for the debug feed).
     static func download(_ url: URL, into folder: URL, progress: @escaping @Sendable (Double) -> Void) async throws -> URL {
-        guard let name = safeFileName(url.lastPathComponent) else { throw UpdateError.download("檔名不安全") }
+        guard let name = safeFileName(url.lastPathComponent) else { throw UpdateError.download(tr("檔名不安全")) }
         let target = folder.appendingPathComponent(name)
         if url.isFileURL {
             try FileManager.default.copyItem(at: url, to: target)
             progress(1)
             return target
         }
-        guard url.scheme == "https" else { throw UpdateError.download("只允許 HTTPS") }
+        guard url.scheme == "https" else { throw UpdateError.download(tr("只允許 HTTPS")) }
         let delegate = ProgressDelegate(progress)
         let (temp, response) = try await URLSession.shared.download(from: url, delegate: delegate)
-        guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw UpdateError.download("伺服器回應異常") }
+        guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw UpdateError.download(tr("伺服器回應異常")) }
         try FileManager.default.moveItem(at: temp, to: target)
         return target
     }

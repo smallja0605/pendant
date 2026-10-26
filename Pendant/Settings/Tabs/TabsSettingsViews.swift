@@ -17,7 +17,7 @@ struct TabChips: View {
             HStack(spacing: 6) {
                 ForEach(registry.tabs) { tab in
                     let isDrop = dropTab == tab.id
-                    Text(tab.title.isEmpty ? "(未命名)" : tab.title)
+                    Text(loc(tab.title.isEmpty ? "(未命名)" : tab.title))
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(selection == tab.id || isDrop ? Color.white : .primary)
                         .padding(.horizontal, 12).padding(.vertical, 5)

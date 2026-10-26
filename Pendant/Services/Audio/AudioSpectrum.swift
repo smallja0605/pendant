@@ -76,10 +76,10 @@ final class AudioSpectrum: @unchecked Sendable {
         description.isPrivate = true
         description.muteBehavior = .unmuted
         var tap = AudioObjectID(kAudioObjectUnknown)
-        guard AudioHardwareCreateProcessTap(description, &tap) == noErr else { return fail("無法讀取系統音訊") }
+        guard AudioHardwareCreateProcessTap(description, &tap) == noErr else { return fail(tr("無法讀取系統音訊")) }
         tapID = tap
 
-        guard let outputUID = Self.defaultOutputUID() else { return teardown(fail: "找不到輸出裝置") }
+        guard let outputUID = Self.defaultOutputUID() else { return teardown(fail: tr("找不到輸出裝置")) }
         let aggregate: [String: Any] = [
             kAudioAggregateDeviceNameKey: "Pendant waveform",
             kAudioAggregateDeviceUIDKey: UUID().uuidString,
@@ -91,7 +91,7 @@ final class AudioSpectrum: @unchecked Sendable {
             kAudioAggregateDeviceTapListKey: [[kAudioSubTapDriftCompensationKey: true, kAudioSubTapUIDKey: description.uuid.uuidString]],
         ]
         var device = AudioObjectID(kAudioObjectUnknown)
-        guard AudioHardwareCreateAggregateDevice(aggregate as CFDictionary, &device) == noErr else { return teardown(fail: "無法建立音訊裝置") }
+        guard AudioHardwareCreateAggregateDevice(aggregate as CFDictionary, &device) == noErr else { return teardown(fail: tr("無法建立音訊裝置")) }
         aggregateID = device
 
         var format = AudioStreamBasicDescription()
@@ -109,9 +109,9 @@ final class AudioSpectrum: @unchecked Sendable {
         let created = AudioDeviceCreateIOProcIDWithBlock(&proc, aggregateID, queue) { [weak self] _, input, _, _, _ in
             self?.consume(input, interleaved: interleaved)
         }
-        guard created == noErr, let proc else { return teardown(fail: "無法讀取系統音訊") }
+        guard created == noErr, let proc else { return teardown(fail: tr("無法讀取系統音訊")) }
         procID = proc
-        guard AudioDeviceStart(aggregateID, proc) == noErr else { return teardown(fail: "無法開始讀取音訊") }
+        guard AudioDeviceStart(aggregateID, proc) == noErr else { return teardown(fail: tr("無法開始讀取音訊")) }
         running = true
         lock.withLock { $0.status = .running }
         installOutputListener()

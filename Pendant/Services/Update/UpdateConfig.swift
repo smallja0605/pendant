@@ -6,7 +6,7 @@ enum UpdateConfig {
     enum Source: Equatable {
         case localFolder, github
 
-        var title: String { self == .github ? "GitHub" : "本機資料夾" }
+        var title: String { self == .github ? "GitHub" : tr("本機資料夾") }
     }
 
     /// `~/Library/Application Support/Pendant/Updates`: holds `Pendant-X.Y.Z.zip`, its `.sha256` and `releases.json`.

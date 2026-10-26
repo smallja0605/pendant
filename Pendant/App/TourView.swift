@@ -169,7 +169,7 @@ struct TourView: View {
                 Text("Pendant").font(.system(size: 15, weight: .bold))
             }
             .padding(.top, 38)
-            Text(item.title).font(.system(size: 30, weight: .bold)).padding(.top, 18)
+            Text(loc(item.title)).font(.system(size: 30, weight: .bold)).padding(.top, 18)
             HStack(alignment: .center, spacing: 30) {
                 TourPicture(kind: item.picture)
                     .frame(width: 330, height: item.picture == .modules ? 132 : 210)
@@ -180,7 +180,7 @@ struct TourView: View {
                             Image(systemName: item.points[index].symbol)
                                 .font(.system(size: 14, weight: .semibold)).frame(width: 20)
                                 .foregroundStyle(Color.accentColor)
-                            Text(item.points[index].text).font(.system(size: 13.5)).fixedSize(horizontal: false, vertical: true)
+                            Text(loc(item.points[index].text)).font(.system(size: 13.5)).fixedSize(horizontal: false, vertical: true)
                         }
                     }
                 }
@@ -220,8 +220,8 @@ struct TourView: View {
     private func card(_ title: String, _ detail: String, isOn: Binding<Bool>) -> some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.system(size: 14, weight: .semibold))
-                Text(detail).font(.system(size: 12)).foregroundStyle(.secondary)
+                Text(loc(title)).font(.system(size: 14, weight: .semibold))
+                Text(loc(detail)).font(.system(size: 12)).foregroundStyle(.secondary)
             }
             Spacer()
             Toggle("", isOn: isOn).toggleStyle(.switch).labelsHidden()

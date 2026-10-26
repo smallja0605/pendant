@@ -165,7 +165,7 @@ private struct PreviewBar: View {
         let index = ids.firstIndex(of: id) ?? 0
         return VStack(spacing: 3) {
             Image(systemName: descriptor.symbolName).font(.system(size: 13, weight: .semibold))
-            Text(descriptor.title).font(.system(size: 10, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.6)
+            Text(loc(descriptor.title)).font(.system(size: 10, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.6)
         }
         .foregroundStyle(.white)
         .frame(width: width(id), height: 54)

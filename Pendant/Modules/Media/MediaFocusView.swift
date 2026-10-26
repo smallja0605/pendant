@@ -102,7 +102,7 @@ struct LyricsView: View {
     }
 
     private func note(_ text: String) -> some View {
-        Text(text).font(.system(size: 13, weight: .medium)).foregroundStyle(.white.opacity(0.4))
+        Text(loc(text)).font(.system(size: 13, weight: .medium)).foregroundStyle(.white.opacity(0.4))
     }
 
     /// Lyrics without timing (the player's own): the view follows the song's progress by proportion, which is only a guess at
