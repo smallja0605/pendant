@@ -112,7 +112,7 @@ struct SettingsView: View {
             .background(ScrollPastTitleObserver { scrollOffset = $0 })
             .overlay { if let titleRest { PageTitleOverlay(title: selection.tab.title, rest: titleRest, offset: scrollOffset) } }
             .overlay(alignment: .topTrailing) {
-                if selection.tab == .general { AppControlButtons().padding(.top, 10).padding(.trailing, 20) }
+                if selection.tab == .general { AppControlButtons().padding(.top, 15).padding(.trailing, 20) }
             }
             .overlay(alignment: .bottom) { EdgeBlur(edge: .bottom, height: 22) }
             .id(selection.tab)

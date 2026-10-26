@@ -47,8 +47,10 @@ struct PageTitleOverlay: View {
 
     static let bigSize: CGFloat = 30
     static let pinnedSize: CGFloat = 22
-    private static let pinnedTop: CGFloat = 12
-    private static let bandHeight: CGFloat = 72
+    private static let pinnedTop: CGFloat = 19
+    /// The solid part of the band (the title row, as tall as the toolbar buttons plus room) and the fade under it.
+    private static let solidHeight: CGFloat = 64
+    private static let fadeHeight: CGFloat = 24
 
     /// 0 at rest, 1 once the title has reached the top.
     private var progress: CGFloat {
@@ -64,11 +66,14 @@ struct PageTitleOverlay: View {
             // The frosted band under the pinned title: content passing beneath it dissolves instead of being cut off.
             ZStack {
                 VisualEffectBackground(material: .menu, blending: .withinWindow)
-                    .mask(LinearGradient(stops: [.init(color: .black, location: 0), .init(color: .black, location: 0.55),
-                                                 .init(color: .clear, location: 1)], startPoint: .top, endPoint: .bottom))
+                    .mask(LinearGradient(stops: [
+                        .init(color: .black, location: 0),
+                        .init(color: .black, location: Self.solidHeight / (Self.solidHeight + Self.fadeHeight)),
+                        .init(color: .clear, location: 1),
+                    ], startPoint: .top, endPoint: .bottom))
                 LinearGradient(colors: [.black.opacity(0.28), .clear], startPoint: .top, endPoint: .bottom)
             }
-            .frame(height: Self.bandHeight)
+            .frame(height: Self.solidHeight + Self.fadeHeight)
             .opacity(min(max((pinning - 0.5) * 2, 0), 1))
             Text(loc(title))
                 .font(.system(size: Self.bigSize, weight: .bold))
