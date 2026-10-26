@@ -21,7 +21,7 @@ struct WidgetsSettingsView: View {
                 VStack(spacing: 8) {
                     ToolListCard {
                         ReorderableList(
-                            ids: registry.order, rowHeight: 48,
+                            ids: registry.order, rowHeight: 40,
                             move: { id, index in registry.move(id, toIndex: index) },
                             onSelect: { id in
                                 guard ModuleDescriptor.descriptor(for: id)?.selectable == true else { return }

@@ -84,7 +84,9 @@ struct ToolRow: View {
         }
         .foregroundStyle(Color.primary)
         .opacity(comingSoon ? 0.55 : 1)
-        .padding(.horizontal, 8)
+        // Inner room from the Figma list (Sidebars - Composed): 7 pt above and below the content, 10 pt from the plate's edge.
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
         // The arrows float over the free space left of the switch (they do not take room from the name while hidden).
         .overlay(alignment: .trailing) {
             if let arrows {
@@ -98,7 +100,6 @@ struct ToolRow: View {
             }
         }
         .modifier(ToolRowPlate(selected: isSelected, hovering: hovering))
-        .padding(.vertical, 3)
         .contentShape(Rectangle())
         .onHover { hovering = $0 }
         .animation(.easeOut(duration: 0.28), value: hovering)
@@ -121,7 +122,8 @@ struct ToolListCard<Content: View>: View {
 
     var body: some View {
         content
-            .padding(6)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
             .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(.white.opacity(0.07)))
     }
 }
