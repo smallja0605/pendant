@@ -19,6 +19,8 @@ final class ModuleRegistry {
     /// Extra height the user dragged onto the detailed reminders page (points); back to 0 whenever that page opens or closes.
     var focusExtraHeight: CGFloat = 0
     var isResizingFocus = false
+    /// The share of the detailed reminders page the list takes (the rest is the new-item box); 0.5 = 5 : 5. Back to 0.5 like the height.
+    var focusSplit: CGFloat = 0.5
     /// True while a detailed page is opening or closing (modules move under a resting pointer: hover effects hold off).
     private(set) var focusTransitioning = false
 
@@ -164,6 +166,7 @@ final class ModuleRegistry {
     func focus(_ id: String) {
         guard focusedModuleID != id else { return }
         focusExtraHeight = 0
+        focusSplit = 0.5
         beginFocusTransition()
         withAnimation(AnimationTokens.expand) { focusedModuleID = id }
     }
@@ -171,6 +174,7 @@ final class ModuleRegistry {
     func unfocus() {
         guard focusedModuleID != nil else { return }
         focusExtraHeight = 0
+        focusSplit = 0.5
         Log.app.info("detail page closed, from: \(Log.callers(), privacy: .public)")
         beginFocusTransition()
         withAnimation(AnimationTokens.expand) { focusedModuleID = nil }

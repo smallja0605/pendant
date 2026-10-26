@@ -15,7 +15,7 @@ struct ModuleForm<Basic: View, Content: View>: View {
 
     var body: some View {
         Form {
-            moduleGroup("基本") {
+            moduleGroup("基本", first: true) {
                 ModuleLayoutRows(moduleID: moduleID)
                 basic
             }
@@ -57,11 +57,13 @@ struct ModuleLayoutRows: View {
     }
 }
 
-/// One titled card of a tool's settings. The grouped form leaves a wide gap above every section title: the title is pulled up to close it.
-func moduleGroup<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+/// One titled card of a tool's settings. The grouped form leaves a wide gap above every section title and between a title and its card:
+/// both are pulled in (the first title keeps its place under the preview, only the gap to its card shrinks).
+func moduleGroup<Content: View>(_ title: String, first: Bool = false, @ViewBuilder content: () -> Content) -> some View {
     Section {
         content()
     } header: {
-        Text(title).padding(.top, -20).padding(.bottom, -4)
+        // The negative top padding closes the wide gap above the title; the offset puts the title back next to its card.
+        Text(title).padding(.top, first ? 0 : -20).padding(.bottom, -7).offset(y: first ? 0 : 20)
     }
 }

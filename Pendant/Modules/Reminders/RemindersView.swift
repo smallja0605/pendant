@@ -6,6 +6,7 @@ struct RemindersView: View {
     /// The detailed page: the list on the left, a tall box for a new item on the right.
     var focused = false
     @State private var settings = AppSettings.shared
+    @State private var registry = ModuleRegistry.shared
     /// The page's body is the new-item box instead of the list (the + button in the header; 擠換).
     @State private var adding = false
     /// The box stays mounted while it swaps out, so it can fade away.
@@ -22,7 +23,7 @@ struct RemindersView: View {
         Group {
             if focused { split } else { page }
         }
-        .padding(.bottom, 8)
+        .padding(.bottom, focused ? 20 : 8)
         .overlay(alignment: .bottom) { if focused { HeightGrip() } }
         .onDisappear {
             store.flushCompleted()
@@ -106,22 +107,28 @@ struct RemindersView: View {
     }
 
     private var split: some View {
-        HStack(spacing: 0) {
-            // The count sits on the category's own line (top right), not on a line of its own.
-            content
-                .overlay(alignment: .topTrailing) {
-                    if store.access == .allowed { countBadge.padding(.top, 2) }
-                }
-                .padding(.top, 6)
-                .frame(maxWidth: .infinity)
-            Rectangle().fill(.white.opacity(0.18)).frame(width: 2)
-                .frame(width: 20).padding(.vertical, 14)
-            if store.access == .allowed {
-                QuickAddRow(store: store, tall: true)
+        GeometryReader { proxy in
+            let divider: CGFloat = 20
+            let room = max(proxy.size.width - divider, 1)
+            let listWidth = room * registry.focusSplit
+            HStack(spacing: 0) {
+                // The count sits on the category's own line (top right), not on a line of its own.
+                content
+                    .overlay(alignment: .topTrailing) {
+                        if store.access == .allowed { countBadge.padding(.top, 2) }
+                    }
                     .padding(.top, 6)
-                    .frame(width: 300)
+                    .frame(width: listWidth)
+                SplitDivider(room: room)
+                    .frame(width: divider)
+                if store.access == .allowed {
+                    QuickAddRow(store: store, tall: true)
+                        .padding(.top, 6)
+                        .frame(width: room - listWidth)
+                }
             }
         }
+        .padding(.bottom, 12) // the height handle sits under the boxes
     }
 
     @ViewBuilder private var content: some View {
