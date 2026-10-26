@@ -8,9 +8,6 @@ struct WidgetsSettingsView: View {
     @State private var tabSelection = TabConfig.mainID
     @State private var tabFrames: [String: CGRect] = [:]
     @State private var dropTab: String?
-    @Environment(\.pageViewportHeight) private var viewportHeight
-    /// Where the tool list and its settings start on the page (measured), so the settings panel can run down to the window's bottom.
-    @State private var panelTop: CGFloat = 330
 
     private var tab: TabConfig? { registry.tabs.first { $0.id == tabSelection } ?? registry.tabs.first }
 
@@ -46,7 +43,7 @@ struct WidgetsSettingsView: View {
                         .controlSize(.small)
                 }
                 .frame(width: 216)
-                Group {
+                DetailPane(minHeight: 400) {
                     if let id = selection, ModuleDescriptor.descriptor(for: id)?.selectable == true,
                        let module = registry.module(for: id) {
                         module.makeSettingsView().id(id)
@@ -54,12 +51,7 @@ struct WidgetsSettingsView: View {
                         Color.clear
                     }
                 }
-                .frame(maxWidth: .infinity)
-                .frame(height: viewportHeight > 0 ? max(400, viewportHeight - panelTop - 24) : 400)
             }
-            .background(GeometryReader { proxy in
-                Color.clear.onChange(of: proxy.frame(in: .named(PageSpace.content)).minY, initial: true) { _, top in panelTop = top }
-            })
         }
     }
 

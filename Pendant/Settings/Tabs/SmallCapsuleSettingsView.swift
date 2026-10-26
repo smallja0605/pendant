@@ -48,8 +48,8 @@ struct SmallCapsuleSettingsView: View {
                         }
                     )
                 }
-                .frame(width: 250)
-                detail.frame(maxWidth: .infinity).frame(height: 300)
+                .frame(width: 216)
+                DetailPane(minHeight: 300) { detail }
             }
         }
     }
@@ -122,6 +122,7 @@ struct SmallCapsuleSettingsView: View {
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
+        .padding(.top, -8)
         .environment(\.sliderLength, 140)
         .id(selection)
     }

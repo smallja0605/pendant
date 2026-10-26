@@ -5,9 +5,6 @@ import SwiftUI
 struct FocusCapsuleSettingsView: View {
     // PENDANT_DEBUG_FOCUS_TOOL=media|reminders|calendar opens that tool's page (for screenshots).
     @State private var selection = ProcessInfo.processInfo.environment["PENDANT_DEBUG_FOCUS_TOOL"] ?? "media"
-    @Environment(\.pageViewportHeight) private var viewportHeight
-    @State private var panelTop: CGFloat = 200
-
     private struct Tool {
         let id: String
         let title: String
@@ -35,19 +32,14 @@ struct FocusCapsuleSettingsView: View {
                 }
             }
             .frame(width: 216)
-            Group {
+            DetailPane(minHeight: 400) {
                 switch selection {
                 case "reminders": FocusRemindersSettings()
                 case "calendar": FocusCalendarSettings()
                 default: FocusMusicSettings()
                 }
             }
-            .frame(maxWidth: .infinity)
-            .frame(height: viewportHeight > 0 ? max(400, viewportHeight - panelTop - 24) : 400)
         }
-        .background(GeometryReader { proxy in
-            Color.clear.onChange(of: proxy.frame(in: .named(PageSpace.content)).minY, initial: true) { _, top in panelTop = top }
-        })
     }
 }
 
@@ -151,7 +143,7 @@ private struct FocusMusicSettings: View {
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
-        .padding(.top, -20)
+        .padding(.top, -8)
         .padding(.horizontal, -20)
         .environment(\.sliderLength, 140)
     }
@@ -178,7 +170,7 @@ private struct FocusRemindersSettings: View {
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
-        .padding(.top, -20)
+        .padding(.top, -8)
         .padding(.horizontal, -20)
         .environment(\.sliderLength, 140)
         .task {
@@ -206,7 +198,7 @@ private struct FocusCalendarSettings: View {
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
-        .padding(.top, -20)
+        .padding(.top, -8)
         .padding(.horizontal, -20)
         .environment(\.sliderLength, 140)
     }

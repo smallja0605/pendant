@@ -24,7 +24,7 @@ struct ModuleForm<Basic: View, Content: View>: View {
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
         // The grouped form's own space around its card (20 pt): the card lines up with the tool list and the preview above it.
-        .padding(.top, -20)
+        .padding(.top, -8)
         .padding(.horizontal, -20)
         .environment(\.sliderLength, 140)
     }
