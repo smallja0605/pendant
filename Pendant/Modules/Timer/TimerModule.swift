@@ -34,7 +34,7 @@ private struct TimerModuleSettings: View {
 
     var body: some View {
         ModuleForm(moduleID: "timer") {
-            Section("快速計時") {
+            moduleGroup("快速計時") {
                 TipRow(title: "快速計時") {
                     HStack {
                         TextField("1, 5, 10, 25", text: $presetsText)
@@ -43,7 +43,7 @@ private struct TimerModuleSettings: View {
                     }
                 }
             }
-            Section("通知") {
+            moduleGroup("通知") {
                 Toggle("提示音", isOn: $settings.timerSound)
                 Toggle("系統通知", isOn: $settings.timerNotification)
             }

@@ -15,7 +15,7 @@ struct ModuleForm<Basic: View, Content: View>: View {
 
     var body: some View {
         Form {
-            Section("基本") {
+            moduleGroup("基本") {
                 ModuleLayoutRows(moduleID: moduleID)
                 basic
             }
@@ -54,5 +54,14 @@ struct ModuleLayoutRows: View {
                 range: Double(range.lowerBound)...Double(range.upperBound), unit: "格"
             )
         }
+    }
+}
+
+/// One titled card of a tool's settings. The grouped form leaves a wide gap above every section title: the title is pulled up to close it.
+func moduleGroup<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+    Section {
+        content()
+    } header: {
+        Text(title).padding(.top, -20).padding(.bottom, -4)
     }
 }

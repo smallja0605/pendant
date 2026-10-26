@@ -62,7 +62,7 @@ private struct MediaModuleSettings: View {
                 (MediaSourcePreference.auto, "自動"), (.appleMusic, "Apple Music"), (.spotify, "Spotify"),
             ])
         } content: {
-            Section("音波") {
+            moduleGroup("音波") {
                 TipRow(title: "真實音波", tip: "依實際播放的聲音動，需要「系統音訊錄製」權限") {
                     Toggle("", isOn: $settings.realWaveform).labelsHidden().disabled(!Self.canTap)
                 }
@@ -76,7 +76,7 @@ private struct MediaModuleSettings: View {
                     SliderRow(title: "音波靈敏度", value: sensitivity, range: 50...200, step: 5, unit: "%")
                 }
             }
-            Section("封面") {
+            moduleGroup("封面") {
                 TipRow(title: "線上封面", tip: "歌名與歌手會送到 Apple 搜尋服務") {
                     Toggle("", isOn: $settings.onlineArtwork).labelsHidden()
                 }
@@ -89,7 +89,7 @@ private struct MediaModuleSettings: View {
                     }
                 }
             }
-            Section("歌詞") {
+            moduleGroup("歌詞") {
                 LyricsSourcesSection()
                 TipRow(title: "線上歌詞", tip: "歌名、歌手與長度會送到已開啟的線上來源") {
                     Toggle("", isOn: $settings.onlineLyrics).labelsHidden()
@@ -97,7 +97,7 @@ private struct MediaModuleSettings: View {
                 SliderRow(title: "歌詞時間調整", tip: "歌詞比聲音慢就調大（提早出現），比聲音快就調小", value: $settings.lyricsOffset,
                           range: -3...3, step: 0.1, unit: "秒", fractionDigits: 1)
             }
-            Section("歌詞整理") {
+            moduleGroup("歌詞整理") {
                 TipRow(title: "歌詞轉繁體", tip: "簡體中文歌詞轉成繁體（日文、韓文歌不轉）") {
                     Toggle("", isOn: $settings.lyricsTraditional).labelsHidden()
                 }

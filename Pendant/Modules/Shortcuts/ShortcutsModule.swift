@@ -27,7 +27,7 @@ private struct ShortcutsModuleSettings: View {
 
     var body: some View {
         ModuleForm(moduleID: "shortcuts") {
-            Section("內容") {
+            moduleGroup("內容") {
                 TipRow(title: "捷徑") {
                     HStack {
                         Button("全選") { settings.shortcutsHidden = [] }
@@ -46,7 +46,7 @@ private struct ShortcutsModuleSettings: View {
                     ))
                 }
             }
-            Section("排列") {
+            moduleGroup("排列") {
                 DropdownRow(title: "排列", selection: $settings.shortcutsGrid, options: [(true, "圖示"), (false, "清單")])
             }
         }

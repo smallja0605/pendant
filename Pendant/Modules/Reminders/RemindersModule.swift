@@ -32,7 +32,7 @@ private struct RemindersModuleSettings: View {
 
     var body: some View {
         ModuleForm(moduleID: "reminders") {
-            Section("清單") {
+            moduleGroup("清單") {
                 TipRow(title: "清單") {
                     HStack {
                         Button("全選") { store.selectAll() }
@@ -42,7 +42,7 @@ private struct RemindersModuleSettings: View {
                 listRows
                 Toggle("已完成", isOn: $settings.remindersShowCompleted)
             }
-            Section("排列") {
+            moduleGroup("排列") {
                 DropdownRow(title: "排序", selection: $settings.remindersSort, options: [
                     (ReminderSort.dueDate, "到期日"), (.priority, "優先度"), (.title, "名稱"),
                 ])
@@ -50,7 +50,7 @@ private struct RemindersModuleSettings: View {
                                                           set: { settings.remindersLimit = Int($0.rounded()) }),
                           range: 3...100, unit: "筆")
             }
-            Section("其他") {
+            moduleGroup("其他") {
                 TipRow(title: "") { Button("開啟提醒事項") { store.openRemindersApp() } }
             }
         }

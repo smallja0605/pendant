@@ -8,7 +8,7 @@ struct CalendarModuleSettings: View {
 
     var body: some View {
         ModuleForm(moduleID: "calendar") {
-            Section("顯示內容") {
+            moduleGroup("顯示內容") {
                 TipRow(title: "日曆") {
                     HStack {
                         Button("全選") { store.selectAll() }
@@ -20,12 +20,12 @@ struct CalendarModuleSettings: View {
                 Toggle("全天行程", isOn: $settings.calendarShowAllDay)
                 Toggle("跨日行程", isOn: $settings.calendarShowMultiDay)
             }
-            Section("日期範圍") {
+            moduleGroup("日期範圍") {
                 Toggle("整月", isOn: $settings.calendarWholeMonth)
                 daysRow("往前天數", value: $settings.calendarDaysBehind).dimmed(when: settings.calendarWholeMonth)
                 daysRow("往後天數", value: $settings.calendarDaysAhead).dimmed(when: settings.calendarWholeMonth)
             }
-            Section("其他") {
+            moduleGroup("其他") {
                 TipRow(title: "") { Button("開啟行事曆") { store.openCalendarApp() } }
             }
         }

@@ -27,11 +27,11 @@ private struct NotesModuleSettings: View {
 
     var body: some View {
         ModuleForm(moduleID: "notes") {
-            Section("編輯") {
+            moduleGroup("編輯") {
                 SliderRow(title: "字級", value: $settings.notesFontSize, range: 10...22, unit: "pt")
                 Toggle("開啟上次筆記", isOn: $settings.notesOpenLast)
             }
-            Section("儲存") {
+            moduleGroup("儲存") {
                 TipRow(title: "儲存位置") {
                     HStack {
                         Text(settings.notesCustomPath.isEmpty ? "預設" : settings.notesCustomPath)
