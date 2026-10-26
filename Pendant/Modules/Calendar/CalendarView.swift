@@ -7,6 +7,7 @@ struct CalendarView: View {
     var focused = false
     @State private var position = 0.0
     @State private var settings = AppSettings.shared
+    @State private var focusSettings = FocusCapsuleSettings.shared
 
     private var selectedOffset: Int { min(max(Int(position.rounded()), range.lowerBound), range.upperBound) }
     private var range: ClosedRange<Int> {
@@ -16,6 +17,8 @@ struct CalendarView: View {
         return -settings.calendarDaysBehind...settings.calendarDaysAhead
     }
     private var today: Date { CalendarMath.startOfDay(Date()) }
+    /// The first day of the week for the detailed page's strip: the setting, or the system's.
+    private var weekStart: Int { focusSettings.calendarWeekStart == 0 ? Calendar.current.firstWeekday : focusSettings.calendarWeekStart }
 
     /// Anything that changes which events are listed.
     private var reloadKey: String {
@@ -39,7 +42,9 @@ struct CalendarView: View {
             if focused {
                 // The strip spans the page; the month sits over its faded left end.
                 ZStack(alignment: .leading) {
-                    DayStrip(today: today, range: range, position: $position, anchor: 0.15, wide: true)
+                    DayStrip(today: today, range: range, position: $position,
+                             anchor: max(CGFloat(focusSettings.calendarTodayPosition) / 100, 0.03),
+                             weekStart: weekStart, wide: true)
                     monthLabel
                         .padding(.trailing, 14)
                         .background(LinearGradient(colors: [.black, .black, .clear], startPoint: .leading, endPoint: .trailing))
@@ -82,7 +87,7 @@ struct CalendarView: View {
                             FlowLayout(spacing: 8) {
                                 ForEach(store.events) { event in
                                     EventTile(event: event) { store.open(event) }
-                                        .frame(width: 210)
+                                        .frame(width: CGFloat(focusSettings.calendarTileWidth))
                                 }
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)

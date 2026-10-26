@@ -45,13 +45,18 @@ enum SettingsTransfer {
     ]
     /// The single-tool capsule's (`settings.focus.`).
     static let focusKeys: [String] = [
-        "waveformArtworkColor", "waveformBars", "waveformFocus", "waveformGain", "waveformReal", "waveformSensitivity",
+        "calendarTileWidth", "calendarTodayPosition", "calendarWeekStart", "glowStrength", "lyricsCentered", "lyricsFillArtwork",
+        "lyricsFontSize", "lyricsFontWeight", "lyricsOthersOpacity", "lyricsOthersScale", "lyricsScrollDuration",
+        "lyricsScrollSpring", "lyricsTapToSeek", "playerShare", "remindersDefaultDue", "remindersDefaultList",
+        "remindersDefaultPriority", "remindersExtraHeight", "remindersHandle", "remindersSplit", "showOutputButtons",
+        "showProgressTimes", "waveformArtworkColor", "waveformBars", "waveformFocus", "waveformGain", "waveformReal",
+        "waveformSensitivity",
     ]
 
     /// Left out of every file: meaningful on this Mac only, or something that was shown once.
     static let excluded: Set<String> = [
         "tourSeen", "migratedFromLegacyDomain", "shelfLastBoot", "notesLastID", "notesCustomPath", "mirrorCameraID", "calendarHiddenIDs",
-        "remindersHiddenListIDs", "timerLastDuration",
+        "remindersHiddenListIDs", "timerLastDuration", "focus.remindersDefaultList",
     ]
     /// Only the Mac has these (Liquid Glass, the menu bar icon, Apple Music / Spotify, the trackpad, the Shortcuts app, the hot key).
     static let macOnly: Set<String> = [

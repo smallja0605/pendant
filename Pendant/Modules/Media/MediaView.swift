@@ -44,10 +44,13 @@ struct MediaView: View {
         .modifier(TrackSwipe(controller: controller))
     }
 
+    /// The single-tool capsule scales the glow (設定 › 獨立膠囊 › 專輯光暈強度); the big capsule keeps it as it was.
+    private var glowFactor: Double { focused ? Double(FocusCapsuleSettings.shared.glowStrength) / 100 : 1 }
+
     @ViewBuilder private var glow: some View {
         if controller.showsArtworkGlow, let color = controller.artworkColor {
             // Larger than the page and centred on it, so the colour runs up behind the notch without a visible edge.
-            RadialGradient(colors: [color.opacity(0.30), .clear], center: .center, startRadius: 0, endRadius: 190)
+            RadialGradient(colors: [color.opacity(0.30 * glowFactor), .clear], center: .center, startRadius: 0, endRadius: 190)
                 .frame(width: 400, height: 400)
                 .blur(radius: 10)
                 .animation(.easeInOut(duration: 0.5), value: controller.artworkColor)
@@ -63,6 +66,7 @@ private struct PlayerPage: View {
     let nowPlaying: NowPlaying
     let isActive: Bool
     let focused: Bool
+    @State private var focusSettings = FocusCapsuleSettings.shared
     @State private var outputs = AnchoredPopover()
 
     private var artSize: CGFloat { Tuning.shared.artSize }
@@ -108,7 +112,10 @@ private struct PlayerPage: View {
                 if controller.automationDenied && !nowPlaying.hasKnownPosition {
                     PermissionGuide()
                 } else {
-                    MediaProgressBar(nowPlaying: nowPlaying, isActive: isActive, canSeek: !controller.automationDenied) {
+                    MediaProgressBar(
+                        nowPlaying: nowPlaying, isActive: isActive, canSeek: !controller.automationDenied,
+                        showsTimes: !focused || focusSettings.showProgressTimes
+                    ) {
                         controller.seek(to: $0)
                     }
                 }
@@ -133,20 +140,23 @@ private struct PlayerPage: View {
     }
 
     private var controls: some View {
-        HStack(spacing: Tuning.shared.controlsSpacing) {
-            ControlButton(symbol: "airplayaudio", size: Tuning.shared.skipIconSize) {
+        let showsOutputs = !focused || focusSettings.showOutputButtons
+        return HStack(spacing: Tuning.shared.controlsSpacing) {
+            if showsOutputs {
+                ControlButton(symbol: "airplayaudio", size: Tuning.shared.skipIconSize) {
                 outputs.toggle(size: NSSize(width: OutputsPopover.width, height: 120)) { popover in
                     AnyView(OutputsPopover(controller: controller) {
                         popover.resize(to: NSSize(width: OutputsPopover.width, height: $0))
                     })
                 }
+                }
+                .background(PopoverAnchor(popover: outputs))
             }
-            .background(PopoverAnchor(popover: outputs))
             ControlButton(symbol: "backward.fill", size: Tuning.shared.skipIconSize) { controller.previous() }
             ControlButton(symbol: nowPlaying.isPlaying ? "pause.fill" : "play.fill", size: Tuning.shared.playIconSize,
                           width: Tuning.shared.controlButtonWidth + 2) { controller.togglePlayPause() }
             ControlButton(symbol: "forward.fill", size: Tuning.shared.skipIconSize) { controller.next() }
-            VolumeButton(controller: controller)
+            if showsOutputs { VolumeButton(controller: controller) }
         }
     }
 }
@@ -294,6 +304,7 @@ private struct MediaProgressBar: View {
     let nowPlaying: NowPlaying
     let isActive: Bool
     let canSeek: Bool
+    var showsTimes = true
     let onSeek: (TimeInterval) -> Void
 
     @State private var dragFraction: Double?
@@ -324,13 +335,15 @@ private struct MediaProgressBar: View {
                 }
                 .frame(height: 16)
                 .onActiveHover { hovering = $0 != nil }
-                HStack {
-                    Text(MediaInteractionMath.formatTime(position))
-                    Spacer()
-                    Text(MediaInteractionMath.formatTime(duration))
+                if showsTimes {
+                    HStack {
+                        Text(MediaInteractionMath.formatTime(position))
+                        Spacer()
+                        Text(MediaInteractionMath.formatTime(duration))
+                    }
+                    .font(.system(size: 11, weight: .bold).monospacedDigit())
+                    .foregroundStyle(.white.opacity(0.5))
                 }
-                .font(.system(size: 11, weight: .bold).monospacedDigit())
-                .foregroundStyle(.white.opacity(0.5))
             }
         }
     }

@@ -163,18 +163,23 @@ final class ModuleRegistry {
         focusedModuleID == id ? (module(for: id)?.focusCells ?? cells(for: id)) : cells(for: id)
     }
 
+    /// The detailed reminders page starts (and returns) at the height and split chosen in 設定 › 獨立膠囊 › 待辦事項.
+    private func applyFocusDefaults() {
+        let settings = FocusCapsuleSettings.shared
+        focusExtraHeight = CGFloat(settings.remindersExtraHeight)
+        focusSplit = CGFloat(settings.remindersSplit) / 100
+    }
+
     func focus(_ id: String) {
         guard focusedModuleID != id else { return }
-        focusExtraHeight = 0
-        focusSplit = 0.5
+        applyFocusDefaults()
         beginFocusTransition()
         withAnimation(AnimationTokens.expand) { focusedModuleID = id }
     }
 
     func unfocus() {
         guard focusedModuleID != nil else { return }
-        focusExtraHeight = 0
-        focusSplit = 0.5
+        applyFocusDefaults()
         Log.app.info("detail page closed, from: \(Log.callers(), privacy: .public)")
         beginFocusTransition()
         withAnimation(AnimationTokens.expand) { focusedModuleID = nil }

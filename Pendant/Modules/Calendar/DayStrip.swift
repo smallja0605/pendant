@@ -9,6 +9,8 @@ struct DayStrip: View {
     @Binding var position: Double
     /// Where across the strip (0…1) the focus date sits; 0.5 centres it. The strip fills its whole width either way.
     var anchor: CGFloat = 0.5
+    /// Weekday (1 = Sunday … 7) that starts a week: a faint line is drawn before it (the detailed page); 0 = none.
+    var weekStart = 0
     /// The detailed page's strip: days far from the focus date stay readable instead of fading out.
     var wide = false
 
@@ -53,6 +55,11 @@ struct DayStrip: View {
                             .onActiveHover { hoveredOffset = $0 != nil ? offset : (hoveredOffset == offset ? nil : hoveredOffset) }
                             .onTapGesture { jump(to: offset) }
                             .position(x: center + Self.xOffset(for: distance, tuning: tuning), y: proxy.size.height / 2)
+                        let weekday = Calendar.current.component(.weekday, from: CalendarMath.day(offset: offset, from: today))
+                        if weekStart > 0, weekday == weekStart {
+                            Rectangle().fill(.white.opacity(0.16)).frame(width: 1, height: proxy.size.height * 0.5)
+                                .position(x: center + Self.xOffset(for: distance - 0.5, tuning: tuning), y: proxy.size.height / 2)
+                        }
                     }
                 }
             }

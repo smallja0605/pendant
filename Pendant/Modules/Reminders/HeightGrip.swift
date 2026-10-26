@@ -4,6 +4,8 @@ import SwiftUI
 /// The handle at the bottom of the detailed reminders page: drag it up or down to change the capsule's height. The height is not
 /// remembered: it goes back when the page is closed (`ModuleRegistry.focusExtraHeight`).
 struct HeightGrip: View {
+    /// Shown only while the pointer is over its strip (設定 › 獨立膠囊 › 待辦事項 › 調整高度的把手).
+    var hidesUntilHover = false
     @State private var registry = ModuleRegistry.shared
     @State private var hovering = false
     @State private var startMouse: CGFloat?
@@ -11,7 +13,7 @@ struct HeightGrip: View {
 
     var body: some View {
         Capsule()
-            .fill(.white.opacity(hovering || startMouse != nil ? 0.55 : 0.22))
+            .fill(.white.opacity(hovering || startMouse != nil ? 0.55 : (hidesUntilHover ? 0 : 0.22)))
             .frame(width: 44, height: 4)
             .frame(maxWidth: .infinity)
             .frame(height: 16)

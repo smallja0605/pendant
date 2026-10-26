@@ -7,6 +7,7 @@ struct RemindersView: View {
     var focused = false
     @State private var settings = AppSettings.shared
     @State private var registry = ModuleRegistry.shared
+    @State private var focusSettings = FocusCapsuleSettings.shared
     /// The page's body is the new-item box instead of the list (the + button in the header; 擠換).
     @State private var adding = false
     /// The box stays mounted while it swaps out, so it can fade away.
@@ -24,7 +25,9 @@ struct RemindersView: View {
             if focused { split } else { page }
         }
         .padding(.bottom, focused ? 20 : 8)
-        .overlay(alignment: .bottom) { if focused { HeightGrip() } }
+        .overlay(alignment: .bottom) {
+            if focused, focusSettings.remindersHandle != 2 { HeightGrip(hidesUntilHover: focusSettings.remindersHandle == 1) }
+        }
         .onDisappear {
             store.flushCompleted()
             adding = false
@@ -122,7 +125,7 @@ struct RemindersView: View {
                 SplitDivider(room: room)
                     .frame(width: divider)
                 if store.access == .allowed {
-                    QuickAddRow(store: store, tall: true)
+                    QuickAddRow(store: store, tall: true, usesPageDefaults: true)
                         .padding(.top, 6)
                         .frame(width: room - listWidth)
                 }
@@ -234,12 +237,35 @@ private struct QuickAddRow: View {
     var tall = false
     /// Puts the cursor in the title field shortly after the box appears (the page's new-item box).
     var autoFocus = false
+    /// A new item starts with the priority / due date / list chosen in 設定 › 獨立膠囊 › 待辦事項 (the detailed page's box).
+    var usesPageDefaults = false
     /// Called after an item was added or Esc was pressed.
     var onDone: (() -> Void)?
     @State private var draft = ReminderDraft()
     @State private var popover = AnchoredPopover()
     @State private var optionsPopover = AnchoredPopover()
     @FocusState private var focused: Bool
+
+    /// An empty draft, with the page's defaults when this is the detailed page's box.
+    private func freshDraft() -> ReminderDraft {
+        var draft = ReminderDraft()
+        guard usesPageDefaults else { return draft }
+        let settings = FocusCapsuleSettings.shared
+        draft.priority = [.none, .low, .medium, .high][min(max(settings.remindersDefaultPriority, 0), 3)]
+        let today = Calendar.current.startOfDay(for: Date())
+        switch settings.remindersDefaultDue {
+        case 1: draft.due = today
+        case 2: draft.due = Calendar.current.date(byAdding: .day, value: 1, to: today)
+        case 3:
+            draft.due = Date().addingTimeInterval(3600)
+            draft.includeTime = true
+        default: break
+        }
+        if !settings.remindersDefaultList.isEmpty, store.lists.contains(where: { $0.id == settings.remindersDefaultList }) {
+            draft.listID = settings.remindersDefaultList
+        }
+        return draft
+    }
 
     private var title: String { draft.title }
     private var canSend: Bool { !draft.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
@@ -307,6 +333,7 @@ private struct QuickAddRow: View {
         .padding(.vertical, 5)
         .background(RoundedRectangle(cornerRadius: 11, style: .continuous).fill(.white.opacity(focused ? 0.16 : 0.09)))
         .onExitCommand { onDone?() }
+        .onAppear { if draft == ReminderDraft() { draft = freshDraft() } }
         .task {
             guard autoFocus else { return }
             try? await Task.sleep(for: .milliseconds(250))
@@ -334,7 +361,7 @@ private struct QuickAddRow: View {
     private func submit() {
         guard canSend else { return }
         let pending = draft
-        draft = ReminderDraft()
+        draft = freshDraft()
         popover.close()
         optionsPopover.close()
         Task { await store.add(pending) }
