@@ -7,8 +7,9 @@ struct LyricsFormatOptions: Equatable, Sendable {
     var traditional = true
     var fillerDots = true
     var splitLines = true
+    var hideRomanization = true
 
-    var signature: String { "\(traditional)\(fillerDots)\(splitLines)" }
+    var signature: String { "\(traditional)\(fillerDots)\(splitLines)\(hideRomanization)" }
 }
 
 enum LyricsFormatter {
@@ -16,10 +17,14 @@ enum LyricsFormatter {
 
     static func process(_ state: State, options: LyricsFormatOptions) -> State {
         switch state {
-        case let .synced(lines):
+        case let .synced(source):
+            let lines = options.hideRomanization ? dropRomanization(source) : source
+            guard !lines.isEmpty else { return .none } // it was only romanisation: the next source gets its turn
             let convert = options.traditional && !usesJapaneseOrKorean(lines.map(\.text))
-            return .synced(lines.map { format($0, options: options, convert: convert) })
-        case let .plain(lines):
+            return .synced(lines.enumerated().map { format($1, id: $0, options: options, convert: convert) })
+        case let .plain(source):
+            let lines = options.hideRomanization ? source.filter { !isRomanizedLine($0, song: source) } : source
+            guard lines.contains(where: { !$0.isEmpty }) else { return .none }
             let convert = options.traditional && !usesJapaneseOrKorean(lines)
             let converted = lines.map { convert ? toTraditional($0) : $0 }
             return .plain(options.splitLines ? converted.flatMap { parts(of: $0) } : converted)
@@ -28,17 +33,73 @@ enum LyricsFormatter {
         }
     }
 
-    private static func format(_ line: LyricLine, options: LyricsFormatOptions, convert: Bool) -> LyricLine {
+    private static func format(_ line: LyricLine, id: Int, options: LyricsFormatOptions, convert: Bool) -> LyricLine {
         var result = line
         if convert {
             result = LyricLine(
-                id: line.id, time: line.time, text: toTraditional(line.text),
+                id: id, time: line.time, text: toTraditional(line.text),
                 words: line.words.map { LyricWord(start: $0.start, end: $0.end, text: toTraditional($0.text)) }
             )
         }
+        result = LyricLine(id: id, time: result.time, text: result.text, words: result.words)
         result.isInterlude = isInterlude(result.text, fillers: options.fillerDots)
         if !result.isInterlude, options.splitLines, result.words.isEmpty { result.parts = parts(of: result.text) }
         return result
+    }
+
+    // MARK: Romanisation (rōmaji, pinyin)
+
+    /// Lines that only spell the sound of the words in Latin letters: dropped. A line is one when it is only Latin letters and
+    /// (a) another line of the same time holds the words themselves, or (b) in a Japanese song it reads as rōmaji, or (c) in a
+    /// Chinese song it reads as pinyin.
+    static func dropRomanization(_ lines: [LyricLine]) -> [LyricLine] {
+        let texts = lines.map(\.text)
+        // A file with only rōmaji (six lines or more, nearly all of them): there is no song text to keep.
+        let romaji = texts.filter { matches($0, pattern: romajiSyllables, minimumWords: 2) }.count
+        if lines.count >= 6, romaji * 100 >= lines.count * 85 { return [] }
+        return lines.filter { line in
+            guard isLatinOnly(line.text) else { return true }
+            let sameTimeHasWords = lines.contains { $0.id != line.id && abs($0.time - line.time) < 0.35 && !isLatinOnly($0.text) }
+            return !(sameTimeHasWords || isRomanizedLine(line.text, song: texts))
+        }
+    }
+
+    /// Reads as rōmaji (in a song with kana) or pinyin (in a song with Chinese characters but no kana).
+    static func isRomanizedLine(_ text: String, song: [String]) -> Bool {
+        guard isLatinOnly(text) else { return false }
+        let hasKana = song.contains { $0.unicodeScalars.contains { (0x3040...0x30FF).contains($0.value) } }
+        let hasHan = song.contains(where: containsHan)
+        if hasKana { return matches(text, pattern: romajiSyllables, minimumWords: 2) }
+        if hasHan { return matches(text, pattern: pinyinSyllables, minimumWords: 3) }
+        return false
+    }
+
+    private static let romajiSyllables = try? NSRegularExpression(
+        pattern: #"^(?:(?:ky|gy|ny|hy|by|py|my|ry|sh|ch|ts|dz|[kgsztdnhbpmrwyfj])?[aiueo]|n(?![aiueoy]))+$"#
+    )
+    private static let pinyinSyllables = try? NSRegularExpression(
+        pattern: #"^(?:zh|ch|sh|[bpmfdtnlgkhjqxrzcsyw])?[aeiouv]+(?:ng|n|r)?$"#
+    )
+
+    /// Every word (at least `minimumWords`, 90 % of them) fits the syllable pattern; doubled consonants (natte) count once.
+    private static func matches(_ text: String, pattern: NSRegularExpression?, minimumWords: Int) -> Bool {
+        guard let pattern else { return false }
+        let folded = text.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: nil)
+            .replacingOccurrences(of: #"([kstpgdbzjcfhmr])\1"#, with: "$1", options: .regularExpression)
+        let words = folded.split { !$0.isLetter }.map(String.init)
+        guard words.count >= minimumWords else { return false }
+        let fitting = words.filter { pattern.firstMatch(in: $0, range: NSRange($0.startIndex..., in: $0)) != nil }
+        return Double(fitting.count) >= 0.9 * Double(words.count)
+    }
+
+    /// Only Latin letters (accents allowed), spaces and punctuation, at least one letter: no kana, no Chinese characters.
+    static func isLatinOnly(_ text: String) -> Bool {
+        var letters = 0
+        for scalar in text.unicodeScalars where scalar.properties.isAlphabetic {
+            guard scalar.value < 0x250 else { return false }
+            letters += 1
+        }
+        return letters > 0
     }
 
     // MARK: Traditional Chinese

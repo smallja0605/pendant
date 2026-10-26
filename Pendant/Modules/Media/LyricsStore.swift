@@ -90,8 +90,7 @@ final class LyricsStore {
         state = .loading
         task?.cancel()
         task = Task { [weak self] in
-            let found = await Self.lookup(sources, snapshot)
-            let result = LyricsFormatter.process(found, options: options)
+            let result = await Self.lookup(sources, snapshot, options: options)
             guard !Task.isCancelled, let self, loadedKey == key else { return }
             cache[key] = result
             state = result
@@ -99,11 +98,12 @@ final class LyricsStore {
     }
 
     /// The first source with synchronised lyrics wins; with none, the first plain text found (in list order).
-    private static func lookup(_ sources: [LyricsSourceItem], _ snapshot: PlaybackSnapshot) async -> State {
+    private static func lookup(_ sources: [LyricsSourceItem], _ snapshot: PlaybackSnapshot, options: LyricsFormatOptions) async -> State {
         var plain: State?
         for source in sources {
             if Task.isCancelled { return .none }
-            let found = await LyricsFetcher.fetch(source, snapshot: snapshot)
+            // Formatted per source: a result that was only romanisation counts as nothing, and the next source is asked.
+            let found = LyricsFormatter.process(await LyricsFetcher.fetch(source, snapshot: snapshot), options: options)
             switch found {
             case .synced: return found
             case .plain: if plain == nil { plain = found }

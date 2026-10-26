@@ -91,6 +91,9 @@ private struct MediaModuleSettings: View {
             TipRow(title: "間奏顯示三點", tip: "間奏與「na na na」這類擬聲詞，改顯示倒數的三個點") {
                 Toggle("", isOn: $settings.lyricsFillerDots).labelsHidden()
             }
+            TipRow(title: "隱藏拼音歌詞", tip: "日文羅馬拼音、中文拼音這類只標發音的歌詞不顯示") {
+                Toggle("", isOn: $settings.lyricsHideRomanization).labelsHidden()
+            }
             TipRow(title: "長句自動斷行", tip: "中文歌詞依空格、英文長句在逗號或括號處分成兩段") {
                 Toggle("", isOn: $settings.lyricsSplitLines).labelsHidden()
             }

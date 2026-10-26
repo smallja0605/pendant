@@ -71,14 +71,12 @@ final class AppSettings: @unchecked Sendable {
     var tourSeen: Bool { didSet { save(tourSeen, "tourSeen") } }
     /// Status strip (open capsule, top right).
     var statusBattery: Bool { didSet { save(statusBattery, "statusBattery") } }
-    /// The percentage next to the battery icon.
     var statusBatteryPercent: Bool { didSet { save(statusBatteryPercent, "statusBatteryPercent") } }
     var statusUpdateTag: Bool { didSet { save(statusUpdateTag, "statusUpdateTag") } }
     /// Width of the AirDrop area on the shelf page, as a percentage of the page (the drawer takes the rest).
     var shelfAirDropPercent: Double { didSet { save(shelfAirDropPercent, "shelfAirDropPercent") } }
     /// Under the compact capsule (shelf): the newest file as "name · size", with its icon in front.
     var shelfPeekWithIcon: Bool { didSet { save(shelfPeekWithIcon, "shelfPeekWithIcon") } }
-    /// Show the file count on the shelf's small capsule / island.
     /// Show the newest file under the shelf's small capsule while the pointer is on it.
     var shelfPeekEnabled: Bool { didSet { save(shelfPeekEnabled, "shelfPeekEnabled") } }
     var shelfShowsCount: Bool { didSet { save(shelfShowsCount, "shelfShowsCount") } }
@@ -149,6 +147,7 @@ final class AppSettings: @unchecked Sendable {
     var lyricsTraditional: Bool { didSet { save(lyricsTraditional, "lyricsTraditional") } } // see `LyricsFormatter`
     var lyricsFillerDots: Bool { didSet { save(lyricsFillerDots, "lyricsFillerDots") } }
     var lyricsSplitLines: Bool { didSet { save(lyricsSplitLines, "lyricsSplitLines") } }
+    var lyricsHideRomanization: Bool { didSet { save(lyricsHideRomanization, "lyricsHideRomanization") } }
     var showWaveformInTitle: Bool { didSet { save(showWaveformInTitle, "showWaveformInTitle") } }
 
     // MARK: Timer (4.4)
@@ -319,6 +318,7 @@ final class AppSettings: @unchecked Sendable {
         lyricsTraditional = bool("lyricsTraditional", true)
         lyricsFillerDots = bool("lyricsFillerDots", true)
         lyricsSplitLines = bool("lyricsSplitLines", true)
+        lyricsHideRomanization = bool("lyricsHideRomanization", true)
         if let data = defaults.data(forKey: Self.prefix + "lyricsSources"),
            let stored = try? JSONDecoder().decode([LyricsSourceItem].self, from: data) {
             lyricsSources = LyricsSourceItem.merged(stored)

@@ -20,7 +20,10 @@ extension AppSettings {
     var lyricsAvailable: Bool { lyricsSources.contains { $0.enabled && (!$0.isNetwork || onlineLyrics) } }
 
     var lyricsFormatOptions: LyricsFormatOptions {
-        LyricsFormatOptions(traditional: lyricsTraditional, fillerDots: lyricsFillerDots, splitLines: lyricsSplitLines)
+        LyricsFormatOptions(
+            traditional: lyricsTraditional, fillerDots: lyricsFillerDots, splitLines: lyricsSplitLines,
+            hideRomanization: lyricsHideRomanization
+        )
     }
 
     /// Changes whenever the list (order, switches, addresses) changes, so the lyrics are looked up again.
