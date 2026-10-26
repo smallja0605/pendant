@@ -26,6 +26,14 @@ struct AboutSettingsView: View {
                 }
             }
             updateSection
+            Section("設定檔") {
+                TipRow(title: "匯出設定", tip: "把所有設定存成一個檔案，Windows 版也能讀；不含金鑰與這台電腦專屬的項目") {
+                    Button("匯出…") { SettingsTransferPanel.exportToFile() }
+                }
+                TipRow(title: "匯入設定", tip: "讀取設定檔（Mac 或 Windows 版匯出的），對方沒有的功能會略過；匯入後會重新啟動") {
+                    Button("匯入…") { SettingsTransferPanel.importFromFile() }
+                }
+            }
             Section {
                 TipRow(title: "解除安裝", tip: "移除登入項目、資料夾與偏好設定，可保留筆記") {
                     Button("解除安裝…", role: .destructive) { UninstallService.confirmAndRun() }
