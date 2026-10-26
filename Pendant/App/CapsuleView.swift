@@ -193,8 +193,7 @@ private struct CompactContent: View {
                     .padding(.leading, virtual ? Tuning.shared.iconMargin : 0)
                     .contentShape(Rectangle())
                     .frame(maxWidth: .infinity, alignment: .leading)
-                trailing(width: wing - (virtual ? Tuning.shared.iconMargin + 3 : 0), height: rowHeight,
-                         alignment: virtual ? .trailing : .center)
+                trailing(alignment: virtual ? .trailing : .center)
                     .opacity(model.stepActive && model.stepSide > 0 ? 0 : 1)
                     .animation(.easeInOut(duration: 0.18), value: [model.stepActive ? model.stepSide : 0])
                     .frame(width: wing, height: rowHeight, alignment: virtual ? .trailing : .center)
@@ -259,7 +258,7 @@ private struct CompactContent: View {
     }
 
     /// Waveform at rest; while hovered it blur-morphs into play / pause, which is also a button.
-    @ViewBuilder private func trailing(width: CGFloat, height: CGFloat, alignment: Alignment) -> some View {
+    @ViewBuilder private func trailing(alignment: Alignment) -> some View {
         if model.activity?.kind == .shelf {
             if AppSettings.shared.shelfShowsCount {
                 Text("\(ShelfStore.shared.items.count)")
@@ -280,7 +279,6 @@ private struct CompactContent: View {
                 }
                 .frame(width: 30, height: 30)
                 // The whole right wing is the button (it shows play / pause while the pointer is anywhere on it), not only the 30 pt icon.
-                .frame(width: max(width, 30), height: max(height, 30), alignment: alignment)
                 .contentShape(Rectangle())
             }
             .buttonStyle(CompactPressStyle(anchor: alignment == .trailing ? .trailing : .center))
