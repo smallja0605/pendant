@@ -85,7 +85,8 @@ struct ModuleRegistryTests {
 
     @Test func defaultTabsAreFunctionNotesAndShelf() {
         let reg = registry(store())
-        #expect(reg.tabs.map(\.title) == ["小工具", "筆記", "檔案中轉站"])
+        // The default names follow the app's language.
+        #expect(reg.tabs.map(\.title) == [String(localized: "小工具"), String(localized: "筆記"), String(localized: "檔案中轉站")])
         #expect(reg.availableTabs.count == 3)
         #expect(reg.modules(in: reg.tabs[0]) == ["media", "reminders", "calendar", "timer", "mirror"])
         #expect(reg.currentPageIDs == reg.modules(in: reg.tabs[0]))

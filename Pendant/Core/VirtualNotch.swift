@@ -19,10 +19,11 @@ enum VirtualBatteryStyle: String, CaseIterable, Sendable { case icon, ring }
 enum VirtualDateFormat: String, CaseIterable, Sendable {
     case monthDay, fullDate, slash, short
 
-    var pattern: String {
-        switch self {
-        case .monthDay: isEnglishUI ? "MMM d, EEE" : "M月d日 EEE"
-        case .fullDate: isEnglishUI ? "MMM d, yyyy EEE" : "yyyy年M月d日 EEE"
+    func pattern(for locale: Locale) -> String {
+        let english = locale.language.languageCode?.identifier == "en"
+        return switch self {
+        case .monthDay: english ? "MMM d, EEE" : "M月d日 EEE"
+        case .fullDate: english ? "MMM d, yyyy EEE" : "yyyy年M月d日 EEE"
         case .slash: "yyyy/M/d EEE"
         case .short: "M/d EEE"
         }
@@ -35,11 +36,11 @@ enum VirtualDateFormat: String, CaseIterable, Sendable {
 
 /// The text the virtual notch's clock and the open capsule's strip show for a date: pure, so it is testable.
 enum VirtualClockFormat {
-    static func date(_ date: Date, format: VirtualDateFormat) -> String {
+    static func date(_ date: Date, format: VirtualDateFormat, locale: Locale = .appDisplay) -> String {
         let formatter = DateFormatter()
-        formatter.locale = .appDisplay
+        formatter.locale = locale
         formatter.calendar = Calendar(identifier: .gregorian)
-        formatter.dateFormat = format.pattern
+        formatter.dateFormat = format.pattern(for: locale)
         return formatter.string(from: date)
     }
 
@@ -61,6 +62,6 @@ enum VirtualClockFormat {
         dateFormat: VirtualDateFormat = .monthDay, locale: Locale = .appDisplay
     ) -> String {
         let timeText = time(date, use24Hour: use24Hour, seconds: seconds, locale: locale)
-        return showsDate ? Self.date(date, format: dateFormat) + " " + timeText : timeText
+        return showsDate ? Self.date(date, format: dateFormat, locale: locale) + " " + timeText : timeText
     }
 }
