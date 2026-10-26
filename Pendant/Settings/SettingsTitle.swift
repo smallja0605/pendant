@@ -46,9 +46,9 @@ struct PageTitleOverlay: View {
     let offset: CGFloat
 
     static let bigSize: CGFloat = 30
-    static let pinnedSize: CGFloat = 17
-    private static let pinnedTop: CGFloat = 14
-    private static let bandHeight: CGFloat = 64
+    static let pinnedSize: CGFloat = 22
+    private static let pinnedTop: CGFloat = 12
+    private static let bandHeight: CGFloat = 72
 
     /// 0 at rest, 1 once the title has reached the top.
     private var progress: CGFloat {
