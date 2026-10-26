@@ -7,6 +7,10 @@ import SwiftUI
 private struct ScrollWheelCapture: NSViewRepresentable {
     /// Return true to consume the event (it then does not scroll anything underneath).
     var onScroll: (_ deltaX: Double, _ deltaY: Double) -> Bool
+    /// Points one wheel notch is worth for this view (a mouse wheel; a trackpad reports points itself), before the user's sensitivity.
+    var wheelUnit = 10.0
+    /// A wheel turned without shift still drives a sideways view: its vertical turns count as horizontal ones.
+    var wheelIsHorizontal = false
     /// Phase-aware handler (replaces `onScroll` when set).
     var onPhased: ((_ deltaX: Double, _ deltaY: Double, _ phase: ScrollPhase) -> Bool)?
 
@@ -14,17 +18,23 @@ private struct ScrollWheelCapture: NSViewRepresentable {
         let view = CaptureView()
         view.onScroll = onScroll
         view.onPhased = onPhased
+        view.wheelUnit = wheelUnit
+        view.wheelIsHorizontal = wheelIsHorizontal
         return view
     }
 
     func updateNSView(_ view: CaptureView, context: Context) {
         view.onScroll = onScroll
         view.onPhased = onPhased
+        view.wheelUnit = wheelUnit
+        view.wheelIsHorizontal = wheelIsHorizontal
     }
 
     final class CaptureView: NSView {
         var onScroll: ((Double, Double) -> Bool)?
         var onPhased: ((Double, Double, ScrollPhase) -> Bool)?
+        var wheelUnit = 10.0
+        var wheelIsHorizontal = false
         private var monitor: Any?
 
         // Never intercept clicks / drags: SwiftUI gestures underneath keep working.
@@ -41,9 +51,7 @@ private struct ScrollWheelCapture: NSViewRepresentable {
                 let point = convert(event.locationInWindow, from: nil)
                 guard bounds.contains(point) else { return event }
                 Log.trace("scroll in view dx=\(event.scrollingDeltaX) dy=\(event.scrollingDeltaY)")
-                // Line-based wheels report coarse "lines"; scale them to points.
-                let scale = event.hasPreciseScrollingDeltas ? 1.0 : 10.0
-                let deltaX = event.scrollingDeltaX * scale, deltaY = event.scrollingDeltaY * scale
+                let (deltaX, deltaY) = scaledDeltas(of: event)
                 let consumed: Bool
                 if let onPhased {
                     var phase = ScrollPhase(event)
@@ -54,6 +62,16 @@ private struct ScrollWheelCapture: NSViewRepresentable {
                 }
                 return consumed ? nil : event
             }
+        }
+
+        /// A trackpad reports points. A wheel reports lines (one notch is one line, more when it spins fast): each line is
+        /// `wheelUnit` points times the sensitivity setting, so one notch moves exactly one step of the view.
+        private func scaledDeltas(of event: NSEvent) -> (Double, Double) {
+            if event.hasPreciseScrollingDeltas { return (event.scrollingDeltaX, event.scrollingDeltaY) }
+            var lineX = event.scrollingDeltaX, lineY = event.scrollingDeltaY
+            if wheelIsHorizontal, abs(lineX) < abs(lineY) { (lineX, lineY) = (lineY, 0) }
+            let points = wheelUnit * MainActor.assumeIsolated { AppSettings.shared.wheelSensitivity }
+            return (lineX * points, lineY * points)
         }
     }
 }
@@ -85,15 +103,18 @@ extension View {
     }
 
     /// Observe two-finger trackpad scrolling (or wheel) over this view.
-    func onScrollWheel(perform action: @escaping (_ deltaX: Double, _ deltaY: Double) -> Void) -> some View {
+    /// `wheelUnit`: points one mouse-wheel notch is worth here (the view's size of one step); `wheelIsHorizontal`: a sideways view.
+    func onScrollWheel(wheelUnit: Double = 10, wheelIsHorizontal: Bool = false,
+                       perform action: @escaping (_ deltaX: Double, _ deltaY: Double) -> Void) -> some View {
         background(ScrollWheelCapture(onScroll: { deltaX, deltaY in
             action(deltaX, deltaY)
             return true
-        }))
+        }, wheelUnit: wheelUnit, wheelIsHorizontal: wheelIsHorizontal))
     }
 
     /// Like `onScrollWheel(perform:)` but the handler decides per event whether it consumes it.
-    func onScrollWheelConsuming(_ action: @escaping (_ deltaX: Double, _ deltaY: Double) -> Bool) -> some View {
-        background(ScrollWheelCapture(onScroll: action))
+    func onScrollWheelConsuming(wheelUnit: Double = 10, wheelIsHorizontal: Bool = false,
+                                _ action: @escaping (_ deltaX: Double, _ deltaY: Double) -> Bool) -> some View {
+        background(ScrollWheelCapture(onScroll: action, wheelUnit: wheelUnit, wheelIsHorizontal: wheelIsHorizontal))
     }
 }

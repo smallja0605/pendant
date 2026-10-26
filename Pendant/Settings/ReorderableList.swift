@@ -57,7 +57,8 @@ struct ReorderableList<ID: Hashable, Row: View>: View {
     }
 }
 
-/// One row of a settings tool list: icon, name, switch; the selected row is filled with the accent colour.
+/// One row of a settings tool list: icon, name, switch; the selected row sits on a Liquid Glass plate (macOS 26+, else a light fill),
+/// the one under the pointer on a fainter fill.
 struct ToolRow: View {
     let symbol: String
     let title: String
@@ -79,20 +80,25 @@ struct ToolRow: View {
             Text(title).fontWeight(.medium).lineLimit(1)
             if comingSoon { Text("(即將推出)").font(.caption).foregroundStyle(isSelected ? .white.opacity(0.8) : .secondary) }
             Spacer(minLength: 0)
+            if let isOn, !comingSoon { Toggle("", isOn: isOn).labelsHidden().toggleStyle(.switch).controlSize(.small) }
+        }
+        .foregroundStyle(Color.primary)
+        .opacity(comingSoon ? 0.55 : 1)
+        .padding(.horizontal, 8)
+        // The arrows float over the free space left of the switch (they do not take room from the name while hidden).
+        .overlay(alignment: .trailing) {
             if let arrows {
                 VStack(spacing: 2) {
                     arrow("chevron.up", enabled: arrows.up) { onArrow(-1) }
                     arrow("chevron.down", enabled: arrows.down) { onArrow(1) }
                 }
+                .padding(.trailing, 58)
                 .opacity(hovering ? 1 : 0)
                 .allowsHitTesting(hovering)
             }
-            if let isOn, !comingSoon { Toggle("", isOn: isOn).labelsHidden().toggleStyle(.switch).controlSize(.small) }
         }
-        .foregroundStyle(isSelected ? Color.white : Color.primary)
-        .opacity(comingSoon ? 0.55 : 1)
-        .padding(.horizontal, 8)
-        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(isSelected ? Color.accentColor : .clear))
+        .modifier(ToolRowPlate(selected: isSelected, hovering: hovering))
+        .padding(.vertical, 3)
         .contentShape(Rectangle())
         .onHover { hovering = $0 }
         .animation(.easeOut(duration: 0.28), value: hovering)
@@ -117,5 +123,22 @@ struct ToolListCard<Content: View>: View {
         content
             .padding(6)
             .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(.white.opacity(0.07)))
+    }
+}
+
+/// The selected row's plate, like the settings sidebar's: Liquid Glass on macOS 26+, a translucent fill before; a hovered row gets a
+/// fainter fill than the selected one.
+private struct ToolRowPlate: ViewModifier {
+    let selected: Bool
+    let hovering: Bool
+
+    @ViewBuilder func body(content: Content) -> some View {
+        if selected, #available(macOS 26, *), LiquidGlass.isEnabled {
+            content.glassEffect(.regular.tint(.white.opacity(0.10)), in: .rect(cornerRadius: 11))
+        } else {
+            content.background(
+                RoundedRectangle(cornerRadius: 11, style: .continuous).fill(.white.opacity(selected ? 0.16 : (hovering ? 0.07 : 0)))
+            )
+        }
     }
 }

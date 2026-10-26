@@ -7,6 +7,10 @@ struct GeneralSettingsView: View {
     @State private var loginError: String?
     @State private var haptics = HapticService.shared.isEnabled
 
+    private var wheelPercent: Binding<Double> {
+        Binding(get: { (settings.wheelSensitivity * 100).rounded() }, set: { settings.wheelSensitivity = $0 / 100 })
+    }
+
     var body: some View {
         Form {
             SettingsTitleHeader()
@@ -45,6 +49,11 @@ struct GeneralSettingsView: View {
                 TipRow(title: "滑鼠離開時收起", tip: "關閉時會維持開啟，點膠囊外面或按返回才收起") {
                     Toggle("", isOn: $settings.focusCollapsesOnLeave).labelsHidden()
                 }
+            }
+            Section("滑鼠滾輪") {
+                SliderRow(title: "滾輪靈敏度", tip: "滾一格移動的數量（日期、分鐘等），100% = 一格一個；觸控板不受影響",
+                          value: wheelPercent, range: 25...300, step: 5, unit: "%",
+                          accessory: AnyView(Button("重設") { settings.wheelSensitivity = 1 }))
             }
             Section("快捷鍵") { HotkeyRow(settings: settings) }
             Section {

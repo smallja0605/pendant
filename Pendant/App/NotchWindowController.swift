@@ -549,14 +549,15 @@ final class NotchWindowController { // swiftlint:disable:this type_body_length
         let secondaryIDs = layout.secondaries.map(\.id)
         model.setSecondaries(secondaryIDs.compactMap { id in activities.first { $0.id == id } })
         layout.expandedCells = registry.currentPageIDs.map(registry.displayCells(for:))
+        applyFocusHeight(to: &layout, screen: screen, geometry: geometry)
         if model.state == .expanded, let old = model.layout,
            old.bodySize(for: .expanded).width != layout.bodySize(for: .expanded).width {
             interaction.disarmCollapse()
         }
         // A layout that is about to grow gets its window first: updating the model first drew the growing capsule in the old, narrower
         // window for a frame (it jumped sideways when the window followed).
-        if animated, model.state != .expanded { setPanelFrame(panel.frame.union(layout.panelFrame(for: model.state))) }
-        model.updateLayout(layout, animated: animated)
+        setPanelFrame(panel.frame.union(layout.panelFrame(for: model.state)))
+        model.updateLayout(layout, animated: animated, immediate: registry.isResizingFocus)
 
         // A real notch is always on screen; a virtual one hides while an app is full screen on this screen (settings › 虛擬瀏海).
         updateFullscreenWatch(on: screen)
@@ -567,6 +568,13 @@ final class NotchWindowController { // swiftlint:disable:this type_body_length
         applyPanel(for: model.state, shrinkImmediately: model.state != .expanded && !delayedShrink)
         panel.orderFrontRegardless()
         updateIslandWatch()
+    }
+
+    /// The detailed reminders page can be dragged taller (`HeightGrip`); it resets when the page closes.
+    private func applyFocusHeight(to layout: inout CapsuleLayout, screen: NSScreen, geometry: NotchGeometry) {
+        guard registry.focusedModuleID == "reminders" else { return }
+        let room = screen.frame.height * 0.75 - geometry.size.height - Tuning.shared.expandedBottomInset
+        layout.expandedContentHeight = min(max(layout.expandedContentHeight + registry.focusExtraHeight, 110), room)
     }
 
     // MARK: Full screen

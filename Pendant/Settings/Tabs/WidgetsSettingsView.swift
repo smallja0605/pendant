@@ -21,7 +21,7 @@ struct WidgetsSettingsView: View {
                 VStack(spacing: 8) {
                     ToolListCard {
                         ReorderableList(
-                            ids: registry.order, rowHeight: 40,
+                            ids: registry.order, rowHeight: 48,
                             move: { id, index in registry.move(id, toIndex: index) },
                             onSelect: { id in
                                 guard ModuleDescriptor.descriptor(for: id)?.selectable == true else { return }
@@ -45,7 +45,7 @@ struct WidgetsSettingsView: View {
                     Button("還原預設") { registry.resetToDefaults(); tabSelection = TabConfig.mainID }
                         .controlSize(.small)
                 }
-                .frame(width: 250)
+                .frame(width: 216)
                 Group {
                     if let id = selection, ModuleDescriptor.descriptor(for: id)?.selectable == true,
                        let module = registry.module(for: id) {

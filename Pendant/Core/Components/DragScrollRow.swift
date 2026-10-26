@@ -44,7 +44,7 @@ struct DragScrollRow<Content: View>: View {
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) { clampOffset() }
                     }
             )
-            .onScrollWheelConsuming { deltaX, deltaY in
+            .onScrollWheelConsuming(wheelUnit: 40, wheelIsHorizontal: true) { deltaX, deltaY in
                 guard scrollable, abs(deltaX) > abs(deltaY) else { return false }
                 offset = min(max(offset + deltaX, minOffset), 0)
                 return true

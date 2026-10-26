@@ -16,6 +16,9 @@ final class ModuleRegistry {
     var selectedTabID = TabConfig.mainID
     /// The module shown alone (its detailed page) in the open capsule; nil = the whole tab. Not saved: the capsule closes it.
     var focusedModuleID: String?
+    /// Extra height the user dragged onto the detailed reminders page (points); back to 0 whenever that page opens or closes.
+    var focusExtraHeight: CGFloat = 0
+    var isResizingFocus = false
     /// True while a detailed page is opening or closing (modules move under a resting pointer: hover effects hold off).
     private(set) var focusTransitioning = false
 
@@ -142,7 +145,7 @@ final class ModuleRegistry {
     /// Changes whenever something that affects the capsule's width / content changes.
     var layoutSignature: [String] {
         activeIDs + activeIDs.map { String(cells(for: $0)) }
-            + ["focus\(focusedModuleID ?? "")", "tab\(effectiveTab?.id ?? "")"]
+            + ["focus\(focusedModuleID ?? "")", "tab\(effectiveTab?.id ?? "")", "h\(Int(focusExtraHeight))"]
             + state.tabs.map { $0.id + ($0.moduleIDs.joined(separator: ",")) }
     }
 
@@ -160,12 +163,14 @@ final class ModuleRegistry {
 
     func focus(_ id: String) {
         guard focusedModuleID != id else { return }
+        focusExtraHeight = 0
         beginFocusTransition()
         withAnimation(AnimationTokens.expand) { focusedModuleID = id }
     }
 
     func unfocus() {
         guard focusedModuleID != nil else { return }
+        focusExtraHeight = 0
         Log.app.info("detail page closed, from: \(Log.callers(), privacy: .public)")
         beginFocusTransition()
         withAnimation(AnimationTokens.expand) { focusedModuleID = nil }

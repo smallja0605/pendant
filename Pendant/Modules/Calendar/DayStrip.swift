@@ -77,7 +77,7 @@ struct DayStrip: View {
                         settle()
                     }
             )
-            .onScrollWheel { deltaX, _ in
+            .onScrollWheel(wheelUnit: AppSettings.shared.calendarSwipeThreshold, wheelIsHorizontal: true) { deltaX, _ in
                 let settings = AppSettings.shared
                 guard settings.calendarSwipeEnabled else { return }
                 let origin = scrollOrigin ?? position

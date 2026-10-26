@@ -227,9 +227,9 @@ final class CapsuleModel {
         }
     }
 
-    func updateLayout(_ layout: CapsuleLayout?, animated: Bool = false) {
+    func updateLayout(_ layout: CapsuleLayout?, animated: Bool = false, immediate: Bool = false) {
         guard layout != self.layout else { return }
-        // Module width / order changes while open animate the capsule's width like any other size change.
+        if immediate { self.layout = layout; return }
         if state == .expanded, self.layout != nil, layout != nil {
             withAnimation(AnimationTokens.expand(reduceMotion: reduceMotion)) { self.layout = layout }
         } else if animated, state == .compact, self.layout != nil, layout != nil {

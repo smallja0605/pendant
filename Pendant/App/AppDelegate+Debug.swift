@@ -127,6 +127,13 @@ extension AppDelegate {
             let tab = ProcessInfo.processInfo.environment["PENDANT_DEBUG_TAB"].flatMap(SettingsTab.init(rawValue:))
             SettingsWindowController.shared.show(tab: tab)
         }
+        if let extra = ProcessInfo.processInfo.environment["PENDANT_DEBUG_REMINDER_HEIGHT"].flatMap(Double.init) {
+            // Drags the detailed reminders page taller by this many points a few seconds after launch (visual check of HeightGrip).
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(4))
+                ModuleRegistry.shared.focusExtraHeight = CGFloat(extra)
+            }
+        }
         if ProcessInfo.processInfo.environment["PENDANT_DEBUG_PULSE"] != nil { notch.debugPulseSwell() }
         if ProcessInfo.processInfo.environment["PENDANT_DEBUG_HOVER"] != nil {
             Task { @MainActor [weak notch] in

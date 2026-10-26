@@ -23,6 +23,7 @@ struct RemindersView: View {
             if focused { split } else { page }
         }
         .padding(.bottom, 8)
+        .overlay(alignment: .bottom) { if focused { HeightGrip() } }
         .onDisappear {
             store.flushCompleted()
             adding = false

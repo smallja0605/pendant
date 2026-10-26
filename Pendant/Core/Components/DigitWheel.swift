@@ -57,7 +57,7 @@ struct DigitWheel: View {
                     settle()
                 }
         )
-        .onScrollWheel { _, deltaY in
+        .onScrollWheel(wheelUnit: rowHeight) { _, deltaY in
             move(to: position - deltaY / rowHeight, animated: false)
             scheduleSettle()
         }

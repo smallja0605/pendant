@@ -166,6 +166,7 @@ private struct SettingsSidebar: View {
     let onWindowAction: (SettingsWindowAction) -> Void
 
     @Namespace private var glassSpace
+    @State private var hoveredTab: SettingsTab?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -212,6 +213,7 @@ private struct SettingsSidebar: View {
 
     private func row(_ tab: SettingsTab, glass: Bool) -> some View {
         let selected = selection.tab == tab
+        let hovered = hoveredTab == tab && !selected
         return Button {
             withAnimation(.bouncy(duration: 0.4, extraBounce: 0.1)) { selection.tab = tab }
         } label: {
@@ -222,7 +224,9 @@ private struct SettingsSidebar: View {
             }
             .padding(.horizontal, 10).padding(.vertical, 8)
             .modifier(RowSelection(selected: selected, glass: glass, namespace: glassSpace))
+            .background(RoundedRectangle(cornerRadius: 11, style: .continuous).fill(.white.opacity(hovered ? 0.07 : 0)))
             .contentShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
+            .onHover { inside in hoveredTab = inside ? tab : (hoveredTab == tab ? nil : hoveredTab) }
         }
         .buttonStyle(.plain)
         .foregroundStyle(selected ? Color.primary : Color.secondary)

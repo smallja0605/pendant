@@ -52,7 +52,6 @@ final class AppSettings: @unchecked Sendable {
 
     // MARK: Liquid (7.5, macOS 26+)
     /// Try the system's own segmented control (timer 倒數 / 碼錶) instead of the hand-built glass lens (macOS 26+).
-    /// HUD in the notch when the volume / brightness changes.
     var hudVolume: Bool { didSet { save(hudVolume, "hudVolume") } }
     var hudBrightness: Bool { didSet { save(hudBrightness, "hudBrightness") } }
     /// Stop macOS's own volume / brightness pop-up while the notch HUD is on.
@@ -68,7 +67,6 @@ final class AppSettings: @unchecked Sendable {
     var bluetoothToast: Bool { didSet { save(bluetoothToast, "bluetoothToast") } }
     var bluetoothToastSeconds: Double { didSet { save(bluetoothToastSeconds, "bluetoothToastSeconds") } }
     var tourSeen: Bool { didSet { save(tourSeen, "tourSeen") } }
-    /// Status strip (open capsule, top right).
     var statusBattery: Bool { didSet { save(statusBattery, "statusBattery") } }
     var statusBatteryPercent: Bool { didSet { save(statusBatteryPercent, "statusBatteryPercent") } }
     var statusUpdateTag: Bool { didSet { save(statusUpdateTag, "statusUpdateTag") } }
@@ -100,7 +98,6 @@ final class AppSettings: @unchecked Sendable {
     var showWaveformInCompact: Bool { didSet { save(showWaveformInCompact, "showWaveformInCompact") } }
     /// The compact capsule's bars follow the real sound (system audio tap + FFT) instead of a calm made-up motion.
     var realWaveform: Bool { didSet { save(realWaveform, "realWaveform") } }
-    /// Number of bars in the waveform, 3…7.
     var waveformBars: Int { didSet { save(waveformBars, "waveformBars") } }
     /// Real waveform, in percent: how tall the bars grow, and how easily quiet sound shows.
     /// 平衡器: which part of the sound the real waveform spreads over (`SpectrumAnalyzer.Focus` raw value).
@@ -144,6 +141,8 @@ final class AppSettings: @unchecked Sendable {
     var lyricsFillerDots: Bool { didSet { save(lyricsFillerDots, "lyricsFillerDots") } }
     var lyricsSplitLines: Bool { didSet { save(lyricsSplitLines, "lyricsSplitLines") } }
     var lyricsHideRomanization: Bool { didSet { save(lyricsHideRomanization, "lyricsHideRomanization") } }
+    /// Mouse wheel: how many steps (days, minutes…) one notch moves, 0.25…3 (a trackpad is not affected).
+    var wheelSensitivity: Double { didSet { save(wheelSensitivity, "wheelSensitivity") } }
     var lyricsOffset: Double { didSet { save(lyricsOffset, "lyricsOffset") } } // seconds; + = lines appear sooner
     var virtualLyricsScroll: Bool { didSet { save(virtualLyricsScroll, "virtualLyricsScroll") } } // new line scrolls up
     var showWaveformInTitle: Bool { didSet { save(showWaveformInTitle, "showWaveformInTitle") } }
@@ -316,6 +315,7 @@ final class AppSettings: @unchecked Sendable {
         lyricsSplitLines = bool("lyricsSplitLines", true)
         lyricsHideRomanization = bool("lyricsHideRomanization", true)
         lyricsOffset = min(max(double("lyricsOffset", 0), -3), 3)
+        wheelSensitivity = min(max(double("wheelSensitivity", 1), 0.25), 3)
         virtualLyricsScroll = bool("virtualLyricsScroll", false)
         if let data = defaults.data(forKey: Self.prefix + "lyricsSources"),
            let stored = try? JSONDecoder().decode([LyricsSourceItem].self, from: data) {
