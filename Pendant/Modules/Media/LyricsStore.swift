@@ -1,6 +1,12 @@
 import AppKit
 import Observation
 
+/// The song position lyrics are matched against: the player's position plus the user's time adjustment (settings › 小工具 › 音樂).
+@MainActor
+func lyricPosition(of now: NowPlaying, at date: Date) -> TimeInterval {
+    now.position(at: date) + AppSettings.shared.lyricsOffset
+}
+
 /// One line of synchronised lyrics.
 struct LyricLine: Equatable, Identifiable, Sendable {
     let id: Int

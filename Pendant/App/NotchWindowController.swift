@@ -528,7 +528,10 @@ final class NotchWindowController { // swiftlint:disable:this type_body_length
         self.geometry = geometry
         var layout = CapsuleLayout(notch: geometry)
         layout.virtualContent = virtualContent
-        if virtualContent, settings.virtualMiddle == .lyrics { layout.virtualMiddleExtra = VirtualLyricWidth.shared.extra }
+        if virtualContent, settings.virtualMiddle == .lyrics {
+            layout.virtualMiddleExtra = VirtualLyricWidth.shared.extra
+            layout.virtualLyricReserve = VirtualLyricWidth.maxExtra
+        }
         let activities = center.ordered
         layout.reservesModeSwitcher = registry.availableTabs.count > 1
         layout.compactActivityExtra = 0

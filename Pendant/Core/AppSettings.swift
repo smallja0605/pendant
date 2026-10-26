@@ -67,13 +67,11 @@ final class AppSettings: @unchecked Sendable {
     var lowBatteryActivityDelay: Double { didSet { save(lowBatteryActivityDelay, "lowBatteryActivityDelay") } }
     var bluetoothToast: Bool { didSet { save(bluetoothToast, "bluetoothToast") } }
     var bluetoothToastSeconds: Double { didSet { save(bluetoothToastSeconds, "bluetoothToastSeconds") } }
-    /// The first-run tour has been shown (or skipped).
     var tourSeen: Bool { didSet { save(tourSeen, "tourSeen") } }
     /// Status strip (open capsule, top right).
     var statusBattery: Bool { didSet { save(statusBattery, "statusBattery") } }
     var statusBatteryPercent: Bool { didSet { save(statusBatteryPercent, "statusBatteryPercent") } }
     var statusUpdateTag: Bool { didSet { save(statusUpdateTag, "statusUpdateTag") } }
-    /// Width of the AirDrop area on the shelf page, as a percentage of the page (the drawer takes the rest).
     var shelfAirDropPercent: Double { didSet { save(shelfAirDropPercent, "shelfAirDropPercent") } }
     /// Under the compact capsule (shelf): the newest file as "name · size", with its icon in front.
     var shelfPeekWithIcon: Bool { didSet { save(shelfPeekWithIcon, "shelfPeekWithIcon") } }
@@ -93,12 +91,10 @@ final class AppSettings: @unchecked Sendable {
     // MARK: Live activities (7.7)
     var activityPriority: [String] { didSet { save(activityPriority, "activityPriority") } }
     var disabledActivities: [String] { didSet { save(disabledActivities, "disabledActivities") } }
-    /// Activities that may only be the main island (never a secondary one).
     var mainOnlyActivities: [String] { didSet { save(mainOnlyActivities, "mainOnlyActivities") } }
     var secondaryOnlyActivities: [String] { didSet { save(secondaryOnlyActivities, "secondaryOnlyActivities") } }
     /// Song / artist line under the compact capsule whenever the track changes.
     var showTrackInfoOnChange: Bool { didSet { save(showTrackInfoOnChange, "showTrackInfoOnChange") } }
-    /// Seconds the line stays up.
     var trackInfoSeconds: Double { didSet { save(trackInfoSeconds, "trackInfoSeconds") } }
     var showCoverInCompact: Bool { didSet { save(showCoverInCompact, "showCoverInCompact") } }
     var showWaveformInCompact: Bool { didSet { save(showWaveformInCompact, "showWaveformInCompact") } }
@@ -148,12 +144,12 @@ final class AppSettings: @unchecked Sendable {
     var lyricsFillerDots: Bool { didSet { save(lyricsFillerDots, "lyricsFillerDots") } }
     var lyricsSplitLines: Bool { didSet { save(lyricsSplitLines, "lyricsSplitLines") } }
     var lyricsHideRomanization: Bool { didSet { save(lyricsHideRomanization, "lyricsHideRomanization") } }
+    var lyricsOffset: Double { didSet { save(lyricsOffset, "lyricsOffset") } } // seconds; + = lines appear sooner
+    var virtualLyricsScroll: Bool { didSet { save(virtualLyricsScroll, "virtualLyricsScroll") } } // new line scrolls up
     var showWaveformInTitle: Bool { didSet { save(showWaveformInTitle, "showWaveformInTitle") } }
 
     // MARK: Timer (4.4)
-    /// Quick presets in minutes (default 1, 5, 10, 25).
     var timerPresets: [Int] { didSet { save(timerPresets, "timerPresets") } }
-    /// Progress ring around the timer icon in the compact capsule.
     var timerRing: Bool { didSet { save(timerRing, "timerRing") } }
     var timerSound: Bool { didSet { save(timerSound, "timerSound") } }
     var timerNotification: Bool { didSet { save(timerNotification, "timerNotification") } }
@@ -319,6 +315,8 @@ final class AppSettings: @unchecked Sendable {
         lyricsFillerDots = bool("lyricsFillerDots", true)
         lyricsSplitLines = bool("lyricsSplitLines", true)
         lyricsHideRomanization = bool("lyricsHideRomanization", true)
+        lyricsOffset = min(max(double("lyricsOffset", 0), -3), 3)
+        virtualLyricsScroll = bool("virtualLyricsScroll", false)
         if let data = defaults.data(forKey: Self.prefix + "lyricsSources"),
            let stored = try? JSONDecoder().decode([LyricsSourceItem].self, from: data) {
             lyricsSources = LyricsSourceItem.merged(stored)

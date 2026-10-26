@@ -146,7 +146,8 @@ struct LyricsView: View {
     }
 
     private func currentIndex(_ lines: [LyricLine], at date: Date) -> Int {
-        guard let position = controller.nowPlaying?.position(at: date) else { return 0 }
+        guard let now = controller.nowPlaying else { return 0 }
+        let position = lyricPosition(of: now, at: date)
         return lines.lastIndex { $0.time <= position + 0.25 } ?? 0
     }
 }
@@ -160,7 +161,7 @@ private struct LyricRow: View {
     var body: some View {
         // Word-timed lines of the current line redraw every frame (the fill follows the song); the rest tick slowly.
         TimelineView(.periodic(from: .now, by: 0.3)) { context in
-            let position = controller.nowPlaying?.position(at: context.date) ?? 0
+            let position = controller.nowPlaying.map { lyricPosition(of: $0, at: context.date) } ?? 0
             let current = (lines.lastIndex { $0.time <= position + 0.25 } ?? 0) == line.id
             Group {
                 if line.isInterlude {
@@ -183,7 +184,7 @@ private struct LyricRow: View {
         .contentShape(Rectangle())
         .onHover { hovering = $0 }
         // A tap jumps the song to this line.
-        .onTapGesture { controller.seek(to: line.time) }
+        .onTapGesture { controller.seek(to: line.time - AppSettings.shared.lyricsOffset) }
     }
 }
 
@@ -194,7 +195,7 @@ private struct WordFillText: View {
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 30)) { context in
-            let position = controller.nowPlaying?.position(at: context.date) ?? 0
+            let position = controller.nowPlaying.map { lyricPosition(of: $0, at: context.date) } ?? 0
             line.words.reduce(Text("")) { result, word in
                 result + Text(word.text).foregroundColor(.white.opacity(0.35 + 0.65 * LyricsLineProgress.value(of: word, at: position)))
             }

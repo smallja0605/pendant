@@ -52,7 +52,7 @@ final class VirtualLyricWidth {
     static let changed = Notification.Name("PendantVirtualLyricWidthChanged")
     private(set) var extra: CGFloat = 0
     private static let font = NSFont.systemFont(ofSize: 13, weight: .semibold)
-    private static let maxExtra: CGFloat = 220
+    static let maxExtra: CGFloat = 220
 
     /// The extra width for a line of text: its width plus the middle's padding, beyond the resting middle, in steps of 8 pt.
     static func extra(for text: String?) -> CGFloat {
@@ -95,6 +95,7 @@ struct VirtualLyricsView: View {
         ZStack {
             TimelineView(.periodic(from: .now, by: 0.2)) { context in
                 let shown = current(at: context.date)
+                let change = Self.lineTransition(scroll: settings.virtualLyricsScroll)
                 ZStack {
                     switch shown {
                     case let .text(id, text):
@@ -105,14 +106,15 @@ struct VirtualLyricsView: View {
                             .minimumScaleFactor(0.6)
                             .padding(.horizontal, 6)
                             .id(id)
-                            .transition(.blurReplace)
+                            .transition(change)
                     case let .dots(progress):
-                        LyricDots(progress: progress, size: 5).transition(.blurReplace)
+                        LyricDots(progress: progress, size: 5).transition(change)
                     case nil:
-                        VirtualClockView(settings: settings).transition(.blurReplace)
+                        VirtualClockView(settings: settings).transition(change)
                     }
                 }
-                .animation(.easeInOut(duration: 0.3), value: shown?.key)
+                .clipped()
+                .animation(.easeInOut(duration: settings.virtualLyricsScroll ? 0.38 : 0.3), value: shown?.key)
                 .onChange(of: shown?.key, initial: true) { _, _ in VirtualLyricWidth.shared.set(VirtualLyricWidth.extra(for: shown?.text)) }
             }
         }
@@ -122,9 +124,15 @@ struct VirtualLyricsView: View {
         }
     }
 
+    /// Blur in / out, or (the setting) the new line scrolls up from below like a reel while the old one leaves above.
+    private static func lineTransition(scroll: Bool) -> AnyTransition {
+        guard scroll else { return AnyTransition(.blurReplace) }
+        return .asymmetric(insertion: .move(edge: .bottom).combined(with: .opacity), removal: .move(edge: .top).combined(with: .opacity))
+    }
+
     private func current(at date: Date) -> Shown? {
         guard let playing = model.media?.nowPlaying, playing.isPlaying, case let .synced(lines) = lyrics.state else { return nil }
-        let position = playing.position(at: date)
+        let position = lyricPosition(of: playing, at: date)
         guard let index = lines.lastIndex(where: { $0.time <= position + 0.25 }) else { return nil }
         let line = lines[index]
         let end = index + 1 < lines.count ? lines[index + 1].time : line.time + 5

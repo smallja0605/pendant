@@ -25,6 +25,8 @@ struct CapsuleLayout: Equatable, Sendable {
     static let virtualWing: CGFloat = 50
     /// Extra width of a virtual notch's middle part (a long lyric line); the capsule grows by it, half on each side.
     var virtualMiddleExtra: CGFloat = 0
+    /// The most `virtualMiddleExtra` can reach: the panel always has room for it, so a new lyric line never resizes the window.
+    var virtualLyricReserve: CGFloat = 0
     /// The virtual notch's idle bar (設定 虛擬瀏海 › 閒置時 › 縮成細條).
     static let virtualSliver = CGSize(width: 56, height: 5)
     var compactWing: CGFloat {
@@ -152,7 +154,8 @@ struct CapsuleLayout: Equatable, Sendable {
             body = CGRect(x: body.midX - swollen.width / 2, y: body.maxY - swollen.height - Self.compactInfoHeight,
                           width: swollen.width, height: swollen.height + Self.compactInfoHeight)
         }
-        let dx = NotchGeometry.earRadius + Self.panelPadding.width
+        let spare = state == .expanded ? 0 : max(virtualLyricReserve - virtualMiddleExtra, 0) / 2
+        let dx = NotchGeometry.earRadius + Self.panelPadding.width + spare
         var rect = CGRect(x: body.minX - dx, y: body.minY - Self.panelPadding.height,
                           width: body.width + 2 * dx, height: body.height + Self.panelPadding.height + notch.floatGap)
         if state == .compact, !secondaries.isEmpty {
@@ -160,7 +163,7 @@ struct CapsuleLayout: Equatable, Sendable {
             let pad: CGFloat = 24
             let mid = notch.screenFrame.midX
             let half = secondaries.reduce(rect.width / 2) {
-                max($0, abs($1.rect.minX - mid) + pad, abs($1.rect.maxX - mid) + pad)
+                max($0, abs($1.rect.minX - mid) + pad + spare, abs($1.rect.maxX - mid) + pad + spare)
             }
             let low = min(rect.minY, (secondaries.map(\.rect.minY).min() ?? rect.minY) - pad)
             rect = CGRect(x: mid - half, y: low, width: 2 * half, height: rect.maxY - low)
