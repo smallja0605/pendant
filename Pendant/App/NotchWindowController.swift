@@ -550,6 +550,9 @@ final class NotchWindowController { // swiftlint:disable:this type_body_length
            old.bodySize(for: .expanded).width != layout.bodySize(for: .expanded).width {
             interaction.disarmCollapse()
         }
+        // A layout that is about to grow gets its window first: updating the model first drew the growing capsule in the old, narrower
+        // window for a frame (it jumped sideways when the window followed).
+        if animated, model.state != .expanded { setPanelFrame(panel.frame.union(layout.panelFrame(for: model.state))) }
         model.updateLayout(layout, animated: animated)
 
         // A real notch is always on screen; a virtual one hides while an app is full screen on this screen (settings › 虛擬瀏海).
