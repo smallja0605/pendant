@@ -76,27 +76,44 @@ struct VirtualLyricsView: View {
     let settings: AppSettings
     private let lyrics = LyricsStore.shared
 
+    /// What the middle shows for the current moment: a phrase (with an id that changes with it), counting dots, or nothing (the clock).
+    private enum Shown: Equatable {
+        case text(id: String, text: String)
+        case dots(progress: Double)
+
+        var key: String {
+            switch self {
+            case let .text(id, _): id
+            case .dots: "dots"
+            }
+        }
+        var text: String? { if case let .text(_, text) = self { text } else { nil } }
+    }
+
     var body: some View {
         let playing = model.media?.nowPlaying
         ZStack {
-            TimelineView(.periodic(from: .now, by: 0.3)) { context in
-                let line = currentLine(at: context.date)
+            TimelineView(.periodic(from: .now, by: 0.2)) { context in
+                let shown = current(at: context.date)
                 ZStack {
-                    if let line {
-                        Text(line.text.isEmpty ? "♪" : line.text)
+                    switch shown {
+                    case let .text(id, text):
+                        Text(text)
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundStyle(.white)
                             .lineLimit(1)
                             .minimumScaleFactor(0.6)
                             .padding(.horizontal, 6)
-                            .id(line.id)
+                            .id(id)
                             .transition(.blurReplace)
-                    } else {
+                    case let .dots(progress):
+                        LyricDots(progress: progress, size: 5).transition(.blurReplace)
+                    case nil:
                         VirtualClockView(settings: settings).transition(.blurReplace)
                     }
                 }
-                .animation(.easeInOut(duration: 0.3), value: line?.id)
-                .onChange(of: line?.id, initial: true) { _, _ in VirtualLyricWidth.shared.set(VirtualLyricWidth.extra(for: line?.text)) }
+                .animation(.easeInOut(duration: 0.3), value: shown?.key)
+                .onChange(of: shown?.key, initial: true) { _, _ in VirtualLyricWidth.shared.set(VirtualLyricWidth.extra(for: shown?.text)) }
             }
         }
         .onDisappear { VirtualLyricWidth.shared.set(0) }
@@ -105,11 +122,24 @@ struct VirtualLyricsView: View {
         }
     }
 
-    private func currentLine(at date: Date) -> LyricLine? {
+    private func current(at date: Date) -> Shown? {
         guard let playing = model.media?.nowPlaying, playing.isPlaying, case let .synced(lines) = lyrics.state else { return nil }
         let position = playing.position(at: date)
         guard let index = lines.lastIndex(where: { $0.time <= position + 0.25 }) else { return nil }
-        return lines[index]
+        let line = lines[index]
+        let end = index + 1 < lines.count ? lines[index + 1].time : line.time + 5
+        if line.isInterlude { return .dots(progress: LyricsLineProgress.fraction(position, from: line.time, to: end)) }
+        let parts = line.displayParts
+        guard parts.count > 1 else { return .text(id: "\(line.id)", text: parts[0]) }
+        // Phrases of one line take their turns by length over the line's time (a long gap counts as at most ten seconds).
+        let total = Double(parts.reduce(0) { $0 + max($1.count, 1) })
+        let elapsed = LyricsLineProgress.fraction(position, from: line.time, to: min(end, line.time + 10)) * total
+        var passed = 0.0
+        for (number, part) in parts.enumerated() {
+            passed += Double(max(part.count, 1))
+            if elapsed < passed || number == parts.count - 1 { return .text(id: "\(line.id).\(number)", text: part) }
+        }
+        return nil
     }
 }
 

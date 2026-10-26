@@ -19,8 +19,12 @@ extension AppSettings {
     /// Whether any lyrics source is switched on (the page says "已關閉" when none is).
     var lyricsAvailable: Bool { lyricsSources.contains { $0.enabled && (!$0.isNetwork || onlineLyrics) } }
 
+    var lyricsFormatOptions: LyricsFormatOptions {
+        LyricsFormatOptions(traditional: lyricsTraditional, fillerDots: lyricsFillerDots, splitLines: lyricsSplitLines)
+    }
+
     /// Changes whenever the list (order, switches, addresses) changes, so the lyrics are looked up again.
     var lyricsSourcesSignature: String {
-        lyricsSources.map { "\($0.signature)\($0.enabled)" }.joined() + "|\(onlineLyrics)"
+        lyricsSources.map { "\($0.signature)\($0.enabled)" }.joined() + "|\(onlineLyrics)|\(lyricsFormatOptions.signature)"
     }
 }

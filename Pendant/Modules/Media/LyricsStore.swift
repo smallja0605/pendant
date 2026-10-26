@@ -8,6 +8,12 @@ struct LyricLine: Equatable, Identifiable, Sendable {
     let text: String
     /// Word-by-word timing, when the source has it (empty otherwise).
     var words: [LyricWord] = []
+    /// A line with no words in it (an interlude, "na na na"): the views show three counting dots.
+    var isInterlude = false
+    /// The line as separate phrases (a long line, or phrases run together); empty = the text as it is.
+    var parts: [String] = []
+
+    var displayParts: [String] { parts.isEmpty ? [text] : parts }
 }
 
 /// One word (or character) of a line and when it is sung, in seconds of the song.
@@ -45,6 +51,14 @@ final class LyricsStore {
             let lines = (0..<60).map {
                 LyricLine(id: $0, time: Double($0) * 5, text: mode == "long" ? "這是一句比較長的歌詞，用來測試膠囊會不會跟著變寬 \($0)" : "第 \($0) 句歌詞")
             }
+            if mode == "mixed" {
+                // Interludes, vocal fillers, run-together phrases, a long English line, simplified Chinese: what the formatter handles.
+                let texts = ["第一句歌词 后来我们", "♪", "(Na-na, na, na, na-na, na, na)", "春天的风 轻轻吹过窗前",
+                             "The river runs slowly past the old town, we walk along it until the light is gone", "Oh-oh-oh", "尾声 结束"]
+                let raw = texts.enumerated().map { LyricLine(id: $0.offset, time: 130 + Double($0.offset) * 4, text: $0.element) }
+                state = LyricsFormatter.process(.synced(raw), options: AppSettings.shared.lyricsFormatOptions)
+                return
+            }
             if mode == "words" {
                 // Word-timed: each line is five words, one every second.
                 state = .synced((0..<30).map { index in
@@ -65,7 +79,8 @@ final class LyricsStore {
             loadedKey = ""
             return
         }
-        let key = "\(snapshot.trackKey)|\(sources.map(\.signature).joined(separator: ","))"
+        let options = settings.lyricsFormatOptions
+        let key = "\(snapshot.trackKey)|\(sources.map(\.signature).joined(separator: ","))|\(options.signature)"
         guard key != loadedKey else { return }
         loadedKey = key
         if let cached = cache[key] {
@@ -75,7 +90,8 @@ final class LyricsStore {
         state = .loading
         task?.cancel()
         task = Task { [weak self] in
-            let result = await Self.lookup(sources, snapshot)
+            let found = await Self.lookup(sources, snapshot)
+            let result = LyricsFormatter.process(found, options: options)
             guard !Task.isCancelled, let self, loadedKey == key else { return }
             cache[key] = result
             state = result

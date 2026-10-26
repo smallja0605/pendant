@@ -163,10 +163,16 @@ private struct LyricRow: View {
             let position = controller.nowPlaying?.position(at: context.date) ?? 0
             let current = (lines.lastIndex { $0.time <= position + 0.25 } ?? 0) == line.id
             Group {
-                if current && !line.words.isEmpty {
+                if line.isInterlude {
+                    // An interlude (or "na na na"): three dots that fill up until the next line.
+                    let end = line.id + 1 < lines.count ? lines[line.id + 1].time : line.time + 5
+                    LyricDots(progress: current ? LyricsLineProgress.fraction(position, from: line.time, to: end) : 0, size: 8)
+                        .opacity(current ? 1 : 0.35)
+                        .frame(height: 22, alignment: .center)
+                } else if current && !line.words.isEmpty {
                     WordFillText(line: line, controller: controller)
                 } else {
-                    Text(line.text.isEmpty ? "♪" : line.text)
+                    Text(line.displayParts.joined(separator: "\n"))
                         .font(.system(size: 17, weight: .bold))
                         .foregroundStyle(.white.opacity(current ? 1 : (hovering ? 0.6 : 0.32)))
                 }
@@ -198,9 +204,33 @@ private struct WordFillText: View {
 }
 
 enum LyricsLineProgress {
+    /// How far `position` is from `start` to `end`, 0…1.
+    static func fraction(_ position: TimeInterval, from start: TimeInterval, to end: TimeInterval) -> Double {
+        end > start ? min(max((position - start) / (end - start), 0), 1) : 1
+    }
+
     /// 0 before the word is sung, 1 after, in between while it is.
     static func value(of word: LyricWord, at position: TimeInterval) -> Double {
         guard word.end > word.start else { return position >= word.start ? 1 : 0 }
         return min(max((position - word.start) / (word.end - word.start), 0), 1)
+    }
+}
+
+/// Three dots that light up one after the other as `progress` goes from 0 to 1 (an interlude counting down to the next line).
+struct LyricDots: View {
+    let progress: Double
+    var size: CGFloat = 8
+
+    var body: some View {
+        HStack(spacing: size * 0.7) {
+            ForEach(0..<3, id: \.self) { index in
+                let fill = min(max(progress * 3 - Double(index), 0), 1)
+                Circle()
+                    .fill(.white.opacity(0.3 + 0.7 * fill))
+                    .frame(width: size, height: size)
+                    .scaleEffect(0.85 + 0.25 * fill)
+            }
+        }
+        .animation(.easeOut(duration: 0.25), value: Int(progress * 3))
     }
 }

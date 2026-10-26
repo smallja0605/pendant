@@ -85,6 +85,15 @@ private struct MediaModuleSettings: View {
                 Toggle("", isOn: $settings.onlineLyrics).labelsHidden()
             }
             LyricsSourcesSection()
+            TipRow(title: "歌詞轉繁體", tip: "簡體中文歌詞轉成繁體（日文、韓文歌不轉）") {
+                Toggle("", isOn: $settings.lyricsTraditional).labelsHidden()
+            }
+            TipRow(title: "間奏顯示三點", tip: "間奏與「na na na」這類擬聲詞，改顯示倒數的三個點") {
+                Toggle("", isOn: $settings.lyricsFillerDots).labelsHidden()
+            }
+            TipRow(title: "長句自動斷行", tip: "中文歌詞依空格、英文長句在逗號或括號處分成兩段") {
+                Toggle("", isOn: $settings.lyricsSplitLines).labelsHidden()
+            }
             DropdownRow(title: "音樂來源", selection: $settings.mediaSourcePreference, options: [
                 (MediaSourcePreference.auto, "自動"), (.appleMusic, "Apple Music"), (.spotify, "Spotify"),
             ])

@@ -146,7 +146,9 @@ final class AppSettings: @unchecked Sendable {
     var lyricsSources: [LyricsSourceItem] {
         didSet { if let data = try? JSONEncoder().encode(lyricsSources) { save(data, "lyricsSources") } }
     }
-    /// The title line of the music page shows a small waveform after the song's name.
+    var lyricsTraditional: Bool { didSet { save(lyricsTraditional, "lyricsTraditional") } } // see `LyricsFormatter`
+    var lyricsFillerDots: Bool { didSet { save(lyricsFillerDots, "lyricsFillerDots") } }
+    var lyricsSplitLines: Bool { didSet { save(lyricsSplitLines, "lyricsSplitLines") } }
     var showWaveformInTitle: Bool { didSet { save(showWaveformInTitle, "showWaveformInTitle") } }
 
     // MARK: Timer (4.4)
@@ -314,6 +316,9 @@ final class AppSettings: @unchecked Sendable {
         onlineArtwork = bool("onlineArtwork", true)
         onlineLyrics = bool("onlineLyrics", true)
         showWaveformInTitle = bool("showWaveformInTitle", true)
+        lyricsTraditional = bool("lyricsTraditional", true)
+        lyricsFillerDots = bool("lyricsFillerDots", true)
+        lyricsSplitLines = bool("lyricsSplitLines", true)
         if let data = defaults.data(forKey: Self.prefix + "lyricsSources"),
            let stored = try? JSONDecoder().decode([LyricsSourceItem].self, from: data) {
             lyricsSources = LyricsSourceItem.merged(stored)
