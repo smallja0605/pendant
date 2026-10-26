@@ -17,6 +17,7 @@ struct VirtualNotchSettingsView: View {
                 }
                 .dimmed(when: !settings.virtualNotchEnabled)
             }
+            shapeSection
             idleSection
             Group {
                 middleSection
@@ -30,6 +31,20 @@ struct VirtualNotchSettingsView: View {
         }
         .formStyle(.grouped)
         .animation(.spring(response: 0.35, dampingFraction: 0.85), value: settings.virtualLeft)
+    }
+
+    private var shapeSection: some View {
+        Section("外型") {
+            TipRow(title: "懸浮膠囊", tip: "不貼著螢幕頂端，像動態島一樣浮在下面") {
+                Toggle("", isOn: $settings.virtualFloating).labelsHidden()
+            }
+            if settings.virtualFloating {
+                SliderRow(title: "離頂端距離", value: $settings.virtualFloatGap, range: 2...24, step: 1, unit: "pt")
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .dimmed(when: !settings.virtualNotchEnabled)
+        .animation(.spring(response: 0.35, dampingFraction: 0.85), value: settings.virtualFloating)
     }
 
     private var idleSection: some View {

@@ -15,6 +15,8 @@ struct NotchGeometry: Equatable, Sendable {
     var screenFrame: CGRect
     var size: CGSize
     var isVirtual: Bool
+    /// Floating capsule (virtual notch only): the gap between the screen's top edge and the capsule.
+    var floatGap: CGFloat = 0
 
     /// - Parameters:
     ///   - safeAreaTop: `NSScreen.safeAreaInsets.top` (0 on screens without a notch).
@@ -45,7 +47,7 @@ struct NotchGeometry: Equatable, Sendable {
     var notchRect: CGRect {
         CGRect(
             x: screenFrame.midX - size.width / 2,
-            y: screenFrame.maxY - size.height,
+            y: screenFrame.maxY - floatGap - size.height,
             width: size.width,
             height: size.height
         )
@@ -59,7 +61,7 @@ struct NotchGeometry: Equatable, Sendable {
     /// Hover trigger zone: slightly larger than the notch, extending to the screen top edge.
     var triggerRect: CGRect {
         var rect = notchRect.insetBy(dx: -Self.triggerMargin, dy: -Self.triggerMargin)
-        rect.size.height += Self.triggerMargin // allow the cursor to hit the very top edge
+        rect.size.height += Self.triggerMargin + floatGap // allow the cursor to hit the very top edge
         rect.origin.y = min(rect.origin.y, notchRect.minY - Self.triggerMargin)
         return rect
     }

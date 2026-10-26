@@ -19,6 +19,9 @@ final class AppSettings: @unchecked Sendable {
     var virtualNotchEnabled: Bool { didSet { save(virtualNotchEnabled, "virtualNotchEnabled") } }
     /// Hide the virtual notch while an app is full screen (its own Space, the green button) on its screen.
     var virtualHideInFullscreen: Bool { didSet { save(virtualHideInFullscreen, "virtualHideInFullscreen") } }
+    /// 懸浮膠囊態: the virtual notch floats below the top edge as a rounded capsule (gap in points) instead of hanging from it.
+    var virtualFloating: Bool { didSet { save(virtualFloating, "virtualFloating") } }
+    var virtualFloatGap: Double { didSet { save(virtualFloatGap, "virtualFloatGap") } }
     var virtualIdleHide: VirtualIdleHide { didSet { save(virtualIdleHide.rawValue, "virtualIdleHide") } }
     var virtualIdleHover: Bool { didSet { save(virtualIdleHover, "virtualIdleHover") } }
     var virtualMiddle: VirtualMiddle { didSet { save(virtualMiddle.rawValue, "virtualMiddle") } }
@@ -220,6 +223,8 @@ final class AppSettings: @unchecked Sendable {
         hoverDelay = double("hoverDelay", 0.3)
         virtualNotchEnabled = bool("virtualNotchEnabled", true)
         virtualHideInFullscreen = bool("virtualHideInFullscreen", true)
+        virtualFloating = bool("virtualFloating", false)
+        virtualFloatGap = min(max(double("virtualFloatGap", 6), 2), 24)
         virtualIdleHide = string("virtualIdleHide").flatMap(VirtualIdleHide.init(rawValue:)) ?? .off
         virtualIdleHover = bool("virtualIdleHover", true)
         virtualMiddle = string("virtualMiddle").flatMap(VirtualMiddle.init(rawValue:)) ?? .clock
@@ -360,16 +365,6 @@ final class AppSettings: @unchecked Sendable {
 
     private func save(_ value: Any, _ key: String) {
         defaults.set(value, forKey: Self.prefix + key)
-    }
-
-    /// Island settings as the pure planner wants them (the smart-avoid bounds are filled in by the window controller).
-    var islandSettings: IslandSettings {
-        IslandSettings(
-            leftEnabled: islandLeftEnabled, rightEnabled: islandRightEnabled, prioritySide: islandPrioritySide,
-            gap: islandGap, maxSpanFraction: islandMaxSpanPercent / 100,
-            leftOffset: islandLeftOffset, rightOffset: islandRightOffset,
-            maxWidth: islandMaxWidth, sinking: islandSinking
-        )
     }
 
     func activityRole(_ id: String) -> ActivityRole {

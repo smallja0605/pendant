@@ -14,3 +14,8 @@ extension CapsuleModel {
             && !AppSettings.shared.virtualIdleHover
     }
 }
+
+extension CapsuleModel {
+    /// A floating capsule is rounded like a pill (the open one less so).
+    var floatingRadius: CGFloat { state == .expanded ? 30 : min(bodySize.height / 2, 28) }
+}

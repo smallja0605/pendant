@@ -6,12 +6,20 @@ struct NotchShape: Shape {
     var bottomRadius: CGFloat = 10
     var ear: CGFloat = NotchGeometry.earRadius
 
-    var animatableData: AnimatablePair<CGFloat, CGFloat> {
-        get { AnimatablePair(bottomRadius, ear) }
-        set { bottomRadius = newValue.first; ear = newValue.second }
+    /// Floating capsule: with no ears the top corners are rounded as well (this radius), instead of meeting the screen's edge.
+    var topRadius: CGFloat = 0
+
+    var animatableData: AnimatablePair<AnimatablePair<CGFloat, CGFloat>, CGFloat> {
+        get { AnimatablePair(AnimatablePair(bottomRadius, ear), topRadius) }
+        set { bottomRadius = newValue.first.first; ear = newValue.first.second; topRadius = newValue.second }
     }
 
     func path(in rect: CGRect) -> Path {
+        if ear == 0 {
+            let radii = RectangleCornerRadii(topLeading: topRadius, bottomLeading: bottomRadius,
+                                             bottomTrailing: bottomRadius, topTrailing: topRadius)
+            return UnevenRoundedRectangle(cornerRadii: radii, style: .continuous).path(in: rect)
+        }
         var path = Path()
         let body = rect.insetBy(dx: ear, dy: 0)
         let ear = min(self.ear, body.height)

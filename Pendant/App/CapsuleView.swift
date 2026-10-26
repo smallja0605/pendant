@@ -21,12 +21,13 @@ struct CapsuleView: View {
         let virtualContentSize = model.state == .idle
             ? CGSize(width: max(size.width, restSize.width), height: max(size.height, restSize.height)) : size
         // The thin bar's reverse corners are small (it is only a few points tall).
-        let ear = concealed ? 3 : NotchGeometry.earRadius
+        let floating = model.layout?.isFloating == true
+        let ear = floating ? 0 : (concealed ? 3 : NotchGeometry.earRadius)
         let notchHeight = model.layout?.notch.size.height ?? 0
         let isExpanded = model.state == .expanded
         let virtualStrip = model.layout?.virtualContent == true && AppSettings.shared.virtualBigStrip
 
-        let shape = NotchShape(bottomRadius: model.bottomRadius, ear: ear)
+        let shape = NotchShape(bottomRadius: model.bottomRadius, ear: ear, topRadius: floating ? model.bottomRadius : 0)
         let expandedSize = model.layout?.bodySize(for: .expanded) ?? size
         let contentSize = CGSize(
             width: expandedSize.width, height: max(expandedSize.height - notchHeight - Tuning.shared.expandedBottomInset, 0)
@@ -58,7 +59,8 @@ struct CapsuleView: View {
                 .frame(width: size.width + 2 * ear + main + other, height: size.height)
                 .overlay(shape.stroke(Color.white.opacity(model.isFlashing ? 0.9 : 0), lineWidth: 2.5))
                 .opacity(model.idleConcealment == .hidden ? 0 : 1)
-                .shadow(color: .black.opacity(model.isSwelled && !model.hudShowing ? 0.55 : 0), radius: 9, x: 0, y: 5)
+                .shadow(color: .black.opacity(model.isSwelled && !model.hudShowing ? 0.55 : (floating ? 0.3 : 0)),
+                        radius: floating ? 7 : 9, x: 0, y: 5)
                 .offset(x: model.stepSide * (main - other) / 2)
 
             // Content keeps a fixed layout and is revealed by the growing shape (clipped), instead of
@@ -146,6 +148,7 @@ struct CapsuleView: View {
         }
         // A track change shows the song line for a moment (hover on the cover shows it as before).
         .onChange(of: model.media?.trackChangeToken) { _, _ in model.noteTrackChange() }
+        .padding(.top, model.layout?.notch.floatGap ?? 0) // a floating capsule hangs below the top edge
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .contentShape(Rectangle())
         .onTapGesture(perform: onTap) // the interaction controller ignores taps outside the visible body

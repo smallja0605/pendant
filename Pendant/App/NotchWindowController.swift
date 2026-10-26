@@ -504,7 +504,9 @@ final class NotchWindowController { // swiftlint:disable:this type_body_length
         let plain = geometry(adjustment: settings.notchWidthAdjust, safeAreaTop: effectiveSafeAreaTop(of: screen))
         guard plain.isVirtual, settings.virtualNotchEnabled else { return plain }
         let narrower = NotchGeometry.virtualContentWidth - NotchGeometry.virtualSize.width
-        return geometry(adjustment: settings.notchWidthAdjust + narrower, safeAreaTop: 0)
+        var virtual = geometry(adjustment: settings.notchWidthAdjust + narrower, safeAreaTop: 0)
+        if settings.virtualFloating { virtual.floatGap = CGFloat(settings.virtualFloatGap) }
+        return virtual
     }
 
     func reposition(animated: Bool = false, delayedShrink: Bool = false) {
@@ -529,7 +531,8 @@ final class NotchWindowController { // swiftlint:disable:this type_body_length
         var islands = settings.islandSettings
         if settings.islandSmartAvoid { islands.leftBound = MenuBarAvoidance.appMenusRightEdge() }
         let placements = IslandPlanner.plan(
-            mainRect: layout.bodyRect(for: .compact), ear: NotchGeometry.earRadius, screenFrame: geometry.screenFrame,
+            mainRect: layout.bodyRect(for: .compact), ear: layout.isFloating ? 0 : NotchGeometry.earRadius,
+            screenFrame: geometry.screenFrame.offsetBy(dx: 0, dy: -geometry.floatGap),
             menuBarHeight: max(menuBarHeight, geometry.size.height), activities: activities, settings: islands
         )
         layout.secondaries = placements.filter { $0.side != nil }

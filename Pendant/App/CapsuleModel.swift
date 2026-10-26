@@ -80,7 +80,6 @@ final class CapsuleModel {
     var keepsOpen: (() -> Bool)?
     /// Called once the transition animation has finished and the state is still the target.
     var didSettle: ((CapsuleState) -> Void)?
-
     var restingState: CapsuleState { ExpandPolicy.restingState(hasActivity: activity != nil) }
 
     /// The volume / brightness HUD is out over the compact capsule: its contents blur out while the HUD's own shape (which starts
@@ -218,6 +217,7 @@ final class CapsuleModel {
     }
 
     var bottomRadius: CGFloat {
+        if layout?.isFloating == true { return floatingRadius }
         if toastVisible, state != .expanded { return 28 }
         if levelHUDVisible, state != .expanded { return levelHUDSwelled ? 14 : 12 }
         switch state {

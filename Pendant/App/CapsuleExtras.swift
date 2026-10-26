@@ -12,6 +12,7 @@ struct SecondaryIslands: View {
         let layout = model.layout
         let midX = layout?.notch.screenFrame.midX ?? 0
         let top = layout?.notch.screenFrame.maxY ?? 0
+        let gap = layout?.notch.floatGap ?? 0 // the capsule view is already moved down by it
         let reduce = model.reduceMotion
         let pairs: [(IslandPlacement, LiveActivity)] = (layout?.secondaries ?? []).compactMap { placement in
             model.secondaryActivities.first { $0.id == placement.id }.map { (placement, $0) }
@@ -44,7 +45,7 @@ struct SecondaryIslands: View {
                     }
                     .frame(width: placement.rect.width, height: placement.rect.height)
                     .offset(x: placement.rect.midX - midX + (side == .left ? -swellShift : swellShift),
-                            y: top - placement.rect.maxY)
+                            y: top - placement.rect.maxY - gap)
                     .animation(AnimationTokens.island(reduceMotion: reduce), value: revealed)
                 }
             }

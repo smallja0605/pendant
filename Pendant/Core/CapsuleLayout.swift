@@ -20,6 +20,8 @@ struct CapsuleLayout: Equatable, Sendable {
     var compactActivityExtra: CGFloat = 0
     /// A virtual notch carries content in its three parts (battery / clock / …): its wings are wide enough for that.
     var virtualContent = false
+    /// The capsule floats below the top edge (a virtual notch with 懸浮膠囊態 on): rounded all round, no reverse corners.
+    var isFloating: Bool { notch.floatGap > 0 }
     static let virtualWing: CGFloat = 50
     /// The virtual notch's idle bar (設定 虛擬瀏海 › 閒置時 › 縮成細條).
     static let virtualSliver = CGSize(width: 56, height: 5)
@@ -78,19 +80,19 @@ struct CapsuleLayout: Equatable, Sendable {
     func bodyRect(for state: CapsuleState) -> CGRect {
         let size = bodySize(for: state)
         let frame = notch.screenFrame
-        return CGRect(x: frame.midX - size.width / 2, y: frame.maxY - size.height, width: size.width, height: size.height)
+        return CGRect(x: frame.midX - size.width / 2, y: frame.maxY - notch.floatGap - size.height, width: size.width, height: size.height)
     }
 
     /// Hover trigger zone: a few points larger than the body, reaching the very top edge.
     func triggerRect(for state: CapsuleState) -> CGRect {
         if state == .idle, virtualContent {
             var rect = bodyRect(for: .idle).insetBy(dx: -NotchGeometry.triggerMargin, dy: -NotchGeometry.triggerMargin)
-            rect.size.height += NotchGeometry.triggerMargin
+            rect.size.height += NotchGeometry.triggerMargin + notch.floatGap
             return rect
         }
         if state == .idle { return notch.triggerRect }
         var rect = bodyRect(for: state).insetBy(dx: -NotchGeometry.triggerMargin, dy: -NotchGeometry.triggerMargin)
-        rect.size.height += NotchGeometry.triggerMargin
+        rect.size.height += NotchGeometry.triggerMargin + notch.floatGap
         return rect
     }
 
@@ -135,7 +137,7 @@ struct CapsuleLayout: Equatable, Sendable {
         let frame = notch.screenFrame
         let dx = NotchGeometry.earRadius + Self.panelPadding.width
         let rect = CGRect(x: frame.midX - size.width / 2 - dx, y: frame.maxY - size.height - Self.panelPadding.height,
-                          width: size.width + 2 * dx, height: size.height + Self.panelPadding.height)
+                          width: size.width + 2 * dx, height: size.height + Self.panelPadding.height + notch.floatGap)
         return rect.intersection(frame)
     }
 
@@ -150,7 +152,7 @@ struct CapsuleLayout: Equatable, Sendable {
         }
         let dx = NotchGeometry.earRadius + Self.panelPadding.width
         var rect = CGRect(x: body.minX - dx, y: body.minY - Self.panelPadding.height,
-                          width: body.width + 2 * dx, height: body.height + Self.panelPadding.height)
+                          width: body.width + 2 * dx, height: body.height + Self.panelPadding.height + notch.floatGap)
         if state == .compact, !secondaries.isEmpty {
             // Room for the secondary islands (kept symmetric around the notch, like the body).
             let pad: CGFloat = 24
