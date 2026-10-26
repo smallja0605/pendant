@@ -70,7 +70,9 @@ private enum SidebarStyle {
 }
 
 struct SettingsView: View {
-    @State private var titleScrolledAway = false
+    @State private var scrollOffset: CGFloat = 0
+    /// Where the big title sits at rest, measured in the page (nil until the page has been laid out).
+    @State private var titleRest: CGRect?
     let selection: SettingsSelection
     var onShowTour: () -> Void = {}
     var onWindowAction: (SettingsWindowAction) -> Void = { _ in }
@@ -100,12 +102,24 @@ struct SettingsView: View {
             // is transparent: no header band, no seam; the glass window shows through the cards.
             .environment(\.settingsTitle, selection.tab.title)
             .scrollContentBackground(.hidden)
+            .environment(\.settingsTitleHidden, titleRest != nil)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(ScrollPastTitleObserver { titleScrolledAway = $0 })
-            .overlay(alignment: .top) { TitleBand(title: selection.tab.title, visible: titleScrolledAway) }
+            .coordinateSpace(name: SettingsSpace.settings)
+            .onPreferenceChange(TitleRestKey.self) { frame in
+                // Only the title's resting place counts: while the page is scrolled the heading moves with it.
+                if abs(scrollOffset) < 1, let frame { titleRest = frame }
+            }
+            .background(ScrollPastTitleObserver { scrollOffset = $0 })
+            .overlay { if let titleRest { PageTitleOverlay(title: selection.tab.title, rest: titleRest, offset: scrollOffset) } }
+            .overlay(alignment: .topTrailing) {
+                if selection.tab == .general { AppControlButtons().padding(.top, 10).padding(.trailing, 20) }
+            }
             .overlay(alignment: .bottom) { EdgeBlur(edge: .bottom, height: 22) }
             .id(selection.tab)
-            .onChange(of: selection.tab) { _, _ in titleScrolledAway = false }
+            .onChange(of: selection.tab) { _, _ in
+                scrollOffset = 0
+                titleRest = nil
+            }
         }
         .frame(minWidth: 820, idealWidth: 900, maxWidth: .infinity, minHeight: 600, idealHeight: 820, maxHeight: .infinity)
         .background(
@@ -148,10 +162,7 @@ struct SettingsTitleHeader: View {
 
     var body: some View {
         Section {} header: {
-            Text(loc(title))
-                .font(.system(size: 30, weight: .bold))
-                .foregroundStyle(.primary)
-                .textCase(nil)
+            SettingsTitleText(title: title)
                 .padding(.top, 34)
                 .padding(.bottom, 4)
         }

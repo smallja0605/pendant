@@ -39,7 +39,7 @@ struct PendantSettingsView: View {
 
     private var content: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(loc(title)).font(.system(size: 30, weight: .bold)).padding(.top, 44)
+            SettingsTitleText(title: title).padding(.top, 44)
             Picker("", selection: $page) {
                 ForEach(Page.allCases) { Text(loc($0.rawValue)).tag($0) }
             }

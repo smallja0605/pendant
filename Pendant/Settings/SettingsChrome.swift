@@ -1,9 +1,9 @@
 import SwiftUI
 
-/// Reports whether the page's scroll view (the first one in the right-hand pane) has scrolled the big title out of sight. The
-/// pages are SwiftUI forms / scroll views, so their `NSScrollView` is found in the window and its clip view's bounds are watched.
+/// Reports how far the page's scroll view (the first one in the right-hand pane) is scrolled (negative while pulled past the top).
+/// The pages are SwiftUI forms / scroll views, so their `NSScrollView` is found in the window and its clip view's bounds are watched.
 struct ScrollPastTitleObserver: NSViewRepresentable {
-    let onChange: (Bool) -> Void
+    let onChange: (CGFloat) -> Void
 
     func makeNSView(context: Context) -> Probe {
         let probe = Probe()
@@ -14,9 +14,8 @@ struct ScrollPastTitleObserver: NSViewRepresentable {
     func updateNSView(_ probe: Probe, context: Context) { probe.onChange = onChange }
 
     final class Probe: NSView {
-        var onChange: ((Bool) -> Void)?
+        var onChange: ((CGFloat) -> Void)?
         private var observer: NSObjectProtocol? // removed with the view: the notification block holds both weakly
-        private var past = false
 
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
@@ -55,12 +54,7 @@ struct ScrollPastTitleObserver: NSViewRepresentable {
                 forName: NSView.boundsDidChangeNotification, object: scroll.contentView, queue: .main
             ) { [weak self, weak scroll] _ in
                 guard let self, let scroll else { return }
-                let offset = scroll.contentView.bounds.origin.y + scroll.contentInsets.top
-                let nowPast = offset > 46
-                if nowPast != past {
-                    past = nowPast
-                    onChange?(nowPast)
-                }
+                onChange?(scroll.contentView.bounds.origin.y + scroll.contentInsets.top)
             }
         }
 
@@ -74,28 +68,6 @@ struct ScrollPastTitleObserver: NSViewRepresentable {
             }
             return nil
         }
-    }
-}
-
-/// The page title pinned at the top once the big one has scrolled away: a frosted band that fades out downwards, so content
-/// passing under it dissolves instead of being cut off.
-struct TitleBand: View {
-    let title: String
-    let visible: Bool
-
-    var body: some View {
-        ZStack(alignment: .topLeading) {
-            VisualEffectBackground(material: .menu, blending: .withinWindow)
-                .mask(LinearGradient(stops: [.init(color: .black, location: 0), .init(color: .black, location: 0.62),
-                                             .init(color: .clear, location: 1)], startPoint: .top, endPoint: .bottom))
-            LinearGradient(colors: [.black.opacity(0.28), .clear], startPoint: .top, endPoint: .bottom)
-            Text(loc(title)).font(.system(size: 17, weight: .semibold)).padding(.leading, 28).padding(.top, 15)
-        }
-        .frame(height: 64)
-        .opacity(visible ? 1 : 0)
-        .offset(y: visible ? 0 : -12)
-        .animation(.spring(response: 0.38, dampingFraction: 0.85), value: visible)
-        .allowsHitTesting(false)
     }
 }
 
