@@ -34,11 +34,12 @@ struct WaveformBars: View {
                     Capsule()
                         .fill(.white.opacity(0.9))
                         .frame(width: width, height: height(index, time: time, real: real))
+                        .transaction(value: isPlaying) { $0.animation = .easeInOut(duration: 0.25) }
+                        // Heights are drawn every frame: an animation from outside (the capsule's hover morph) must not slide them.
+                        // Only the bars' own heights: the whole row still glides with the capsule when it swells.
+                        .transaction { $0.animation = nil }
                 }
             }
-            .transaction(value: isPlaying) { $0.animation = .easeInOut(duration: 0.25) }
-            // Heights are drawn every frame: an animation from outside (the capsule's hover morph) must not slide them.
-            .transaction { $0.animation = nil }
         }
         .frame(height: 14)
         .onChange(of: wantsSound, initial: true) { _, wanted in
