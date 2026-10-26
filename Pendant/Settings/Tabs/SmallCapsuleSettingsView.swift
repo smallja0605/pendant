@@ -95,7 +95,7 @@ struct SmallCapsuleSettingsView: View {
 
     @ViewBuilder private var detail: some View {
         Form {
-            Section {
+            moduleGroup(selection == "timer" ? "計時器" : (selection == "shelf" ? "檔案中轉站" : "基本"), first: true) {
                 switch selection {
                 case "timer":
                     modePicker("倒數顯示模式", id: "timer")
@@ -115,6 +115,9 @@ struct SmallCapsuleSettingsView: View {
                     SliderRow(title: "顯示時間", value: $settings.trackInfoSeconds, range: 1...8, step: 0.5, unit: "秒", fractionDigits: 1)
                         .dimmed(when: !settings.showTrackInfoOnChange)
                 }
+            }
+            if selection == "media" {
+                moduleGroup("音波") { CompactWaveformRows() }
             }
         }
         .formStyle(.grouped)
