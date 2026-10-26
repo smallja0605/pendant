@@ -1,6 +1,6 @@
 #!/bin/bash
 # Publishes a new version for the installed app's in-app updater (no network, no GitHub):
-# builds it, zips it with a SHA-256 file into ~/Library/Application Support/Pendant/Updates and rewrites releases.json.
+# builds it, packs it into a disk image with a SHA-256 file into ~/Library/Application Support/Pendant/Updates and rewrites releases.json.
 # The installed Pendant finds it on its next check ("設定 → 關於 → 檢查更新") and replaces itself.
 # Usage: scripts/publish-update.sh <version>     e.g. 0.1.1 (stable) or 0.1.2-beta.1 (test build: only offered on the
 # "含預覽版" update channel in 設定 → 關於)
@@ -13,17 +13,17 @@ version="${1:?usage: scripts/publish-update.sh <version>  (e.g. 0.1.1)}"
 scripts/build-release.sh "$version"
 folder="$HOME/Library/Application Support/Pendant/Updates"
 mkdir -p "$folder"
-zip="Pendant-$version.zip"
-ditto -c -k --keepParent build.noindex/Build/Products/Release/Pendant.app "$folder/$zip"
-(cd "$folder" && shasum -a 256 "$zip" > "$zip.sha256")
-swift scripts/update-signing.swift sign "$version" "$folder/$zip" >/dev/null
+package="Pendant-$version.dmg"
+scripts/make-dmg.sh build.noindex/Build/Products/Release/Pendant.app "$folder/$package" >/dev/null
+(cd "$folder" && shasum -a 256 "$package" > "$package.sha256")
+swift scripts/update-signing.swift sign "$version" "$folder/$package" >/dev/null
 
 python3 - "$folder" <<'PY'
 import json, os, re, sys
 folder = sys.argv[1]
 releases = []
 for name in sorted(os.listdir(folder)):
-    m = re.fullmatch(r"Pendant-(\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?)\.zip", name)
+    m = re.fullmatch(r"Pendant-(\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?)\.dmg", name)
     if not m:
         continue
     assets = []

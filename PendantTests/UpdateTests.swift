@@ -172,6 +172,29 @@ struct UpdateInstallerTests {
         #expect(installedVersion == "0.2.0")
     }
 
+    /// The release image has the installer layout (a shortcut to /Applications and a hidden background folder next to the app).
+    @Test func unpacksAnInstallerDiskImage() throws {
+        let root = try tempFolder()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let stage = root.appendingPathComponent("stage", isDirectory: true)
+        try FileManager.default.createDirectory(at: stage, withIntermediateDirectories: true)
+        let package = try makePackage(version: "0.2.0", in: stage)
+        try FileManager.default.createSymbolicLink(atPath: stage.appendingPathComponent("Applications").path, withDestinationPath: "/Applications")
+        try FileManager.default.createDirectory(at: stage.appendingPathComponent(".background"), withIntermediateDirectories: true)
+        try? FileManager.default.removeItem(at: package.zip)
+        let image = root.appendingPathComponent("Fake.dmg")
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/hdiutil")
+        process.arguments = ["create", "-srcfolder", stage.path, "-volname", "FakeTest", "-format", "UDZO", image.path]
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        try process.run()
+        process.waitUntilExit()
+        let unpacked = try UpdateInstaller.unpack(image, into: root)
+        #expect(unpacked.lastPathComponent == "Fake.app")
+        try UpdateInstaller.validate(app: unpacked, bundleID: "com.test.fake", expected: SemVer("0.2.0"), checkSignature: false)
+    }
+
     @Test func aPackageWithoutAnAppIsRefused() throws {
         let root = try tempFolder()
         defer { try? FileManager.default.removeItem(at: root) }

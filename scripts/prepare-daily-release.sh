@@ -1,6 +1,6 @@
 #!/bin/bash
 # Prepares the day's GitHub release WITHOUT publishing anything: bumps the version once, moves the [Unreleased] changelog entries
-# under it, builds the ad-hoc signed app and zips it with a SHA-256 file into build.noindex/release/. Nothing is committed, pushed
+# under it, builds the ad-hoc signed app and packs it into a disk image with a SHA-256 file into build.noindex/release/. Nothing is committed, pushed
 # or uploaded and the installed app / the local update folder are not touched; `scripts/publish-github.sh X.Y.Z` does that after
 # the developer has confirmed.
 # Usage: scripts/prepare-daily-release.sh [--force | --rebuild]
@@ -38,10 +38,10 @@ print((m.group(1) if m else "").strip())
 PY
 )
   scripts/build-release.sh "$current" >/dev/null
-  rm -f "$out"/Pendant-*.zip "$out"/Pendant-*.zip.sha256 "$out"/Pendant-*.zip.sig "$out"/notes-*.md
-  ditto -c -k --keepParent build.noindex/Build/Products/Release/Pendant.app "$out/Pendant-$current.zip"
-  (cd "$out" && shasum -a 256 "Pendant-$current.zip" > "Pendant-$current.zip.sha256")
-  swift scripts/update-signing.swift sign "$current" "$out/Pendant-$current.zip" >/dev/null
+  rm -f "$out"/Pendant-*.dmg "$out"/Pendant-*.dmg.sha256 "$out"/Pendant-*.dmg.sig "$out"/notes-*.md
+  scripts/make-dmg.sh build.noindex/Build/Products/Release/Pendant.app "$out/Pendant-$current.dmg" >/dev/null
+  (cd "$out" && shasum -a 256 "Pendant-$current.dmg" > "Pendant-$current.dmg.sha256")
+  swift scripts/update-signing.swift sign "$current" "$out/Pendant-$current.dmg" >/dev/null
   printf '%s\n' "$notes" > "$out/notes-$current.md"
   echo "READY $current (rebuilt)"
   echo "notes: $out/notes-$current.md"
@@ -49,7 +49,7 @@ PY
 fi
 
 # Already prepared and still waiting for the developer's confirmation (e.g. the midnight run, now the 17:00 reminder): reuse it.
-if [ -f "$out/Pendant-$current.zip" ] && ! gh release view "v$current" --repo smallja0605/pendant >/dev/null 2>&1; then
+if [ -f "$out/Pendant-$current.dmg" ] && ! gh release view "v$current" --repo smallja0605/pendant >/dev/null 2>&1; then
   echo "READY $current (already prepared, not yet published)"
   echo "notes: $out/notes-$current.md"
   exit 0
@@ -101,10 +101,10 @@ PY
 sed -i '' "s/MARKETING_VERSION = [0-9.]*;/MARKETING_VERSION = $version;/" Pendant.xcodeproj/project.pbxproj
 
 scripts/build-release.sh "$version" >/dev/null
-rm -f "$out"/Pendant-*.zip "$out"/Pendant-*.zip.sha256 "$out"/Pendant-*.zip.sig "$out"/notes-*.md
-ditto -c -k --keepParent build.noindex/Build/Products/Release/Pendant.app "$out/Pendant-$version.zip"
-(cd "$out" && shasum -a 256 "Pendant-$version.zip" > "Pendant-$version.zip.sha256")
-swift scripts/update-signing.swift sign "$version" "$out/Pendant-$version.zip" >/dev/null
+rm -f "$out"/Pendant-*.dmg "$out"/Pendant-*.dmg.sha256 "$out"/Pendant-*.dmg.sig "$out"/notes-*.md
+scripts/make-dmg.sh build.noindex/Build/Products/Release/Pendant.app "$out/Pendant-$version.dmg" >/dev/null
+(cd "$out" && shasum -a 256 "Pendant-$version.dmg" > "Pendant-$version.dmg.sha256")
+swift scripts/update-signing.swift sign "$version" "$out/Pendant-$version.dmg" >/dev/null
 printf '%s\n' "$notes" > "$out/notes-$version.md"
 echo "READY $version"
 echo "notes: $out/notes-$version.md"
