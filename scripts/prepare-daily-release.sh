@@ -19,7 +19,8 @@ mkdir -p "$out"
 
 today=$(date +%Y-%m-%d)
 current=$(grep -m1 "MARKETING_VERSION" Pendant.xcodeproj/project.pbxproj | sed 's/.*= \(.*\);/\1/')
-latest=$(gh release list --repo smallja0605/pendant --limit 1 --json tagName,createdAt -q '.[0] | "\(.tagName) \(.createdAt)"' 2>/dev/null || true)
+all_latest=$(gh release list --repo smallja0605/pendant --limit 1 --json tagName -q '.[0].tagName' 2>/dev/null || true)
+latest=$(gh release list --repo smallja0605/pendant --exclude-pre-releases --limit 1 --json tagName,createdAt -q '.[0] | "\(.tagName) \(.createdAt)"' 2>/dev/null || true)
 latest_tag=${latest%% *}
 latest_day=$(python3 -c "
 import sys, datetime
@@ -61,7 +62,7 @@ if [ -n "$latest_day" ] && [ "$latest_day" = "$today" ] && [ "$force" = 0 ]; the
 fi
 
 # Next version = the higher of the project's and the newest release's, patch + 1 (0.4.14 -> 0.4.15).
-version=$(python3 - "$current" "${latest_tag#v}" <<'PY'
+version=$(python3 - "$current" "${latest_tag#v}" "${all_latest#v}" <<'PY'
 import sys
 def parse(v):
     try:
@@ -69,8 +70,13 @@ def parse(v):
         return (int(a), int(b), int(c))
     except Exception:
         return (0, 0, 0)
-top = max(parse(sys.argv[1]), parse(sys.argv[2]))
-print("%d.%d.%d" % (top[0], top[1], top[2] + 1))
+# A beta of the next version (0.4.20-beta.2 after stable 0.4.19) means the stable release is that version itself.
+newest = sys.argv[3] or sys.argv[1]
+if "-" in newest and parse(newest) > max(parse(sys.argv[1]) if "-" not in sys.argv[1] else (0, 0, 0), parse(sys.argv[2])):
+    print("%d.%d.%d" % parse(newest))
+else:
+    top = max(parse(sys.argv[1]) if "-" not in sys.argv[1] else (0, 0, 0), parse(sys.argv[2]))
+    print("%d.%d.%d" % (top[0], top[1], top[2] + 1))
 PY
 )
 
@@ -98,7 +104,7 @@ else:
     text = text.replace("## [Unreleased]\n", "## [Unreleased]\n\n## [%s] - %s\n" % (version, day), 1)
 open("CHANGELOG.md", "w", encoding="utf-8").write(text)
 PY
-sed -i '' "s/MARKETING_VERSION = [0-9.]*;/MARKETING_VERSION = $version;/" Pendant.xcodeproj/project.pbxproj
+sed -i '' "s/MARKETING_VERSION = [^;]*;/MARKETING_VERSION = $version;/" Pendant.xcodeproj/project.pbxproj
 
 scripts/build-release.sh "$version" >/dev/null
 rm -f "$out"/Pendant-*.dmg "$out"/Pendant-*.dmg.sha256 "$out"/Pendant-*.dmg.sig "$out"/notes-*.md

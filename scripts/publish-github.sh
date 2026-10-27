@@ -2,7 +2,8 @@
 # Publishes what `scripts/prepare-daily-release.sh` prepared: commits the working tree as "Release X.Y.Z", tags it, pushes the
 # branch and the tag to GitHub and creates the GitHub release with the disk image and its SHA-256 file. Run it ONLY after the developer
 # has confirmed. The installed app and the local update folder are not touched.
-# Usage: scripts/publish-github.sh X.Y.Z [--force-with-lease]   (the flag: the first push after the local history was rewritten)
+# A version with a pre-release part (X.Y.Z-beta.N) is published as a GitHub pre-release.
+# Usage: scripts/publish-github.sh X.Y.Z[-beta.N] [--force-with-lease]   (the flag: the first push after the local history was rewritten)
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -25,6 +26,8 @@ else
   git push origin main
 fi
 git push origin "v$version"
-gh release create "v$version" "$out/Pendant-$version.dmg" "$out/Pendant-$version.dmg.sha256" "$out/Pendant-$version.dmg.sig" \
+pre=()
+case "$version" in *-*) pre=(--prerelease) ;; esac
+gh release create "v$version" ${pre[@]+"${pre[@]}"} "$out/Pendant-$version.dmg" "$out/Pendant-$version.dmg.sha256" "$out/Pendant-$version.dmg.sig" \
   --repo smallja0605/pendant --title "Pendant $version" --notes-file "$out/notes-$version.md"
 echo "Published v$version"

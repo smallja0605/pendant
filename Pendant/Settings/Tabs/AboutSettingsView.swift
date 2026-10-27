@@ -20,7 +20,13 @@ struct AboutSettingsView: View {
                     Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 56, height: 56)
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Pendant").font(.title3.weight(.semibold))
-                        Text("版本 \(version)").foregroundStyle(.secondary)
+                        HStack(spacing: 6) {
+                            Text("版本 \(version)").foregroundStyle(.secondary)
+                            if UpdateChecker.bundleVersion.isPrerelease {
+                                Text("測試版").font(.caption2.weight(.semibold)).padding(.horizontal, 6).padding(.vertical, 1)
+                                    .background(.orange.opacity(0.2), in: Capsule()).foregroundStyle(.orange)
+                            }
+                        }
                         Text("作者：smallja").foregroundStyle(.secondary)
                     }
                 }
@@ -43,7 +49,7 @@ struct AboutSettingsView: View {
         .formStyle(.grouped)
     }
 
-    private var updateSection: some View {
+    @ViewBuilder private var updateSection: some View {
         Section("更新") {
             HStack {
                 Button("檢查更新") { Task { await updater.check(userInitiated: true) } }
@@ -63,14 +69,14 @@ struct AboutSettingsView: View {
             LabeledContent("更新來源") { Text(UpdateConfig.source.title).foregroundStyle(.secondary) }
             Toggle("自動檢查更新", isOn: $settings.autoCheckUpdates)
             Toggle("自動安裝更新", isOn: $settings.autoInstallUpdates).dimmed(when: !settings.autoCheckUpdates)
-            TipRow(title: "更新頻道") {
-                Picker("", selection: $settings.updateChannel) {
-                    Text("正式版").tag("stable")
-                    Text("含預覽版").tag("preview")
-                }
-                .pickerStyle(.segmented)
+        }
+        Section("測試者計畫") {
+            TipRow(title: "加入測試者群組", tip: "提早收到測試版（beta）更新，可能不穩定；關閉後會在下一個正式版時切回正式版") {
+                Toggle("", isOn: Binding(
+                    get: { settings.updateChannel == UpdateRules.Channel.preview.rawValue },
+                    set: { settings.updateChannel = ($0 ? UpdateRules.Channel.preview : .stable).rawValue }
+                ))
                 .labelsHidden()
-                .fixedSize() // as wide as its two segments, at the row's right edge
             }
         }
     }

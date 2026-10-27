@@ -2767,35 +2767,46 @@
         }
       }
     },
-    "更新頻道": {
+    "測試者計畫": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Update channel"
+            "value": "Beta Program"
           }
         }
       }
     },
-    "正式版": {
+    "加入測試者群組": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Stable"
+            "value": "Join the testers group"
           }
         }
       }
     },
-    "含預覽版": {
+    "提早收到測試版（beta）更新，可能不穩定；關閉後會在下一個正式版時切回正式版": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Including previews"
+            "value": "Get beta updates early. They may be unstable; turning this off switches back to stable at the next stable release"
+          }
+        }
+      }
+    },
+    "測試版": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beta"
           }
         }
       }
