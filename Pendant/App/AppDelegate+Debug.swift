@@ -107,8 +107,8 @@ extension AppDelegate {
                 let reading = BatteryMonitor.Reading(percent: kind == "low" ? 18 : 70, charging: charging, pluggedIn: charging)
                 let toast: SystemToast = switch kind {
                 case "low": SystemEventMonitor.lowBatteryToast(reading)
-                case "bluetooth": SystemToast(title: "耳機 1", subtitle: "已連接 · 70%", progress: 0.7, tint: .blue,
-                                              ringSymbol: "bluetooth", trailing: .symbol("headphones"))
+                case "bluetooth": SystemToast(title: "耳機 1", subtitle: "已連接", progress: 0.7, tint: .blue,
+                                              ringSymbol: "headphones", trailing: .value("70%"))
                 default: SystemEventMonitor.chargingToast(reading)
                 }
                 self?.notchManager?.simulateToast(toast, seconds: 30)

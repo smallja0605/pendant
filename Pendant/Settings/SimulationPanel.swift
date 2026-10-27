@@ -76,8 +76,8 @@ final class Simulator {
     func bluetooth(battery: Int, device kind: Int? = nil) {
         let device = kind.map { Self.devices[$0] } ?? Self.devices.randomElement() ?? Self.devices[0]
         let toast = SystemToast(
-            title: "\(device.0) \(Int.random(in: 1...9))", subtitle: "已連接 · \(battery)%", progress: Double(battery) / 100, tint: .blue,
-            ringSymbol: "bluetooth", trailing: .symbol(device.1)
+            title: "\(device.0) \(Int.random(in: 1...9))", subtitle: "已連接", progress: Double(battery) / 100, tint: .blue,
+            ringSymbol: device.1, trailing: .value("\(battery)%")
         )
         manager?.simulateToast(toast, seconds: 6)
     }

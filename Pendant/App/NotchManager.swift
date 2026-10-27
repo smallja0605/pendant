@@ -15,6 +15,10 @@ final class NotchManager {
     private let systemEvents = SystemEventMonitor()
     private let bluetooth = BluetoothMonitor()
     private var keyWatch: Task<Void, Never>?
+    /// While a Bluetooth card is up, volume changes the system makes by itself (the output switching to the new headphones) wait
+    /// for it to fold instead of cutting it off; only the last level is shown afterwards. Key presses are not held.
+    private var hudHoldUntil = Date.distantPast
+    private var heldLevel: Task<Void, Never>?
 
     var isPaused = false {
         didSet { controllers.forEach { $0.isPaused = isPaused } }
@@ -39,7 +43,7 @@ final class NotchManager {
         }
         rebuild()
         syncMediaRunning()
-        levelMonitor.onChange = { [weak self] level in self?.showHUD(level) }
+        levelMonitor.onChange = { [weak self] level in self?.systemLevelChanged(level) }
         keyInterceptor.onKey = { [weak self] key, fine in self?.mediaKey(key, fine: fine) ?? false }
         syncLevelMonitor()
         BatteryMonitor.shared.start()
@@ -158,7 +162,19 @@ final class NotchManager {
         return true
     }
 
+    private func systemLevelChanged(_ level: SystemLevel) {
+        let wait = hudHoldUntil.timeIntervalSinceNow
+        guard wait > 0 else { showHUD(level); return }
+        heldLevel?.cancel()
+        heldLevel = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(wait))
+            guard !Task.isCancelled else { return }
+            self?.showHUD(level)
+        }
+    }
+
     private func showHUD(_ level: SystemLevel) {
+        heldLevel?.cancel()
         let settings = AppSettings.shared
         switch level {
         case .volume: guard settings.hudVolume else { return }
@@ -178,9 +194,12 @@ final class NotchManager {
     private func bluetoothConnected(_ device: BluetoothConnection, update: Bool = false) {
         let settings = AppSettings.shared
         guard settings.bluetoothToast else { return }
-        let subtitle = device.battery.map { tr("已連接 · \($0)%") } ?? tr("已連接")
-        let toast = SystemToast(title: device.name, subtitle: subtitle, progress: Double(device.battery ?? 100) / 100, tint: .blue,
-                                ringSymbol: "bluetooth", trailing: .symbol(device.symbol))
+        let level = device.battery.map { Double($0) / 100 } ?? -1
+        // The device's kind in the ring, its level (once known) on the right, like the charging card.
+        let subtitle = device.isLastKnown ? tr("已連接 · 上次電量") : tr("已連接")
+        let toast = SystemToast(title: device.name, subtitle: subtitle, progress: level, tint: .blue,
+                                ringSymbol: device.symbol, trailing: .value(device.battery.map { "\($0)%" } ?? "--%"))
+        if !update { hudHoldUntil = Date().addingTimeInterval(settings.bluetoothToastSeconds + 0.5) }
         if update { controllers.forEach { $0.updateToast(toast, seconds: settings.bluetoothToastSeconds) } } else {
             controllers.forEach { $0.showToast(toast, seconds: settings.bluetoothToastSeconds) }
         }

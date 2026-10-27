@@ -5,8 +5,8 @@ struct SystemToastDemoView: View {
     private static let cards: [SystemToast] = [
         SystemEventMonitor.chargingToast(.init(percent: 70, charging: true, pluggedIn: true)),
         SystemEventMonitor.lowBatteryToast(.init(percent: 18, charging: false, pluggedIn: false)),
-        SystemToast(title: "耳機 1", subtitle: "已連接 · 70%", progress: 0.7, tint: .blue, ringSymbol: "bluetooth",
-                    trailing: .symbol("headphones")),
+        SystemToast(title: "耳機 1", subtitle: "已連接", progress: 0.7, tint: .blue, ringSymbol: "headphones",
+                    trailing: .value("70%")),
     ]
 
     private let bar = DemoDesk<EmptyView>.menuBarHeight

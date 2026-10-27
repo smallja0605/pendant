@@ -1,11 +1,14 @@
 import Foundation
 import IOBluetooth
+import ObjectiveC
 
 /// A Bluetooth device that just connected.
 struct BluetoothConnection: Equatable, Sendable {
     var name: String
     var symbol: String
     var battery: Int?
+    /// The level is the one seen the last time this device was connected (the system gave none this time).
+    var isLastKnown = false
 }
 
 /// Reports Bluetooth devices (headphones, mice, keyboards…) as they connect, with their name, a symbol for their kind and — when
@@ -19,6 +22,7 @@ final class BluetoothMonitor: NSObject {
     private var registration: IOBluetoothUserNotification?
     private var startedAt = Date.distantFuture
     private var starting = false
+    private var lastReported: [String: Date] = [:]
 
     func start() {
         guard registration == nil, !starting else { return }
@@ -44,29 +48,90 @@ final class BluetoothMonitor: NSObject {
         // The registration can replay devices that are already connected right after it is made.
         guard Date().timeIntervalSince(startedAt) > 3, let name = device.name, !name.isEmpty else { return }
         let address = device.addressString ?? ""
+        #if DEBUG
+        Self.debugDump(device)
+        #endif
         let major = device.deviceClassMajor, minor = device.deviceClassMinor
         // The card must not wait for the battery: show it at once, fill the level in when it is known.
         let firstSymbol = Self.symbol(name: name, major: major, minor: minor, profileType: nil)
-        let first = BluetoothConnection(name: name, symbol: firstSymbol, battery: nil)
+        // The device's own level is there the moment it connects (the system also sends this notification twice, a few ms apart).
+        guard Date().timeIntervalSince(lastReported[name] ?? .distantPast) > 2 else { return }
+        lastReported[name] = Date()
+        let fresh = Self.battery(of: device)
+        if let fresh { Self.remember(fresh, for: address) }
+        let remembered = fresh == nil ? Self.remembered(for: address) : nil
+        let first = BluetoothConnection(name: name, symbol: firstSymbol, battery: fresh ?? remembered, isLastKnown: remembered != nil)
         onConnect?(first)
         Task { @MainActor [weak self] in
-            // The battery level is not known the moment a device connects.
-            try? await Task.sleep(for: .seconds(1))
-            var battery = Self.trustsOwnBattery(name) ? Self.battery(of: device) : nil
-            let profile = await Self.profile(named: name, address: address)
-            battery = battery ?? profile?.battery
-            let symbol = Self.symbol(name: name, major: major, minor: minor, profileType: profile?.type)
-            let details = BluetoothConnection(name: name, symbol: symbol, battery: battery)
-            if details != first { self?.onDetails?(details) }
+            // The level is 0 when the device connects and shows up a little later: look again for a few seconds, then ask
+            // `system_profiler` once (it knows the level of some devices the property does not).
+            var battery = fresh
+            for _ in 0..<16 where battery == nil {
+                try? await Task.sleep(for: .milliseconds(500))
+                battery = Self.battery(of: device)
+            }
+            if battery == nil {
+                let profile = await Self.profile(named: name, address: address)
+                battery = profile?.battery
+                let symbol = Self.symbol(name: name, major: major, minor: minor, profileType: profile?.type)
+                if let level = battery { Self.remember(level, for: address) }
+                let shown = battery ?? remembered
+                let details = BluetoothConnection(name: name, symbol: symbol, battery: shown, isLastKnown: battery == nil && shown != nil)
+                if details != first { self?.onDetails?(details) }
+            } else if let level = battery {
+                Self.remember(level, for: address)
+                self?.onDetails?(BluetoothConnection(name: name, symbol: first.symbol, battery: level))
+            }
         }
     }
 
-    /// Only Apple's own devices report a level through IOBluetooth that can be believed; other makers' headsets give a stale
-    /// or coarse (0–5 steps) number there, so those are left to `system_profiler` (and show no level when it has none).
-    private static func trustsOwnBattery(_ name: String) -> Bool {
-        let lower = name.lowercased()
-        return ["airpods", "beats", "magic", "apple"].contains { lower.contains($0) }
+    // MARK: Last known level
+
+    private static let rememberedKey = "bluetoothLastBattery"
+
+    private static func remember(_ level: Int, for address: String) {
+        guard !address.isEmpty else { return }
+        var levels = UserDefaults.standard.dictionary(forKey: rememberedKey) as? [String: Int] ?? [:]
+        levels[address] = level
+        UserDefaults.standard.set(levels, forKey: rememberedKey)
     }
+
+    private static func remembered(for address: String) -> Int? {
+        (UserDefaults.standard.dictionary(forKey: rememberedKey) as? [String: Int])?[address]
+    }
+
+    #if DEBUG
+    /// PENDANT_DEBUG_BT=<file>: writes when a device connected and every battery-like property it has (to find where a level lives).
+    private static func debugDump(_ device: IOBluetoothDevice) {
+        guard let path = ProcessInfo.processInfo.environment["PENDANT_DEBUG_BT"] else { return }
+        var lines = ["\(Date().timeIntervalSince1970) connected \(device.name ?? "?")"]
+        var count: UInt32 = 0
+        var classType: AnyClass? = type(of: device)
+        while let current = classType, current != NSObject.self {
+            if let list = class_copyPropertyList(current, &count) {
+                for index in 0..<Int(count) {
+                    let name = String(cString: property_getName(list[index]))
+                    guard name.lowercased().contains("batt") else { continue }
+                    lines.append("  \(name) = \(String(describing: device.value(forKey: name)))")
+                }
+                free(list)
+            }
+            classType = class_getSuperclass(current)
+        }
+        try? (lines.joined(separator: "\n") + "\n").appendingToFile(path)
+        // Does the level ever show up, and only on a freshly made object?
+        let address = device.addressString ?? ""
+        Task { @MainActor in
+            for second in 1...12 {
+                try? await Task.sleep(for: .seconds(1))
+                let fresh = IOBluetoothDevice(addressString: address)
+                let old = (device.value(forKey: "batteryPercentSingle") as? Int) ?? -1
+                let new = (fresh?.value(forKey: "batteryPercentSingle") as? Int) ?? -1
+                try? "  +\(second)s old=\(old) fresh=\(new)\n".appendingToFile(path)
+            }
+        }
+    }
+    #endif
 
     // MARK: Kind
 
@@ -150,3 +215,18 @@ final class BluetoothMonitor: NSObject {
         }.value
     }
 }
+
+#if DEBUG
+private extension String {
+    func appendingToFile(_ path: String) throws {
+        let url = URL(fileURLWithPath: path)
+        if let handle = try? FileHandle(forWritingTo: url) {
+            handle.seekToEndOfFile()
+            handle.write(Data(utf8))
+            try handle.close()
+        } else {
+            try write(to: url, atomically: true, encoding: .utf8)
+        }
+    }
+}
+#endif

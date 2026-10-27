@@ -314,17 +314,6 @@
         }
       }
     },
-    "已連接 · 70%": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Connected · 70%"
-          }
-        }
-      }
-    },
     "日": {
       "extractionState": "manual",
       "localizations": {
@@ -2811,6 +2800,17 @@
         }
       }
     },
+    "已連接 · 上次電量": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connected · last level"
+          }
+        }
+      }
+    },
     "檢查中…": {
       "extractionState": "manual",
       "localizations": {
@@ -4226,17 +4226,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "New version %@…"
-          }
-        }
-      }
-    },
-    "已連接 · %lld%%": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Connected · %lld%%"
           }
         }
       }

@@ -163,9 +163,12 @@ struct ToastRing: View {
     var body: some View {
         ZStack {
             Circle().stroke(tint.color.opacity(0.25), lineWidth: lineWidth)
-            Circle().trim(from: 0, to: max(min(progress, 1), 0.02))
-                .stroke(tint.color, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
-                .rotationEffect(.degrees(-90))
+            // A negative level means "not known (yet)": only the track, no arc.
+            if progress >= 0 {
+                Circle().trim(from: 0, to: max(min(progress, 1), 0.02))
+                    .stroke(tint.color, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+            }
             if symbol == "bluetooth" {
                 BluetoothMark().stroke(.white, style: StrokeStyle(lineWidth: 2.2, lineCap: .round, lineJoin: .round))
                     .frame(width: 11, height: 17)
