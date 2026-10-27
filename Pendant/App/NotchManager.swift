@@ -47,6 +47,7 @@ final class NotchManager {
         systemEvents.onDismiss = { [weak self] in self?.controllers.forEach { $0.hideToast() } }
         systemEvents.start()
         bluetooth.onConnect = { [weak self] device in self?.bluetoothConnected(device) }
+        bluetooth.onDetails = { [weak self] device in self?.bluetoothConnected(device, update: true) }
         syncBluetooth()
         observeSettings()
         dragWatcher.onFileDrag = { [weak self] point, origin in self?.fileDragMoved(to: point, from: origin) }
@@ -173,13 +174,16 @@ final class NotchManager {
         if AppSettings.shared.bluetoothToast { bluetooth.start() } else { bluetooth.stop() }
     }
 
-    private func bluetoothConnected(_ device: BluetoothConnection) {
+    /// `update`: the same device's card again with its battery level; only changes a card that is still showing.
+    private func bluetoothConnected(_ device: BluetoothConnection, update: Bool = false) {
         let settings = AppSettings.shared
         guard settings.bluetoothToast else { return }
         let subtitle = device.battery.map { tr("已連接 · \($0)%") } ?? tr("已連接")
         let toast = SystemToast(title: device.name, subtitle: subtitle, progress: Double(device.battery ?? 100) / 100, tint: .blue,
                                 ringSymbol: "bluetooth", trailing: .symbol(device.symbol))
-        controllers.forEach { $0.showToast(toast, seconds: settings.bluetoothToastSeconds) }
+        if update { controllers.forEach { $0.updateToast(toast, seconds: settings.bluetoothToastSeconds) } } else {
+            controllers.forEach { $0.showToast(toast, seconds: settings.bluetoothToastSeconds) }
+        }
     }
 
     func hideToasts() { controllers.forEach { $0.hideToast() } }

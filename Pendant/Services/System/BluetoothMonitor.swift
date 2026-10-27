@@ -12,7 +12,9 @@ struct BluetoothConnection: Equatable, Sendable {
 /// the system knows it — their battery level. Only changes are reported: devices that are already connected at launch are not.
 @MainActor
 final class BluetoothMonitor: NSObject {
+    /// Called the moment a device connects (no battery yet), and once more when its battery level / kind is known.
     var onConnect: ((BluetoothConnection) -> Void)?
+    var onDetails: ((BluetoothConnection) -> Void)?
 
     private var registration: IOBluetoothUserNotification?
     private var startedAt = Date.distantFuture
@@ -43,18 +45,27 @@ final class BluetoothMonitor: NSObject {
         guard Date().timeIntervalSince(startedAt) > 3, let name = device.name, !name.isEmpty else { return }
         let address = device.addressString ?? ""
         let major = device.deviceClassMajor, minor = device.deviceClassMinor
+        // The card must not wait for the battery: show it at once, fill the level in when it is known.
+        let firstSymbol = Self.symbol(name: name, major: major, minor: minor, profileType: nil)
+        let first = BluetoothConnection(name: name, symbol: firstSymbol, battery: nil)
+        onConnect?(first)
         Task { @MainActor [weak self] in
             // The battery level is not known the moment a device connects.
-            try? await Task.sleep(for: .seconds(1.5))
-            var battery = Self.battery(of: device)
-            var profile: Profile?
-            if battery == nil {
-                profile = await Self.profile(named: name, address: address)
-                battery = profile?.battery
-            }
+            try? await Task.sleep(for: .seconds(1))
+            var battery = Self.trustsOwnBattery(name) ? Self.battery(of: device) : nil
+            let profile = await Self.profile(named: name, address: address)
+            battery = battery ?? profile?.battery
             let symbol = Self.symbol(name: name, major: major, minor: minor, profileType: profile?.type)
-            self?.onConnect?(BluetoothConnection(name: name, symbol: symbol, battery: battery))
+            let details = BluetoothConnection(name: name, symbol: symbol, battery: battery)
+            if details != first { self?.onDetails?(details) }
         }
+    }
+
+    /// Only Apple's own devices report a level through IOBluetooth that can be believed; other makers' headsets give a stale
+    /// or coarse (0–5 steps) number there, so those are left to `system_profiler` (and show no level when it has none).
+    private static func trustsOwnBattery(_ name: String) -> Bool {
+        let lower = name.lowercased()
+        return ["airpods", "beats", "magic", "apple"].contains { lower.contains($0) }
     }
 
     // MARK: Kind

@@ -358,6 +358,12 @@ final class NotchWindowController { // swiftlint:disable:this type_body_length
         toast.show(card, seconds: seconds)
     }
 
+    /// Fills in a card that is already showing (same title); nothing happens when it is gone or another card is up.
+    func updateToast(_ card: SystemToast, seconds: Double?) {
+        guard model.toastVisible, model.toast.title == card.title else { return }
+        toast.show(card, seconds: seconds)
+    }
+
     func hideToast() { toast.fold() }
 
     /// Global shortcut. When it opens the capsule, the panel takes keyboard focus (it never activates the app), so the
