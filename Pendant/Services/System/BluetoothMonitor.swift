@@ -2,6 +2,11 @@ import Foundation
 import IOBluetooth
 import ObjectiveC
 
+/// The device object travels from IOBluetooth's queue to the main actor; it is only read there.
+private struct UncheckedDevice: @unchecked Sendable {
+    let device: IOBluetoothDevice
+}
+
 /// A Bluetooth device that just connected.
 struct BluetoothConnection: Equatable, Sendable {
     var name: String
@@ -44,7 +49,13 @@ final class BluetoothMonitor: NSObject {
         registration = nil
     }
 
-    @objc private func deviceConnected(_ notification: IOBluetoothUserNotification, device: IOBluetoothDevice) {
+    /// IOBluetooth calls this on its own queue (not the main actor's, which the class would trap on): hop to the main actor first.
+    @objc private nonisolated func deviceConnected(_ notification: IOBluetoothUserNotification, device: IOBluetoothDevice) {
+        let box = UncheckedDevice(device: device)
+        Task { @MainActor [weak self] in self?.handleConnect(box.device) }
+    }
+
+    private func handleConnect(_ device: IOBluetoothDevice) {
         // The registration can replay devices that are already connected right after it is made.
         guard Date().timeIntervalSince(startedAt) > 3, let name = device.name, !name.isEmpty else { return }
         let address = device.addressString ?? ""
