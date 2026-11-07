@@ -230,6 +230,7 @@ final class NotchWindowController { // swiftlint:disable:this type_body_length
             return
         }
         model.setHoveredIsland(inside ? id : nil)
+        if inside { HapticService.shared.play(.notchEnter) }
         interaction.islandPointer(inside: inside)
     }
 

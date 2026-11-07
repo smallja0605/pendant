@@ -442,10 +442,19 @@ extension CapsuleInteractionController {
         if !isHovering, !isInHit(layout, point, state: .compact) { setInteractive(false) }
     }
 
+    private func releaseIslandHover(unless keep: Bool) {
+        if !keep, model.hoveredIsland != nil { model.setHoveredIsland(nil) }
+    }
+
     /// Returns false when the watch is no longer needed.
     private func checkPointer() -> Bool {
-        guard isActive, let layout = model.layout else { return false }
+        guard isActive, let layout = model.layout else {
+            releaseIslandHover(unless: false)
+            return false
+        }
         let point = NSEvent.mouseLocation
+        // Whatever state the capsule is in, an island the pointer has left must not stay swollen.
+        releaseIslandHover(unless: model.state == .compact)
         switch model.state {
         case .idle:
             // The swollen notch takes clicks (so a right click reaches our menu): if the pointer is no longer on it, hand the

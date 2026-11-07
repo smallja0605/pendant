@@ -80,12 +80,13 @@ struct TimerIslandContent: View {
                 Image(systemName: symbol).font(.system(size: 12, weight: .semibold)).foregroundStyle(color)
             }
             TimelineView(.periodic(from: .now, by: 1)) { context in
-                Text(TimerEngine.format(engine.displayTime(at: context.date)))
+                let text = TimerEngine.format(engine.displayTime(at: context.date))
+                Text(text)
                     .font(.system(size: 12, weight: .semibold, design: .rounded))
                     .monospacedDigit()
                     .foregroundStyle(.white)
-                    .contentTransition(.identity)
-                    .animation(nil, value: TimerEngine.format(engine.displayTime(at: context.date)))
+                    .contentTransition(.numericText(countsDown: engine.mode == .countdown))
+                    .animation(.snappy(duration: 0.35), value: text)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
             }

@@ -37,6 +37,8 @@ struct IslandSettings: Equatable, Sendable {
     var leftOffset: CGFloat = 0
     var rightOffset: CGFloat = 0
     var maxWidth: CGFloat = 100
+    /// Secondary islands are this fraction of the main island's height, centred on it.
+    var heightRatio: CGFloat = 0.8
     /// ④ Hang below the menu bar instead of covering it.
     var sinking = false
     /// ⑥ Free x-range in the menu bar (screen coordinates): islands outside it are dropped.
@@ -89,7 +91,7 @@ enum IslandPlanner {
         let second = sides.count == 2 ? other : first
 
         var edges: [IslandSide: CGFloat] = [.left: mainRect.minX - ear, .right: mainRect.maxX + ear]
-        let height = mainRect.height
+        let height = min(mainRect.height, (mainRect.height * settings.heightRatio).rounded() + 3)
         let top = screenFrame.maxY - (settings.sinking ? menuBarHeight : 0)
         var result: [IslandPlacement] = []
         var closed: Set<IslandSide> = []
@@ -100,7 +102,7 @@ enum IslandPlanner {
             let width = min(activity.secondaryWidth, settings.maxWidth)
             let shift = shifted.contains(side) ? 0 : (side == .left ? settings.leftOffset : settings.rightOffset)
             let originX = side == .left ? edge - settings.gap - width - shift : edge + settings.gap + shift
-            let rect = CGRect(x: originX, y: top - height, width: width, height: height)
+            let rect = CGRect(x: originX, y: top - (mainRect.height + height) / 2 + 1, width: width, height: height)
             if let bound = settings.leftBound, rect.minX < bound { closed.insert(side); continue }
             if let bound = settings.rightBound, rect.maxX > bound { closed.insert(side); continue }
             shifted.insert(side)

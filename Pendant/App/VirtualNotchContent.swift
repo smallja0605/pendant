@@ -157,16 +157,18 @@ struct VirtualClockView: View {
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
-            Text(VirtualClockFormat.string(
+            let text = VirtualClockFormat.string(
                 for: context.date, use24Hour: settings.virtualClock24h, seconds: settings.virtualClockSeconds,
                 showsDate: settings.virtualClockDate, dateFormat: settings.virtualDateFormat
-            ))
+            )
+            Text(text)
             .font(.system(size: 13, weight: .semibold))
             .monospacedDigit()
             .foregroundStyle(.white)
             .lineLimit(1)
             .minimumScaleFactor(0.7)
-            .contentTransition(.identity)
+            .contentTransition(.numericText())
+            .animation(.snappy(duration: 0.35), value: text)
             .padding(.horizontal, 6)
         }
     }
@@ -204,6 +206,8 @@ struct VirtualPercentText: View {
         if let reading = battery.reading {
             Text("\(reading.percent)%").font(.system(size: size, weight: .semibold)).monospacedDigit()
                 .foregroundStyle(.white).fixedSize()
+                .contentTransition(.numericText())
+                .animation(.snappy(duration: 0.35), value: reading.percent)
         }
     }
 }
@@ -227,8 +231,12 @@ struct VirtualBigStrip: View {
                     Text(VirtualClockFormat.date(context.date, format: settings.virtualDateFormat))
                 }
                 if settings.virtualBigTime {
-                    Text(VirtualClockFormat.time(context.date, use24Hour: settings.virtualClock24h, seconds: settings.virtualClockSeconds))
+                    let time = VirtualClockFormat.time(
+                        context.date, use24Hour: settings.virtualClock24h, seconds: settings.virtualClockSeconds)
+                    Text(time)
                         .fontWeight(.bold)
+                        .contentTransition(.numericText())
+                        .animation(.snappy(duration: 0.35), value: time)
                 }
             }
             .font(.system(size: 13, weight: .semibold))
