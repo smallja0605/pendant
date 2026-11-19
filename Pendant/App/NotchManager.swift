@@ -141,15 +141,15 @@ final class NotchManager {
         let step = fine ? 1.0 / 64 : 1.0 / 16
         switch key {
         case .volumeUp, .volumeDown:
-            // A device without a settable volume (some HDMI / Bluetooth outputs): the key goes on to the system.
-            guard let current = levelMonitor.currentVolume() else { return false }
+            // A device without a settable volume (some HDMI outputs) or a Bluetooth one (AirPods): the key goes on to the system.
+            guard !levelMonitor.outputIsBluetooth, let current = levelMonitor.currentVolume() else { return false }
             let muted = levelMonitor.currentlyMuted()
             let target = min(max(current + (key == .volumeUp ? step : -step), 0), 1)
             if muted, key == .volumeUp { levelMonitor.setMuted(false) }
             levelMonitor.setVolume(target)
             showHUD(.volume(level: target, muted: key == .volumeUp ? false : muted))
         case .mute:
-            guard let current = levelMonitor.currentVolume() else { return false }
+            guard !levelMonitor.outputIsBluetooth, let current = levelMonitor.currentVolume() else { return false }
             let muted = !levelMonitor.currentlyMuted()
             levelMonitor.setMuted(muted)
             showHUD(.volume(level: current, muted: muted))

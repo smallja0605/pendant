@@ -152,6 +152,20 @@ final class SystemLevelMonitor {
 
     func currentlyMuted() -> Bool { readMuted() }
 
+    /// AirPods and other Bluetooth outputs take their volume from the system's own key handling (absolute volume), which
+    /// writing the device volume from here does not reach: the keys must go on to the system.
+    var outputIsBluetooth: Bool {
+        if device == kAudioObjectUnknown { attachToDefaultDevice() }
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyTransportType, mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        var transport = UInt32(0)
+        var size = UInt32(MemoryLayout<UInt32>.size)
+        guard AudioObjectGetPropertyData(device, &address, 0, nil, &size, &transport) == noErr else { return false }
+        return transport == kAudioDeviceTransportTypeBluetooth || transport == kAudioDeviceTransportTypeBluetoothLE
+    }
+
     func setVolume(_ level: Double) {
         guard device != kAudioObjectUnknown else { return }
         var address = AudioObjectPropertyAddress(
